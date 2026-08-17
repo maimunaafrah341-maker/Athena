@@ -1,5 +1,6 @@
 import chromadb
-from sentence_transformers import SentenceTransformer
+
+from embedding_model import model
 
 
 # ============================================================
@@ -8,18 +9,6 @@ from sentence_transformers import SentenceTransformer
 
 CHROMA_DIR = "chroma_db"
 COLLECTION_NAME = "athena_knowledge"
-MODEL_NAME = "intfloat/multilingual-e5-small"
-
-
-# ============================================================
-# LOAD EMBEDDING MODEL
-# ============================================================
-
-print("Loading embedding model...")
-
-model = SentenceTransformer(MODEL_NAME)
-
-print("Embedding model loaded.")
 
 
 # ============================================================

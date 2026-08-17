@@ -3,7 +3,9 @@ import re
 
 import chromadb
 from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
+
+from embedding_model import model
+from language_detect import detect_language
 
 
 # ============================================================
@@ -14,21 +16,8 @@ SOURCE_DIR = "data/sources"
 CHROMA_DIR = "chroma_db"
 COLLECTION_NAME = "athena_knowledge"
 
-MODEL_NAME = "intfloat/multilingual-e5-small"
-
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
-
-
-# ============================================================
-# LOAD EMBEDDING MODEL
-# ============================================================
-
-print("Loading embedding model...")
-
-model = SentenceTransformer(MODEL_NAME)
-
-print("Embedding model loaded.")
 
 
 # ============================================================
@@ -105,7 +94,8 @@ def process_pdf(pdf_path):
                 "text": chunk,
                 "source": filename,
                 "page": page_number,
-                "chunk": chunk_number
+                "chunk": chunk_number,
+                "language": detect_language(chunk)
             })
 
     print(f"Chunks created: {len(all_chunks)}")
@@ -180,10 +170,10 @@ def store_in_chroma(documents):
         )
 
         metadata.append({
-            "source": document["source"],
-            "page": document["page"],
-            "chunk": document["chunk"],
-            "language": "en"
+           "source": document["source"],
+           "page": document["page"],
+           "chunk": document["chunk"],
+           "language": document["language"]
         })
 
         raw_documents.append(document["text"])
