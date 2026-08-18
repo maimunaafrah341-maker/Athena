@@ -55,8 +55,26 @@ def run_pipeline(text, language=None, top_k=TOP_K):
     # --------------------------------------------------------
     # 1. Understand the incident
     # --------------------------------------------------------
+    #
+    # Empty/whitespace-only input is a user error, not a pipeline
+    # failure -- fail soft into the same escalate/reason contract
+    # as every other guarded branch below instead of letting the
+    # ValueError reach the API layer as an unhandled 500.
 
-    incident = understand(text, language=language)
+    try:
+        incident = understand(text, language=language)
+
+    except ValueError as e:
+
+        return {
+            "incident": None,
+            "risk": None,
+            "citations": [],
+            "top_similarity": 0.0,
+            "escalate": True,
+            "reason": str(e),
+            "response": None,
+        }
 
     # --------------------------------------------------------
     # 2. Assess risk

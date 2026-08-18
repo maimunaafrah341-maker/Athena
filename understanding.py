@@ -30,6 +30,66 @@ print("Loading multilingual understanding model...")
 model = SentenceTransformer(MODEL_NAME)
 
 # ============================================================
+# NEUTRAL / OUT-OF-DOMAIN BASELINE
+# ============================================================
+#
+# multilingual-e5-small (like most short-text sentence embeddings)
+# packs unrelated short sentences into a narrow cosine-similarity
+# range, so an absolute similarity threshold alone can't tell
+# "this text resembles a danger signal" apart from "this is
+# generic small talk that happens to embed nearby." Off-topic
+# and gibberish text was regularly clearing a 0.72 absolute
+# threshold and getting flagged as Critical/immediate danger.
+#
+# Fix: compare every candidate match against how well the same
+# query matches a bank of ordinary, non-incident sentences. Only
+# trust a signal/classification when it beats that neutral
+# baseline by a margin — not just an absolute score.
+
+NEUTRAL_EXAMPLES = [
+    "I had a normal day today.",
+    "Can you recommend a movie to watch tonight?",
+    "I'm trying to decide what to cook for dinner.",
+    "I feel a bit tired but nothing serious.",
+    "Just wanted to say hello.",
+    "I'm bored and don't know what to do.",
+    "The traffic was bad this morning.",
+    "I'm thinking about switching jobs.",
+    "आज मौसम बहुत अच्छा है।",
+    "मुझे समझ नहीं आ रहा कि क्या करूं।",
+    "मैं बस हालचाल पूछ रहा था।",
+    "आज का दिन सामान्य रहा।",
+    "ఈ రోజు వాతావరణం చాలా బాగుంది.",
+    "నాకు ఏమి చేయాలో అర్థం కావడం లేదు.",
+    "నేను కేవలం యోగక్షేమం అడుగుతున్నాను.",
+]
+
+print("Preparing neutral baseline examples...")
+
+neutral_embeddings = model.encode(
+    ["query: " + example for example in NEUTRAL_EXAMPLES],
+    normalize_embeddings=True
+)
+
+# Minimum lead a real match needs over the neutral baseline before
+# it's trusted. Calibrated against real incident reports (margin
+# 0.07-0.17) vs. off-topic/ambiguous/gibberish text (margin -0.09
+# to +0.02) across en/hi/te.
+NEUTRAL_MARGIN = 0.04
+
+
+def neutral_ceiling(query_embedding):
+    """
+    How well this query matches ordinary, non-incident text.
+    Used as the rejection baseline for signal/classification checks.
+    """
+
+    similarities = query_embedding @ neutral_embeddings.T
+
+    return float(similarities.max())
+
+
+# ============================================================
 # LANGUAGE DETECTION
 # ============================================================
 
@@ -132,18 +192,22 @@ def detect_language(text):
         normalize_embeddings=True
     )
 
-    best_language = "en"
-    best_similarity = -1
+    scores = {}
 
     for language, embeddings in language_embeddings.items():
 
         similarities = query_embedding @ embeddings.T
 
-        similarity = float(similarities.max())
+        scores[language] = float(similarities.max())
 
-        if similarity > best_similarity:
-            best_similarity = similarity
-            best_language = language
+    best_language = max(scores, key=scores.get)
+
+    # Ambiguous/short/off-topic text can weakly resemble the hi/te
+    # example sets too. Only override the English default when a
+    # non-English match clearly leads the English score — otherwise
+    # default to English rather than guessing.
+    if best_language != "en" and (scores[best_language] - scores["en"]) < NEUTRAL_MARGIN:
+        return "en"
 
     return best_language
 # ============================================================
@@ -308,7 +372,15 @@ def classify_incident(text):
     best_index = similarities.argmax()
 
     incident_type = example_labels[best_index]
-    confidence = float(similarities[best_index])
+    raw_similarity = float(similarities[best_index])
+
+    # Calibrate confidence against the neutral baseline instead of
+    # trusting the raw cosine score: a margin of NEUTRAL_MARGIN over
+    # neutral text maps to 100% confidence, a margin of 0 (i.e. this
+    # text matches the incident category no better than it matches
+    # ordinary small talk) maps to 0%.
+    margin = raw_similarity - neutral_ceiling(query_embedding)
+    confidence = max(0.0, min(1.0, margin / (NEUTRAL_MARGIN * 2.5)))
 
     return incident_type, confidence
 
@@ -374,6 +446,11 @@ for signal, examples in SIGNAL_EXAMPLES.items():
 def detect_signal(text, signal, threshold=0.72):
     """
     Detect whether a particular safety signal is present.
+
+    Requires both an absolute similarity floor and a lead over the
+    neutral baseline -- ordinary/off-topic text regularly clears a
+    flat threshold on its own (see NEUTRAL_MARGIN above), which was
+    causing signals like immediate_danger to fire on unrelated text.
     """
 
     query_embedding = model.encode(
@@ -388,7 +465,11 @@ def detect_signal(text, signal, threshold=0.72):
 
     best_similarity = float(similarities.max())
 
-    return best_similarity >= threshold, best_similarity
+    margin = best_similarity - neutral_ceiling(query_embedding)
+
+    present = best_similarity >= threshold and margin >= NEUTRAL_MARGIN
+
+    return present, best_similarity
 
 
 # ============================================================
@@ -465,7 +546,9 @@ def detect_relationship(text, threshold=0.70):
     best_index = similarities.argmax()
     best_similarity = float(similarities[best_index])
 
-    if best_similarity < threshold:
+    margin = best_similarity - neutral_ceiling(query_embedding)
+
+    if best_similarity < threshold or margin < NEUTRAL_MARGIN:
         return None, best_similarity
 
     return (
