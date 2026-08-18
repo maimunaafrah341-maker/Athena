@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Athena — Campus Safety Intelligence</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="athena.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- ================= SIDEBAR ================= -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-logo">
+                <span>✦</span>
+            </div>
+
+            <div>
+                <h1>Athena</h1>
+                <p>Campus Safety Intelligence</p>
+            </div>
+        </div>
+
+        <div class="campus-pill">
+            <span class="online-dot"></span>
+            Campus monitoring active
+        </div>
+
+        <nav class="navigation">
+
+            <button class="nav-item active" onclick="showPage('overview', this)">
+                <span>⌂</span>
+                Overview
+            </button>
+
+            <button class="nav-item" onclick="showPage('report', this)">
+                <span>＋</span>
+                Report an incident
+            </button>
+
+            <button class="nav-item" onclick="showPage('map', this)">
+                <span>◉</span>
+                Safety map
+            </button>
+
+            <button class="nav-item" onclick="showPage('routes', this)">
+                <span>⌁</span>
+                Safe routes
+            </button>
+
+            <button class="nav-item" onclick="showPage('alerts', this)">
+                <span>♢</span>
+                Alerts
+                <span class="nav-count">3</span>
+            </button>
+
+            <button class="nav-item" onclick="showPage('reports', this)">
+                <span>▤</span>
+                My reports
+            </button>
+
+        </nav>
+
+        <div class="sidebar-help">
+            <div class="help-icon">?</div>
+
+            <div>
+                <strong>Need immediate help?</strong>
+                <p>Contact campus security or emergency services.</p>
+            </div>
+
+            <button onclick="emergencyHelp()">Get help</button>
+        </div>
+
+        <div class="sidebar-footer">
+            <span class="online-dot"></span>
+            Athena systems operational
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="main">
+
+        <!-- TOP BAR -->
+
+        <header class="topbar">
+
+            <div>
+                <span class="page-label">ATHENA • SAFETY INTELLIGENCE</span>
+                <h2 id="pageTitle">Campus overview</h2>
+            </div>
+
+            <div class="top-actions">
+
+                <button class="icon-button" onclick="showPage('alerts')">
+                    ♢
+                    <span class="notification-dot"></span>
+                </button>
+
+                <button class="profile-button">
+                    <div class="profile-avatar">S</div>
+
+                    <div class="profile-info">
+                        <strong>Student</strong>
+                        <span>Campus member</span>
+                    </div>
+
+                    <span>⌄</span>
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- ================= OVERVIEW ================= -->
+
+        <section id="overview" class="page active-page">
+
+            <div class="hero">
+
+                <div>
+                    <span class="hero-eyebrow">YOUR CAMPUS, UNDERSTOOD</span>
+
+                    <h3>
+                        Stay informed.<br>
+                        <span>Move safer.</span>
+                    </h3>
+
+                    <p>
+                        Athena combines community reports, location and
+                        time-based patterns to help make your campus safer.
+                    </p>
+                </div>
+
+                <div class="hero-orbit">
+                    <div class="hero-ring ring-one"></div>
+                    <div class="hero-ring ring-two"></div>
+                    <div class="hero-core">✦</div>
+                </div>
+
+            </div>
+
+
+            <!-- QUICK ACTIONS -->
+
+            <div class="quick-actions">
+
+                <button onclick="showPage('report')">
+                    <div class="action-icon report-icon">＋</div>
+                    <div>
+                        <strong>Report something</strong>
+                        <span>Tell Athena what happened</span>
+                    </div>
+                    <b>→</b>
+                </button>
+
+                <button onclick="showPage('routes')">
+                    <div class="action-icon route-icon">⌁</div>
+                    <div>
+                        <strong>Find a safer route</strong>
+                        <span>Consider safety, not just distance</span>
+                    </div>
+                    <b>→</b>
+                </button>
+
+                <button onclick="showPage('map')">
+                    <div class="action-icon map-icon">◉</div>
+                    <div>
+                        <strong>Explore safety map</strong>
+                        <span>See reported risk patterns</span>
+                    </div>
+                    <b>→</b>
+                </button>
+
+            </div>
+
+
+            <!-- STAT CARDS -->
+
+            <div class="section-heading">
+                <div>
+                    <span>LIVE OVERVIEW</span>
+                    <h3>Campus safety today</h3>
+                </div>
+
+                <small>Updated just now</small>
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="stat-card safe-stat">
+                    <div class="stat-top">
+                        <span>OVERALL STATUS</span>
+                        <span class="status-icon">✓</span>
+                    </div>
+
+                    <div class="stat-number">SAFE</div>
+
+                    <p>Current campus conditions are within normal range.</p>
+
+                    <div class="stat-line">
+                        <div style="width:72%"></div>
+                    </div>
+
+                    <small>72% low-risk areas</small>
+                </div>
+
+
+                <div class="stat-card">
+                    <div class="stat-top">
+                        <span>COMMUNITY REPORTS</span>
+                        <span class="small-icon">◌</span>
+                    </div>
+
+                    <div class="stat-number">12</div>
+
+                    <p>Reports submitted in the last 7 days.</p>
+
+                    <div class="stat-change positive">↑ 8% this week</div>
+                </div>
+
+
+                <div class="stat-card">
+                    <div class="stat-top">
+                        <span>ACTIVE ALERTS</span>
+                        <span class="small-icon amber">!</span>
+                    </div>
+
+                    <div class="stat-number">3</div>
+
+                    <p>Areas currently requiring attention.</p>
+
+                    <div class="stat-change warning">2 moderate · 1 high</div>
+                </div>
+
+
+                <div class="stat-card">
+                    <div class="stat-top">
+                        <span>RISK PATTERNS</span>
+                        <span class="small-icon purple">✦</span>
+                    </div>
+
+                    <div class="stat-number">5</div>
+
+                    <p>Spatial or time-based patterns detected.</p>
+
+                    <div class="stat-change purple-text">AI monitored</div>
+                </div>
+
+            </div>
+
+
+            <!-- MAP + ALERT -->
+
+            <div class="dashboard-grid">
+
+                <div class="panel map-panel">
+
+                    <div class="panel-header">
+                        <div>
+                            <span>SPATIAL INTELLIGENCE</span>
+                            <h3>Campus safety map</h3>
+                        </div>
+
+                        <button onclick="showPage('map')">
+                            Open map →
+                        </button>
+                    </div>
+
+                    <div class="campus-map">
+
+                        <div class="map-label library">Library</div>
+                        <div class="map-label hostel">Hostel</div>
+                        <div class="map-label gate">North Gate</div>
+                        <div class="map-label block">Engineering Block</div>
+
+                        <div class="road road-one"></div>
+                        <div class="road road-two"></div>
+                        <div class="road road-three"></div>
+
+                        <div class="risk-zone green-zone"></div>
+                        <div class="risk-zone yellow-zone"></div>
+                        <div class="risk-zone red-zone"></div>
+
+                        <div class="map-pin pin-one">●</div>
+                        <div class="map-pin pin-two">●</div>
+                        <div class="map-pin pin-three">●</div>
+
+                    </div>
+
+                    <div class="map-legend">
+                        <span><i class="green"></i> Low</span>
+                        <span><i class="yellow"></i> Moderate</span>
+                        <span><i class="red"></i> High</span>
+                    </div>
+
+                </div>
+
+
+                <div class="panel emerging-panel">
+
+                    <div class="panel-header">
+                        <div>
+                            <span>AI DETECTION</span>
+                            <h3>Emerging risk</h3>
+                        </div>
+
+                        <span class="live-badge">LIVE</span>
+                    </div>
+
+                    <div class="risk-alert">
+
+                        <div class="risk-alert-icon">!</div>
+
+                        <div>
+                            <strong>North Gate → Hostel Road</strong>
+                            <span>Elevated reported risk</span>
+                        </div>
+
+                    </div>
+
+                    <div class="risk-details">
+
+                        <div>
+                            <span>PEAK PERIOD</span>
+                            <strong>8:00 – 10:00 PM</strong>
+                        </div>
+
+                        <div>
+                            <span>REPORTS</span>
+                            <strong>14 / 30 days</strong>
+                        </div>
+
+                        <div>
+                            <span>TREND</span>
+                            <strong class="trend-up">↑ 23%</strong>
+                        </div>
+
+                    </div>
+
+                    <div class="recommendation">
+                        <span>RECOMMENDED</span>
+                        <p>
+                            Increase patrol presence and review lighting
+                            around Hostel Road during peak hours.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= REPORT ================= -->
+
+        <section id="report" class="page">
+
+            <div class="report-header">
+                <div>
+                    <span class="hero-eyebrow">PRIVATE REPORTING</span>
+                    <h3>Tell Athena what happened.</h3>
+                    <p>
+                        Describe the situation in your own words.
+                        You can report anonymously.
+                    </p>
+                </div>
+
+                <div class="anonymous-toggle">
+                    <span>Anonymous report</span>
+                    <label class="switch">
+                        <input type="checkbox" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+
+            <div class="report-layout">
+
+                <div class="chat-card">
+
+                    <div class="chat-top">
+                        <div class="athena-mini">
+                            ✦
+                        </div>
+
+                        <div>
+                            <strong>Athena</strong>
+                            <span>Safety intelligence assistant</span>
+                        </div>
+
+                        <span class="ready-label">
+                            ● Ready
+                        </span>
+                    </div>
+
+
+                    <div id="chatMessages" class="chat-messages">
+
+                        <div class="athena-message">
+                            <div class="chat-avatar">✦</div>
+
+                            <div>
+                                <span class="message-name">Athena</span>
+
+                                <div class="chat-bubble">
+                                    Tell me what happened. You don't
+                                    need to choose a category — I'll
+                                    help understand your report.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="chat-input-area">
+
+                        <textarea
+                            id="reportInput"
+                            placeholder="Describe what happened..."
+                        ></textarea>
+
+                        <div class="input-bottom">
+
+                            <div class="input-tools">
+                                <button onclick="voiceComingSoon()">🎙 Voice</button>
+                                <button onclick="locationComingSoon()">⌖ Location</button>
+                                <button>＋ Evidence</button>
+                            </div>
+
+                            <button
+                                class="submit-report"
+                                onclick="submitReport()">
+                                Send report →
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="report-info">
+
+                    <div class="info-card">
+                        <div class="info-card-icon">⌁</div>
+
+                        <h4>Your privacy matters</h4>
+
+                        <p>
+                            You can submit anonymously. Your identity is
+                            not required to report a safety concern.
+                        </p>
+                    </div>
+
+
+                    <div class="info-card">
+                        <div class="info-card-icon purple-bg">✦</div>
+
+                        <h4>What Athena looks for</h4>
+
+                        <ul>
+                            <li>Incident type</li>
+                            <li>Location</li>
+                            <li>Time and context</li>
+                            <li>Immediate danger</li>
+                            <li>Relevant safety patterns</li>
+                        </ul>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= MAP ================= -->
+
+        <section id="map" class="page">
+
+            <div class="page-intro">
+                <div>
+                    <span class="hero-eyebrow">SPATIAL INTELLIGENCE</span>
+                    <h3>Campus safety map</h3>
+                    <p>
+                        Explore community-reported patterns across campus.
+                    </p>
+                </div>
+
+                <div class="map-filters">
+                    <button class="filter-active">All</button>
+                    <button>Today</button>
+                    <button>7 days</button>
+                    <button>30 days</button>
+                </div>
+            </div>
+
+
+            <div class="large-map">
+
+                <div class="map-grid-lines"></div>
+
+                <div class="large-road r1"></div>
+                <div class="large-road r2"></div>
+                <div class="large-road r3"></div>
+                <div class="large-road r4"></div>
+
+                <div class="building b1">LIBRARY</div>
+                <div class="building b2">ENGINEERING<br>BLOCK</div>
+                <div class="building b3">HOSTELS</div>
+                <div class="building b4">STUDENT<br>CENTER</div>
+
+                <div class="big-zone zone-green"></div>
+                <div class="big-zone zone-yellow"></div>
+                <div class="big-zone zone-red"></div>
+
+                <div class="map-tooltip">
+                    <span>HIGH RISK ZONE</span>
+                    <strong>North Gate → Hostel Road</strong>
+                    <small>14 reports · Peak 8–10 PM</small>
+                </div>
+
+            </div>
+
+
+            <div class="map-insight">
+
+                <div>
+                    <span>ATHENA INSIGHT</span>
+                    <h3>Risk is concentrated around Hostel Road after 8 PM.</h3>
+                    <p>
+                        The pattern is based on community reports and
+                        time-based clustering — not prediction of individual crimes.
+                    </p>
+                </div>
+
+                <button onclick="showPage('routes')">
+                    Find a safer route →
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= ROUTES ================= -->
+
+        <section id="routes" class="page">
+
+            <div class="page-intro">
+                <div>
+                    <span class="hero-eyebrow">SAFETY COMPANION</span>
+                    <h3>Find a safer route</h3>
+                    <p>
+                        Athena considers reported safety patterns alongside distance.
+                    </p>
+                </div>
+            </div>
+
+
+            <div class="route-search">
+
+                <div class="location-field">
+                    <span>●</span>
+                    <div>
+                        <label>FROM</label>
+                        <input value="Library">
+                    </div>
+                </div>
+
+                <div class="route-line"></div>
+
+                <div class="location-field">
+                    <span>●</span>
+                    <div>
+                        <label>TO</label>
+                        <input value="Hostel">
+                    </div>
+                </div>
+
+                <button onclick="calculateRoute()">
+                    Find routes
+                </button>
+
+            </div>
+
+
+            <div id="routeResults" class="route-results">
+
+                <div class="route-card">
+
+                    <div class="route-icon safe-route">✓</div>
+
+                    <div class="route-main">
+                        <div class="route-title">
+                            <strong>Safer route</strong>
+                            <span class="recommended">RECOMMENDED</span>
+                        </div>
+
+                        <p>
+                            Avoids the current high-risk zone.
+                        </p>
+
+                        <div class="route-meta">
+                            <span>⌁ 12 min</span>
+                            <span>↓ Lower reported risk</span>
+                        </div>
+                    </div>
+
+                    <button>Start route →</button>
+
+                </div>
+
+
+                <div class="route-card risky-route">
+
+                    <div class="route-icon risky">!</div>
+
+                    <div class="route-main">
+                        <div class="route-title">
+                            <strong>Fastest route</strong>
+                            <span class="warning-tag">CAUTION</span>
+                        </div>
+
+                        <p>
+                            Passes through North Gate → Hostel Road.
+                        </p>
+
+                        <div class="route-meta">
+                            <span>⌁ 9 min</span>
+                            <span>↑ Higher reported risk after 8 PM</span>
+                        </div>
+                    </div>
+
+                    <button>View route →</button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= ALERTS ================= -->
+
+        <section id="alerts" class="page">
+
+            <div class="page-intro">
+                <div>
+                    <span class="hero-eyebrow">CAMPUS AWARENESS</span>
+                    <h3>Safety alerts</h3>
+                    <p>Recent signals and active campus advisories.</p>
+                </div>
+            </div>
+
+            <div class="alerts-list">
+
+                <div class="alert-card high-alert">
+                    <div class="alert-symbol">!</div>
+
+                    <div>
+                        <span>HIGH PRIORITY · TODAY</span>
+                        <h4>Elevated reports around Hostel Road</h4>
+                        <p>
+                            Multiple community reports have been recorded
+                            between 8:00 and 10:00 PM.
+                        </p>
+                    </div>
+
+                    <button>View area →</button>
+                </div>
+
+
+                <div class="alert-card medium-alert">
+                    <div class="alert-symbol">⌁</div>
+
+                    <div>
+                        <span>MODERATE · TODAY</span>
+                        <h4>Lighting concern near Engineering Block</h4>
+                        <p>
+                            Repeated reports mention poor visibility after sunset.
+                        </p>
+                    </div>
+
+                    <button>View area →</button>
+                </div>
+
+
+                <div class="alert-card low-alert">
+                    <div class="alert-symbol">✓</div>
+
+                    <div>
+                        <span>RESOLVED · YESTERDAY</span>
+                        <h4>Security patrol increased near North Gate</h4>
+                        <p>
+                            Campus administration has acknowledged the recurring reports.
+                        </p>
+                    </div>
+
+                    <button>View details →</button>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= REPORTS ================= -->
+
+        <section id="reports" class="page">
+
+            <div class="page-intro">
+                <div>
+                    <span class="hero-eyebrow">YOUR ACTIVITY</span>
+                    <h3>My reports</h3>
+                    <p>Track reports you've submitted to Athena.</p>
+                </div>
+
+                <button class="primary-button" onclick="showPage('report')">
+                    + New report
+                </button>
+            </div>
+
+
+            <div class="reports-table">
+
+                <div class="table-head">
+                    <span>REPORT</span>
+                    <span>TYPE</span>
+                    <span>RISK</span>
+                    <span>STATUS</span>
+                    <span>DATE</span>
+                </div>
+
+
+                <div class="table-row">
+                    <span>#ATH-1042</span>
+                    <span>Harassment</span>
+                    <span><b class="risk-text-high">HIGH</b></span>
+                    <span><b class="status-progress">Under review</b></span>
+                    <span>Today</span>
+                </div>
+
+
+                <div class="table-row">
+                    <span>#ATH-1027</span>
+                    <span>Unsafe area</span>
+                    <span><b class="risk-text-medium">MEDIUM</b></span>
+                    <span><b class="status-resolved">Resolved</b></span>
+                    <span>Aug 15</span>
+                </div>
+
+
+                <div class="table-row">
+                    <span>#ATH-0998</span>
+                    <span>Lighting</span>
+                    <span><b class="risk-text-low">LOW</b></span>
+                    <span><b class="status-resolved">Resolved</b></span>
+                    <span>Aug 10</span>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<script src="athena.js"></script>
+
+</body>
+</html>
