@@ -253,7 +253,17 @@ INCIDENT_EXAMPLES = {
         "मेरे परिवार का सदस्य मुझे घर में परेशान कर रहा है।",
         "నా భర్త నన్ను కొడుతున్నాడు.",
         "నా భర్త నన్ను బెదిరిస్తున్నాడు మరియు హింసిస్తున్నాడు.",
-        "నా కుటుంబ సభ్యుడు నన్ను ఇంట్లో వేధిస్తున్నాడు."
+        "నా కుటుంబ సభ్యుడు నన్ను ఇంట్లో వేధిస్తున్నాడు.",
+
+        # Romanized Hindi
+        "Mere pati mujhe maar rahe hain.",
+        "Mere pati mujhe dhamki de rahe hain aur chot pahuncha rahe hain.",
+        "Mere parivar ka sadasya mujhe ghar mein pareshan kar raha hai.",
+
+        # Romanized Telugu
+        "Naa bharta nannu kodutunnadu.",
+        "Naa bharta nannu bediristunnadu mariyu himsistunnadu.",
+        "Naa kutumba sabhyudu nannu intlo vedhistunnadu."
     ],
 
     "sexual_violence": [
@@ -263,7 +273,15 @@ INCIDENT_EXAMPLES = {
         "मेरे साथ यौन हिंसा हुई है।",
         "मेरे साथ यौन दुर्व्यवहार किया गया।",
         "నాపై లైంగిక దాడి జరిగింది.",
-        "నన్ను లైంగికంగా వేధించారు."
+        "నన్ను లైంగికంగా వేధించారు.",
+
+        # Romanized Hindi
+        "Mere saath yaun hinsa hui hai.",
+        "Mere saath yaun durvyavahar kiya gaya.",
+
+        # Romanized Telugu
+        "Naapai laingika daadi jarigindi.",
+        "Nannu laingikanga vedhincharu."
     ],
 
     "harassment": [
@@ -273,7 +291,15 @@ INCIDENT_EXAMPLES = {
         "कोई मुझे लगातार परेशान कर रहा है।",
         "कोई मुझे बार-बार धमका रहा है।",
         "ఎవరైనా నన్ను నిరంతరం వేధిస్తున్నారు.",
-        "ఎవరైనా నన్ను పదే పదే బెదిరిస్తున్నారు."
+        "ఎవరైనా నన్ను పదే పదే బెదిరిస్తున్నారు.",
+
+        # Romanized Hindi
+        "Koi mujhe lagatar pareshan kar raha hai.",
+        "Koi mujhe baar baar dhamka raha hai.",
+
+        # Romanized Telugu
+        "Evarina nannu nirantaram vedhistunnaru.",
+        "Evarina nannu pade pade bedhiristunnaru."
     ],
 
     "stalking": [
@@ -283,7 +309,15 @@ INCIDENT_EXAMPLES = {
         "कोई मेरा पीछा कर रहा है।",
         "कोई मेरा लगातार पीछा कर रहा है।",
         "ఎవరైనా నన్ను వెంబడిస్తున్నారు.",
-        "ఎవరైనా నన్ను నిరంతరం అనుసరిస్తున్నారు."
+        "ఎవరైనా నన్ను నిరంతరం అనుసరిస్తున్నారు.",
+
+        # Romanized Hindi
+        "Koi mera peecha kar raha hai.",
+        "Koi mera lagatar peecha kar raha hai.",
+
+        # Romanized Telugu
+        "Evarina nannu vembadistunnaru.",
+        "Evarina nannu nirantaram anusaristunnaru."
     ],
 
     "trafficking": [
@@ -293,7 +327,15 @@ INCIDENT_EXAMPLES = {
         "मुझे जबरन तस्करी के लिए ले जाया गया।",
         "मुझे शोषण के लिए जबरदस्ती ले जाया गया।",
         "నన్ను అక్రమ రవాణా కోసం బలవంతంగా తీసుకెళ్లారు.",
-        "నన్ను దోపిడీ కోసం బలవంతంగా తీసుకెళ్లారు."
+        "నన్ను దోపిడీ కోసం బలవంతంగా తీసుకెళ్లారు.",
+
+        # Romanized Hindi
+        "Mujhe jabran taskari ke liye le jaya gaya.",
+        "Mujhe shoshan ke liye jabardasti le jaya gaya.",
+
+        # Romanized Telugu
+        "Nannu akrama ravana kosam balavantanga teesukellaru.",
+        "Nannu dopidi kosam balavantanga teesukellaru."
     ],
 
     "cyber_harassment": [
@@ -303,7 +345,15 @@ INCIDENT_EXAMPLES = {
         "कोई मुझे ऑनलाइन धमका रहा है।",
         "कोई सोशल मीडिया पर मुझे परेशान कर रहा है।",
         "ఎవరైనా నన్ను ఆన్‌లైన్‌లో బెదిరిస్తున్నారు.",
-        "ఎవరైనా సోషల్ మీడియాలో నన్ను వేధిస్తున్నారు."
+        "ఎవరైనా సోషల్ మీడియాలో నన్ను వేధిస్తున్నారు.",
+
+        # Romanized Hindi
+        "Koi mujhe online dhamka raha hai.",
+        "Koi social media par mujhe pareshan kar raha hai.",
+
+        # Romanized Telugu
+        "Evarina nannu online lo bedhiristunnaru.",
+        "Evarina social media lo nannu vedhistunnaru."
     ],
 
     "missing_person": [
@@ -313,7 +363,15 @@ INCIDENT_EXAMPLES = {
         "मेरी बेटी लापता है।",
         "मेरी बहन गायब हो गई है।",
         "నా కుమార్తె కనిపించడం లేదు.",
-        "నా సోదరి కనిపించడం లేదు."
+        "నా సోదరి కనిపించడం లేదు.",
+
+        # Romanized Hindi
+        "Meri beti lapata hai.",
+        "Meri behan gayab ho gayi hai.",
+
+        # Romanized Telugu
+        "Naa kumarthe kanipinchadam ledu.",
+        "Naa sodari kanipinchadam ledu."
     ],
 }
 
@@ -398,7 +456,15 @@ SIGNAL_EXAMPLES = {
         "मुझे धमकी दी जा रही है।",
         "वह मुझे धमकी दे रहा है।",
         "నన్ను బెదిరిస్తున్నారు.",
-        "అతను నన్ను బెదిరిస్తున్నాడు."
+        "అతను నన్ను బెదిరిస్తున్నాడు.",
+
+        # Romanized Hindi
+        "Mujhe dhamki di ja rahi hai.",
+        "Woh mujhe dhamki de raha hai.",
+
+        # Romanized Telugu
+        "Nannu bedhiristunnaru.",
+        "Atanu nannu bedhiristunnadu."
     ],
 
     "injury_present": [
@@ -408,7 +474,15 @@ SIGNAL_EXAMPLES = {
         "मुझे शारीरिक चोट लगी है।",
         "मुझे मारा जा रहा है।",
         "నాకు శారీరక గాయాలు అయ్యాయి.",
-        "నన్ను కొడుతున్నారు."
+        "నన్ను కొడుతున్నారు.",
+
+        # Romanized Hindi
+        "Mujhe sharirik chot lagi hai.",
+        "Mujhe mara ja raha hai.",
+
+        # Romanized Telugu
+        "Naaku shareerika gayalu ayyayi.",
+        "Nannu kodutunnaru."
     ],
 
     "immediate_danger": [
@@ -418,7 +492,15 @@ SIGNAL_EXAMPLES = {
         "मुझे अभी खतरा है।",
         "वह अभी मुझ पर हमला कर रहा है।",
         "నాకు ఇప్పుడు ప్రమాదం ఉంది.",
-        "అతను ఇప్పుడు నాపై దాడి చేస్తున్నాడు."
+        "అతను ఇప్పుడు నాపై దాడి చేస్తున్నాడు.",
+
+        # Romanized Hindi
+        "Mujhe abhi khatra hai.",
+        "Woh abhi mujh par hamla kar raha hai.",
+
+        # Romanized Telugu
+        "Naaku ippudu pramadam undi.",
+        "Atanu ippudu naapai daadi chestunnadu."
     ],
 }
 
@@ -484,7 +566,15 @@ RELATIONSHIP_EXAMPLES = {
         "मेरे पति मुझे मार रहे हैं।",
         "मेरे पति मुझे धमकी दे रहे हैं।",
         "నా భర్త నన్ను కొడుతున్నాడు.",
-        "నా భర్త నన్ను బెదిరిస్తున్నాడు."
+        "నా భర్త నన్ను బెదిరిస్తున్నాడు.",
+
+        # Romanized Hindi
+        "Mere pati mujhe maar rahe hain.",
+        "Mere pati mujhe dhamki de rahe hain.",
+
+        # Romanized Telugu
+        "Naa bharta nannu kodutunnadu.",
+        "Naa bharta nannu bedhiristunnadu."
     ],
 
     "family_member": [
@@ -492,7 +582,14 @@ RELATIONSHIP_EXAMPLES = {
         "Someone in my family is abusing me.",
         "मेरे परिवार का सदस्य मुझे चोट पहुँचा रहा है।",
         "मेरे परिवार का कोई व्यक्ति मुझे परेशान कर रहा है।",
-        "నా కుటుంబ సభ్యుడు నన్ను హింసిస్తున్నాడు."
+        "నా కుటుంబ సభ్యుడు నన్ను హింసిస్తున్నాడు.",
+
+        # Romanized Hindi
+        "Mere parivar ka sadasya mujhe chot pahuncha raha hai.",
+        "Mere parivar ka koi vyakti mujhe pareshan kar raha hai.",
+
+        # Romanized Telugu
+        "Naa kutumba sabhyudu nannu himsistunnadu."
     ],
 
     "stranger": [
@@ -500,7 +597,14 @@ RELATIONSHIP_EXAMPLES = {
         "Someone I don't know is threatening me.",
         "एक अजनबी मुझ पर हमला कर रहा है।",
         "कोई अनजान व्यक्ति मुझे धमका रहा है।",
-        "ఒక అపరిచితుడు నాపై దాడి చేస్తున్నాడు."
+        "ఒక అపరిచితుడు నాపై దాడి చేస్తున్నాడు.",
+
+        # Romanized Hindi
+        "Ek ajnabi mujh par hamla kar raha hai.",
+        "Koi anjaan vyakti mujhe dhamka raha hai.",
+
+        # Romanized Telugu
+        "Oka aparichitudu naapai daadi chestunnadu."
     ],
 }
 
