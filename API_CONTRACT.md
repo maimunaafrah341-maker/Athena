@@ -11,7 +11,8 @@ POST http://localhost:8000/report
 Content-Type: application/json
 ```
 
-Also available: `GET /health` → `{"status": "ok"}`
+Also available: `GET /health` → `{"status": "ok"}`, and `POST /report/image` for
+evidence screenshots (see **Evidence upload** below).
 
 ### Request body
 
@@ -158,12 +159,48 @@ A case object looks like:
   "escalate": true,
   "reason": "High-risk incident requires human attention.",
   "response": "...",
-  "citations": [ ... ]
+  "citations": [ ... ],
+  "evidence_path": "evidence/3f9a...c1.png" | null
 }
 ```
 
 Valid `status` values: `"New"`, `"Under Review"`, `"Escalated"`,
 `"In Progress"`, `"Resolved"`, `"Closed"`.
+
+## Evidence upload (screenshots)
+
+```
+POST http://localhost:8000/report/image
+Content-Type: multipart/form-data
+
+file: <image>       (required)
+language: "en"|"hi"|"te"   (optional form field, default "en" — OCR script hint, not incident language)
+```
+
+OCR-extracts the text from the image (e.g. a screenshot of threatening
+messages), then runs it through the **exact same pipeline** as `/report` —
+same response shape, same `case_id`/`case_status`, plus one extra field:
+
+```json
+{
+  "extracted_text": "the text OCR actually read from the image",
+  "incident": { ... }, "risk": { ... }, "citations": [ ... ],
+  "escalate": true, "reason": "...", "response": "...",
+  "case_id": 5, "case_status": "Escalated"
+}
+```
+
+**Show `extracted_text` to the user before/alongside the result** — OCR can
+misread things, and the user should be able to see what Athena actually
+understood from their screenshot, same principle as showing citations.
+
+If OCR finds no readable text at all, you get the same no-case shape as empty
+text input, with `"reason": "No readable text found in the uploaded image."`
+and `"extracted_text": ""`.
+
+The uploaded image is saved server-side and linked to the case via
+`evidence_path` — not currently served back over HTTP (no `GET` route for the
+file itself yet), just tracked for now.
 
 ## What the frontend needs to handle
 

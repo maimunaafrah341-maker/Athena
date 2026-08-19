@@ -70,7 +70,8 @@ def init_db():
                 reason TEXT,
                 response TEXT,
 
-                citations_json TEXT NOT NULL
+                citations_json TEXT NOT NULL,
+                evidence_path TEXT
             )
         """)
 
@@ -79,13 +80,15 @@ def init_db():
 # CREATE
 # ============================================================
 
-def create_case(original_text, pipeline_result):
+def create_case(original_text, pipeline_result, evidence_path=None):
     """
     Persist one pipeline result as a case row.
 
     Status defaults to "Escalated" when the pipeline flagged it for
     human attention, "Resolved" otherwise -- a human can move it
-    from there. Returns the new case's id.
+    from there. evidence_path is the saved path of an uploaded
+    screenshot/image, if this case came from OCR'd evidence rather
+    than typed text. Returns the new case's id.
     """
 
     incident = pipeline_result.get("incident") or {}
@@ -102,9 +105,10 @@ def create_case(original_text, pipeline_result):
                 created_at, status,
                 original_text, language, incident_type,
                 risk_tier, risk_score, confidence,
-                escalate, reason, response, citations_json
+                escalate, reason, response, citations_json,
+                evidence_path
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -119,6 +123,7 @@ def create_case(original_text, pipeline_result):
                 pipeline_result.get("reason"),
                 pipeline_result.get("response"),
                 json.dumps(pipeline_result.get("citations") or []),
+                evidence_path,
             ),
         )
 
@@ -145,6 +150,7 @@ def _row_to_case(row):
         "reason": row["reason"],
         "response": row["response"],
         "citations": json.loads(row["citations_json"]),
+        "evidence_path": row["evidence_path"],
     }
 
 
