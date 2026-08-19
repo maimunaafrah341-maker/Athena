@@ -53,6 +53,7 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `incident.violence_types` | string[] | subset of `["physical","threat","sexual","cyber"]` |
 | `incident.immediate_danger` / `.threat_present` / `.injury_present` | bool | |
 | `incident.relationship` | string \| null | e.g. `"husband"`, `"stranger"`; null if not confidently detected |
+| `incident.location` | string \| null | a real-world place *type* mentioned in the report — one of `bus_stop`, `railway_station`, `hostel`, `home`, `workplace`, `college_campus`, `market`, `street`, `police_station`, `hospital`, `park`; null if no location is confidently mentioned (most reports won't have one — that's expected, not a bug) |
 | `incident.confidence` | float 0-100 | how confident the understanding step is — **low confidence is a real, meaningful state now** (see below) |
 | `risk.risk_tier` | `"Low" \| "Medium" \| "High" \| "Critical"` | |
 | `risk.risk_score` | int 0-100 | |

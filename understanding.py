@@ -662,6 +662,222 @@ def detect_relationship(text, threshold=0.70):
 
 
 # ============================================================
+# LOCATION DETECTION
+# ============================================================
+#
+# Real-world place types, not specific named cities/streets --
+# "this happened at a bus stop" is directly actionable and doesn't
+# require named-entity recognition, just the same semantic-
+# similarity + neutral-margin pattern used everywhere else here.
+# Most reports won't mention a location at all, so returning None
+# for anything not confidently matched is the correct default, not
+# a failure.
+
+LOCATION_EXAMPLES = {
+
+    "bus_stop": [
+        "It happened at a bus stop.",
+        "I was waiting at the bus stop when it happened.",
+        "यह बस स्टॉप पर हुआ।",
+        "ఇది బస్ స్టాప్ వద్ద జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh bus stop par hua.",
+
+        # Romanized Telugu
+        "Idi bus stop daggara jarigindi."
+    ],
+
+    "railway_station": [
+        "It happened at the railway station.",
+        "I was at the train station when this happened.",
+        "यह रेलवे स्टेशन पर हुआ।",
+        "ఇది రైల్వే స్టేషన్‌లో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh railway station par hua.",
+
+        # Romanized Telugu
+        "Idi railway station lo jarigindi."
+    ],
+
+    "hostel": [
+        "It happened in my hostel.",
+        "This happened inside the hostel.",
+        "यह मेरे छात्रावास में हुआ।",
+        "ఇది నా వసతి గృహంలో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh mere hostel mein hua.",
+
+        # Romanized Telugu
+        "Idi naa hostel lo jarigindi."
+    ],
+
+    "home": [
+        "This happened at my home.",
+        "It happened inside the house.",
+        "यह मेरे घर पर हुआ।",
+        "ఇది నా ఇంట్లో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh mere ghar par hua.",
+
+        # Romanized Telugu
+        "Idi naa intlo jarigindi."
+    ],
+
+    "workplace": [
+        "This happened at my workplace.",
+        "It happened in the office.",
+        "यह मेरे कार्यस्थल पर हुआ।",
+        "ఇది నా పని స్థలంలో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh mere workplace par hua.",
+
+        # Romanized Telugu
+        "Idi naa work place lo jarigindi."
+    ],
+
+    "college_campus": [
+        "It happened on campus.",
+        "This happened at college.",
+        "यह कॉलेज परिसर में हुआ।",
+        "ఇది కళాశాల ప్రాంగణంలో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh college campus mein hua.",
+
+        # Romanized Telugu
+        "Idi college campus lo jarigindi."
+    ],
+
+    "market": [
+        "It happened at the market.",
+        "This happened while I was at the market.",
+        "यह बाज़ार में हुआ।",
+        "ఇది మార్కెట్‌లో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh bazaar mein hua.",
+
+        # Romanized Telugu
+        "Idi market lo jarigindi."
+    ],
+
+    "street": [
+        "It happened on the street.",
+        "This happened while I was walking on the road.",
+        "यह सड़क पर हुआ।",
+        "ఇది రోడ్డుపై జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh sadak par hua.",
+
+        # Romanized Telugu
+        "Idi road meeda jarigindi."
+    ],
+
+    "police_station": [
+        "It happened at the police station.",
+        "This happened when I went to the police station.",
+        "यह थाने में हुआ।",
+        "ఇది పోలీస్ స్టేషన్‌లో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh thane mein hua.",
+
+        # Romanized Telugu
+        "Idi police station lo jarigindi."
+    ],
+
+    "hospital": [
+        "It happened at the hospital.",
+        "This happened while I was at the hospital.",
+        "यह अस्पताल में हुआ।",
+        "ఇది ఆసుపత్రిలో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh aspatal mein hua.",
+
+        # Romanized Telugu
+        "Idi hospital lo jarigindi."
+    ],
+
+    "park": [
+        "It happened in the park.",
+        "This happened while I was at the park.",
+        "यह पार्क में हुआ।",
+        "ఇది పార్క్‌లో జరిగింది.",
+
+        # Romanized Hindi
+        "Yeh park mein hua.",
+
+        # Romanized Telugu
+        "Idi park lo jarigindi."
+    ],
+}
+
+
+location_texts = []
+location_labels = []
+
+for location, examples in LOCATION_EXAMPLES.items():
+
+    for example in examples:
+
+        location_texts.append(
+            "query: " + example
+        )
+
+        location_labels.append(
+            location
+        )
+
+
+location_embeddings = model.encode(
+    location_texts,
+    normalize_embeddings=True
+)
+
+
+# ============================================================
+# DETECT LOCATION
+# ============================================================
+
+def detect_location(text, threshold=0.70):
+    """
+    Detect a real-world place type mentioned in the report, if any.
+    Most reports won't mention a location -- returning None is the
+    expected, correct outcome for those, not a detection failure.
+    """
+
+    query_embedding = model.encode(
+        ["query: " + text],
+        normalize_embeddings=True
+    )
+
+    similarities = cosine_similarity(
+        query_embedding,
+        location_embeddings
+    )[0]
+
+    best_index = similarities.argmax()
+    best_similarity = float(similarities[best_index])
+
+    margin = best_similarity - neutral_ceiling(query_embedding)
+
+    if best_similarity < threshold or margin < NEUTRAL_MARGIN:
+        return None, best_similarity
+
+    return (
+        location_labels[best_index],
+        best_similarity
+    )
+
+
+# ============================================================
 # UNDERSTAND INCIDENT
 # ============================================================
 
@@ -704,6 +920,8 @@ def understand(text, language=None):
 
     relationship, relationship_score = detect_relationship(text)
 
+    location, location_score = detect_location(text)
+
     violence_types = []
 
     if injury_present:
@@ -736,7 +954,7 @@ def understand(text, language=None):
         "threat_present": threat_present,
         "injury_present": injury_present,
         "relationship": relationship,
-        "location": None,
+        "location": location,
         "confidence": confidence,
     }
 
