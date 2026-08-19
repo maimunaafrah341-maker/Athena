@@ -189,6 +189,47 @@ def get_case(case_id):
         return _row_to_case(row) if row else None
 
 
+def _count_by(connection, column):
+
+    rows = connection.execute(
+        f"SELECT {column}, COUNT(*) FROM cases GROUP BY {column}"
+    ).fetchall()
+
+    return {row[0]: row[1] for row in rows if row[0] is not None}
+
+
+def get_stats():
+    """
+    Real, computed aggregates over every case -- for dashboard cards
+    that currently show hardcoded demo numbers on the frontend.
+    Nothing here is a placeholder; every count is a live SQL query.
+    """
+
+    with _connect() as connection:
+
+        total = connection.execute(
+            "SELECT COUNT(*) FROM cases"
+        ).fetchone()[0]
+
+        escalated = connection.execute(
+            "SELECT COUNT(*) FROM cases WHERE escalate = 1"
+        ).fetchone()[0]
+
+        with_evidence = connection.execute(
+            "SELECT COUNT(*) FROM cases WHERE evidence_path IS NOT NULL"
+        ).fetchone()[0]
+
+        return {
+            "total_cases": total,
+            "escalated_cases": escalated,
+            "cases_with_evidence": with_evidence,
+            "by_status": _count_by(connection, "status"),
+            "by_risk_tier": _count_by(connection, "risk_tier"),
+            "by_incident_type": _count_by(connection, "incident_type"),
+            "by_language": _count_by(connection, "language"),
+        }
+
+
 # ============================================================
 # UPDATE
 # ============================================================

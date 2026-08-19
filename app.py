@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from pipeline import run_pipeline
-from cases import list_cases, get_case, update_status, VALID_STATUSES
+from cases import list_cases, get_case, update_status, get_stats, VALID_STATUSES
 from ocr import extract_text
 
 EVIDENCE_DIR = "evidence"
@@ -127,6 +127,17 @@ async def report_image(
     result["extracted_text"] = extracted_text
 
     return result
+
+
+@app.get("/stats")
+def get_case_stats():
+    """
+    Real aggregate counts over every case -- total, escalated, by
+    status/risk tier/incident type/language. For dashboard cards
+    that should show actual numbers instead of hardcoded demo ones.
+    """
+
+    return get_stats()
 
 
 @app.get("/cases")

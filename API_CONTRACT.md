@@ -167,6 +167,31 @@ A case object looks like:
 Valid `status` values: `"New"`, `"Under Review"`, `"Escalated"`,
 `"In Progress"`, `"Resolved"`, `"Closed"`.
 
+## Stats (for dashboard cards)
+
+```
+GET /stats
+```
+
+Real, computed aggregates over every case — **use this instead of hardcoded
+numbers** on any dashboard/overview card ("Community reports," "Active
+alerts," risk breakdowns, etc.):
+
+```json
+{
+  "total_cases": 1,
+  "escalated_cases": 1,
+  "cases_with_evidence": 1,
+  "by_status": {"Escalated": 1},
+  "by_risk_tier": {"Critical": 1},
+  "by_incident_type": {"domestic_violence": 1},
+  "by_language": {"en": 1}
+}
+```
+
+The `by_*` fields are plain `{value: count}` maps — only keys that actually
+occur in the data appear (no zero-filled entries for unused categories).
+
 ## Evidence upload (screenshots)
 
 ```
