@@ -20,6 +20,9 @@ from understanding import understand
 from risk import assess_risk
 from retrieval import retrieve
 from response_engine import prepare_response
+from cases import init_db, create_case
+
+init_db()
 
 
 # ============================================================
@@ -37,6 +40,26 @@ from response_engine import prepare_response
 RETRIEVAL_CONFIDENCE_THRESHOLD = 0.60
 
 TOP_K = 5
+
+
+# ============================================================
+# PERSIST + RETURN
+# ============================================================
+
+def _finalize(text, result):
+    """
+    Persist every processed report as a case (see cases.py) and
+    attach its id/status to the contract before returning. This is
+    the ESCALATE step made real -- previously an "escalate": true
+    result had nowhere to go once returned.
+    """
+
+    case_id = create_case(text, result)
+
+    result["case_id"] = case_id
+    result["case_status"] = "Escalated" if result["escalate"] else "Resolved"
+
+    return result
 
 
 # ============================================================
@@ -66,6 +89,8 @@ def run_pipeline(text, language=None, top_k=TOP_K):
 
     except ValueError as e:
 
+        # Nothing worth tracking as a case here -- there's no report
+        # content, just an empty/whitespace submission.
         return {
             "incident": None,
             "risk": None,
@@ -74,6 +99,8 @@ def run_pipeline(text, language=None, top_k=TOP_K):
             "escalate": True,
             "reason": str(e),
             "response": None,
+            "case_id": None,
+            "case_status": None,
         }
 
     # --------------------------------------------------------
@@ -96,7 +123,7 @@ def run_pipeline(text, language=None, top_k=TOP_K):
 
     if not evidence or top_similarity < RETRIEVAL_CONFIDENCE_THRESHOLD:
 
-        return {
+        return _finalize(text, {
             "incident": incident,
             "risk": risk_assessment,
             "citations": [],
@@ -109,7 +136,7 @@ def run_pipeline(text, language=None, top_k=TOP_K):
                 "escalating instead of guessing."
             ),
             "response": None,
-        }
+        })
 
     # --------------------------------------------------------
     # 5. Generate grounded response
@@ -124,7 +151,7 @@ def run_pipeline(text, language=None, top_k=TOP_K):
 
     except Exception:
 
-        return {
+        return _finalize(text, {
             "incident": incident,
             "risk": risk_assessment,
             "citations": [],
@@ -135,7 +162,7 @@ def run_pipeline(text, language=None, top_k=TOP_K):
                 "Please try again in a moment."
             ),
             "response": None,
-        }
+        })
 
     # Critical / High-risk incidents should be flagged for
     # human attention even when verified evidence is available.
@@ -144,7 +171,7 @@ def run_pipeline(text, language=None, top_k=TOP_K):
        "High",
     )
 
-    return {
+    return _finalize(text, {
        "incident": incident,
        "risk": risk_assessment,
        "citations": result["citations"],
@@ -156,7 +183,7 @@ def run_pipeline(text, language=None, top_k=TOP_K):
             else None
         ),
         "response": result["response"],
-    }
+    })
 
 
 # ============================================================

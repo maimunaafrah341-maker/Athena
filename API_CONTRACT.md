@@ -39,7 +39,9 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
   "top_similarity": 0.0,
   "escalate": true | false,
   "reason": "string" | null,
-  "response": "string" | null
+  "response": "string" | null,
+  "case_id": 1 | null,
+  "case_status": "Escalated" | "Resolved" | null
 }
 ```
 
@@ -59,6 +61,8 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `escalate` | bool | **true** = show "human assistance recommended" UI; frontend should treat this as the primary signal, not risk_tier alone |
 | `reason` | string \| null | why it escalated, or null when it didn't |
 | `response` | string \| null | the actual message to show the user, in their input language; **null whenever escalate is true and nothing could be generated** |
+| `case_id` | int \| null | id of the persisted case (see Case tracking below); **null only for empty/whitespace input**, where nothing is saved |
+| `case_status` | string \| null | `"Escalated"` or `"Resolved"` at creation time; can change later via the `/cases` endpoints below |
 
 ## The 4 response shapes you'll actually see
 
@@ -71,7 +75,9 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
   "top_similarity": 0.82,
   "escalate": true,
   "reason": "High-risk incident requires human attention.",
-  "response": "यह एक अत्यंत गंभीर स्थिति है..."
+  "response": "यह एक अत्यंत गंभीर स्थिति है...",
+  "case_id": 1,
+  "case_status": "Escalated"
 }
 ```
 `escalate` is `true` here even though a response was generated — Critical/High risk always escalates in *addition* to answering. Show both.
@@ -86,7 +92,9 @@ empty or low-similarity, `escalate: true`:
   "citations": [],
   "escalate": true,
   "reason": "No matching evidence found in the knowledge base.",
-  "response": null
+  "response": null,
+  "case_id": 2,
+  "case_status": "Escalated"
 }
 ```
 
@@ -97,11 +105,13 @@ empty or low-similarity, `escalate: true`:
   "citations": [],
   "escalate": true,
   "reason": "The response service is temporarily unavailable. Please try again in a moment.",
-  "response": null
+  "response": null,
+  "case_id": 3,
+  "case_status": "Escalated"
 }
 ```
 
-**4. Empty/whitespace-only input**:
+**4. Empty/whitespace-only input** — the only case with no `case_id`:
 ```json
 {
   "incident": null,
@@ -110,11 +120,50 @@ empty or low-similarity, `escalate: true`:
   "top_similarity": 0.0,
   "escalate": true,
   "reason": "Incident text cannot be empty.",
-  "response": null
+  "response": null,
+  "case_id": null,
+  "case_status": null
 }
 ```
 Frontend should validate non-empty input client-side too, but the API won't
 500 if that check is skipped.
+
+## Case tracking
+
+Every processed report (except empty input) is now persisted as a **case** —
+this is what happens after `escalate: true`, not a dead end. Status starts as
+`"Escalated"` or `"Resolved"` and can move through
+`New → Under Review → Escalated → In Progress → Resolved → Closed` from there
+(useful for an admin view — "My reports" on the frontend maps directly to this).
+
+```
+GET  /cases                      -> list, most recent first
+GET  /cases?status=Escalated     -> filter by status
+GET  /cases/{id}                 -> one case, 404 if it doesn't exist
+PATCH /cases/{id}/status         -> body: {"status": "Under Review"}, 400 if invalid, 404 if missing
+```
+
+A case object looks like:
+```json
+{
+  "id": 1,
+  "created_at": "2026-08-18T14:02:11.123456+00:00",
+  "status": "Escalated",
+  "original_text": "...",
+  "language": "hi",
+  "incident_type": "domestic_violence",
+  "risk_tier": "Critical",
+  "risk_score": 100,
+  "confidence": 98.66,
+  "escalate": true,
+  "reason": "High-risk incident requires human attention.",
+  "response": "...",
+  "citations": [ ... ]
+}
+```
+
+Valid `status` values: `"New"`, `"Under Review"`, `"Escalated"`,
+`"In Progress"`, `"Resolved"`, `"Closed"`.
 
 ## What the frontend needs to handle
 
