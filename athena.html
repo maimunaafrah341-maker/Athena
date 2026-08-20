@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Athena — Campus Safety Intelligence</title>
+    <title>Athena — Safety Intelligence</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,18 +23,18 @@
 
         <div class="brand">
             <div class="brand-logo">
-                <span>✦</span>
+                <img src="athena-logo.png" alt="Athena logo">
             </div>
 
             <div>
                 <h1>Athena</h1>
-                <p>Campus Safety Intelligence</p>
+                <p> Community Safety Intelligence</p>
             </div>
         </div>
 
         <div class="campus-pill">
             <span class="online-dot"></span>
-            Campus monitoring active
+            Monitoring active
         </div>
 
         <nav class="navigation">
@@ -77,7 +77,7 @@
 
             <div>
                 <strong>Need immediate help?</strong>
-                <p>Contact campus security or emergency services.</p>
+                <p>Contact security or emergency services.</p>
             </div>
 
             <button onclick="emergencyHelp()">Get help</button>
@@ -134,7 +134,7 @@
             <div class="hero">
 
                 <div>
-                    <span class="hero-eyebrow">YOUR CAMPUS, UNDERSTOOD</span>
+                    <span class="hero-eyebrow">YOUR SURROUNDING, UNDERSTOOD</span>
 
                     <h3>
                         Stay informed.<br>
@@ -143,7 +143,7 @@
 
                     <p>
                         Athena combines community reports, location and
-                        time-based patterns to help make your campus safer.
+                        time-based patterns to help make your surrounding safer.
                     </p>
                 </div>
 
@@ -211,7 +211,7 @@
 
                     <div class="stat-number">SAFE</div>
 
-                    <p>Current campus conditions are within normal range.</p>
+                    <p>Current conditions are within normal range.</p>
 
                     <div class="stat-line">
                         <div style="width:72%"></div>
@@ -274,7 +274,7 @@
                     <div class="panel-header">
                         <div>
                             <span>SPATIAL INTELLIGENCE</span>
-                            <h3>Campus safety map</h3>
+                            <h3>Safety map</h3>
                         </div>
 
                         <button onclick="showPage('map')">
@@ -441,9 +441,17 @@
                         <div class="input-bottom">
 
                             <div class="input-tools">
-                                <button onclick="voiceComingSoon()">🎙 Voice</button>
-                                <button onclick="locationComingSoon()">⌖ Location</button>
-                                <button>＋ Evidence</button>
+                                <button class="voice-button" onclick="startVoice()">
+                                     🎙 Speak
+                                </button>
+
+                                <button onclick="locationComingSoon()">
+                                      ⌖ Location
+                                </button>
+
+                                <button>
+                                     ＋ Evidence
+                                 </button>
                             </div>
 
                             <button
@@ -789,6 +797,14 @@
 
 
 <script src="athena.js"></script>
+<a
+  href="tel:112"
+  class="emergency-call-btn"
+  aria-label="Call emergency number 112 now"
+>
+  <span class="emergency-icon">☎</span>
+  <span class="emergency-label">Call 112</span>
+</a>
 
 </body>
 </html>

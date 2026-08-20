@@ -84,78 +84,60 @@ async function submitReport() {
     showTyping();
 
 
-    /*
-       DEMO MODE
+        let data;
 
-       Your backend teammate's API currently expects:
+    try {
 
-       POST /analyze
+        const response = await fetch("http://localhost:8000/report", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                text: message,
+                language: null
+            })
+        });
 
-       {
-           "query": "user message"
-       }
+        data = await response.json();
 
-       For now we use a fake response.
+    } catch (error) {
 
-       Later this entire section can become:
+        console.error("Backend connection error:", error);
 
-       const response = await fetch("/analyze", {
-           method: "POST",
-           headers: {
-               "Content-Type": "application/json"
-           },
-           body: JSON.stringify({
-               query: message
-           })
-       });
+        removeTyping();
 
-       const data = await response.json();
+        const bubble = document.createElement("div");
 
-       displayAnalysis(data);
-    */
+        bubble.style.cssText = `
+            display:flex;
+            gap:10px;
+            margin-top:25px;
+        `;
 
+        bubble.innerHTML = `
+            <div class="chat-avatar">✦</div>
 
-    await delay(1300);
+            <div>
+                <span class="message-name">Athena</span>
+
+                <div class="chat-bubble">
+                    I couldn't connect to the safety intelligence system.
+                    Please try again.
+                </div>
+            </div>
+        `;
+
+        document.getElementById("chatMessages").appendChild(bubble);
+
+        scrollChat();
+
+        return;
+    }
 
     removeTyping();
 
-
-    const fakeResponse = {
-
-        answer:
-            "Please move toward a populated and well-lit area if possible. " +
-            "If you feel that you are in immediate danger, seek assistance " +
-            "from campus security or another trusted person.",
-
-        incident_type: "Following / Harassment",
-
-        location: "College campus",
-
-        immediate_danger: true,
-
-        risk_tier: "High",
-
-        confidence: 92,
-
-        citations: [
-            {
-                source: "Campus Safety Guidelines",
-                section: "Immediate Response"
-            },
-            {
-                source: "Student Safety Protocol",
-                section: "Personal Safety"
-            }
-        ],
-
-        escalate: true,
-
-        reason:
-            "The report indicates a potential immediate safety concern."
-    };
-
-
-    displayAnalysis(fakeResponse);
+    displayAnalysis(data);
 }
 
 
@@ -278,7 +260,7 @@ function displayAnalysis(data) {
                 margin:4px 4px 0 0;
             ">
                 📄 ${escapeHTML(citation.source)}
-                · ${escapeHTML(citation.section)}
+				· page ${citation.page}
             </div>
         `).join("");
     }
@@ -383,7 +365,10 @@ function displayAnalysis(data) {
                 font-size:11px;
                 line-height:1.7;
             ">
-                ${escapeHTML(data.answer)}
+               ${escapeHTML(
+					data.response ??
+					"This situation needs human review — no automated response was generated."
+				)}
             </div>
 
 
@@ -416,7 +401,7 @@ function displayAnalysis(data) {
                         color:#737B8C;
                         font-size:8px;
                     ">
-                        ${data.confidence}% confidence
+                        ${data.incident.confidence}% confidence
                     </span>
 
                 </div>
@@ -432,32 +417,32 @@ function displayAnalysis(data) {
                     <div class="result-info">
                         <small>INCIDENT</small>
                         <strong>
-                            ${escapeHTML(data.incident_type)}
+                            ${escapeHTML(data.incident.incident_type)}
                         </strong>
                     </div>
 
                     <div class="result-info">
                         <small>LOCATION</small>
                         <strong>
-                            ${data.location
-                                ? escapeHTML(data.location)
-                                : "Not identified"}
+                            ${data.incident.location
+								? escapeHTML(data.incident.location)
+								: "Not identified"}
                         </strong>
                     </div>
 
                     <div class="result-info">
                         <small>IMMEDIATE DANGER</small>
                         <strong>
-                            ${data.immediate_danger
-                                ? "Yes — attention needed"
-                                : "No immediate danger detected"}
+                            ${data.incident.immediate_danger
+								? "Yes — attention needed"
+								: "No immediate danger detected"}
                         </strong>
                     </div>
 
                     <div class="result-info">
                         <small>CONFIDENCE</small>
                         <strong>
-                            ${data.confidence}%
+                            ${data.incident.confidence}%
                         </strong>
                     </div>
 
@@ -471,8 +456,8 @@ function displayAnalysis(data) {
             <div style="
                 margin-top:10px;
                 padding:16px;
-                background:${getRiskBackground(data.risk_tier)};
-                border:1px solid ${getRiskBorder(data.risk_tier)};
+                background:${getRiskBackground(data.risk.risk_tier)};
+                border:1px solid ${getRiskBorder(data.risk.risk_tier)};
                 border-radius:15px;
             ">
 
@@ -482,11 +467,11 @@ function displayAnalysis(data) {
                 ">
 
                     <strong style="
-                        color:${getRiskColor(data.risk_tier)};
+                        color:${getRiskColor(data.risk.risk_tier)};
                         font-size:10px;
                         letter-spacing:1px;
                     ">
-                        ${data.risk_tier.toUpperCase()} RISK
+                        ${data.risk.risk_tier.toUpperCase()} RISK
                     </strong>
 
                     <span style="
