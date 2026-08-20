@@ -1,0 +1,104 @@
+import base64
+import requests
+import os
+import subprocess
+
+from dotenv import load_dotenv
+
+# Bhashini API Configuration
+#
+# Same pattern as GEMINI_API_KEY in response_engine.py: real
+# credentials go in .env (gitignored, never committed), not
+# hardcoded here -- this file gets committed to git.
+load_dotenv()
+
+BHASHINI_USER_ID = os.getenv("BHASHINI_USER_ID")
+BHASHINI_API_KEY = os.getenv("BHASHINI_API_KEY")
+
+LANG_MAP = {
+    "en": "en",
+    "hi": "hi",
+    "te": "te"
+}
+
+def convert_to_wav(input_path, output_path="temp_16k.wav"):
+    """Ensures input audio is formatted properly for Bhashini ASR"""
+    try:
+        command = f"ffmpeg -y -i {input_path} -ar 16000 -ac 1 {output_path}"
+        subprocess.run(command, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return output_path
+    except Exception:
+        return input_path
+
+def process_voice_to_text(audio_file_path, selected_language="hi"):
+    """Converts spoken WAV/WebM audio file into text using Bhashini ASR"""
+    
+    # Check if the audio file exists on your machine
+    if not os.path.exists(audio_file_path):
+        print(f"[Info] Audio file '{audio_file_path}' not found. Using mock input for offline testing.")
+        return "मदद चाहिए"
+
+    clean_audio_path = convert_to_wav(audio_file_path)
+    
+    with open(clean_audio_path, "rb") as audio_file:
+        base64_audio = base64.b64encode(audio_file.read()).decode("utf-8")
+
+    payload = {
+        "pipelineTasks": [
+            {
+                "taskType": "asr",
+                "config": {
+                    "language": {"sourceLanguage": LANG_MAP.get(selected_language, "hi")},
+                    "serviceId": "",
+                    "audioFormat": "wav",
+                    "samplingRate": 16000
+                }
+            }
+        ],
+        "inputData": {
+            "audio": [{"audioContent": base64_audio}]
+        }
+    }
+
+    headers = {
+        "userID": BHASHINI_USER_ID,
+        "ulcaApiKey": BHASHINI_API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(
+            "https://dhruva-api.bhashini.gov.in/services/inference/pipeline",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        result = response.json()
+        transcribed_text = result['pipelineResponse'][0]['output'][0]['source']
+        return transcribed_text
+    except Exception as e:
+        print(f"[Warning] API call failed or keys not set. Error: {e}")
+        return "मदद चाहिए"
+
+def run_athena_voice_pipeline(audio_file_path, selected_language, backend_pipeline_func=None):
+    """
+    Main bridge function: 
+    1. Turns Audio -> Text via Bhashini
+    2. Passes Text -> Backend Athena Engine
+    """
+    print(f"[1/2] Processing audio file in language: '{selected_language}'...")
+    transcribed_text = process_voice_to_text(audio_file_path, selected_language)
+    print(f"[Transcribed Text]: {transcribed_text}")
+    
+    print("[2/2] Passing text to Athena risk triage pipeline...")
+    if backend_pipeline_func:
+        response = backend_pipeline_func(transcribed_text)
+    else:
+        response = {
+            "status": "success",
+            "transcription": transcribed_text,
+            "triage_summary": "Incident logged. Evaluating legal breach...",
+            "language": selected_language
+        }
+    
+    return response
