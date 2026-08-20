@@ -348,3 +348,104 @@ def update_status(case_id, new_status):
         )
 
     return get_case(case_id)
+
+
+# ============================================================
+# RELATED CASES
+# ============================================================
+
+def get_related_cases(case_id, days=30):
+    """
+    Other cases sharing this case's location AND incident type
+    (both, not either) within the last `days` days.
+
+    Deliberately AND, not OR: location and incident_type are both
+    broad categories on their own (many different real households
+    count as "home"; many different people's cases count as
+    "stalking") -- matching on just one alone produced noisy,
+    meaningless "related" results, e.g. two unconnected domestic-
+    violence cases from different households matching purely
+    because they share a crime category. Requiring both together is
+    a real, meaningfully tighter signal, even though it's still
+    category-level correlation, not verified-same-physical-place
+    precision -- location here is a place *type* ("college_campus"),
+    not a named real-world location (see understanding.py's
+    LOCATION_EXAMPLES). Don't oversell this as more precise than it
+    is: two reports here share "something happened at a college
+    campus, and it was stalking," not necessarily the same campus.
+
+    Returns None if case_id doesn't exist, [] if it exists but is
+    missing either field to correlate on, or nothing else matches.
+    """
+
+    case = get_case(case_id)
+
+    if case is None:
+        return None
+
+    if not case["location"] or not case["incident_type"]:
+        return []
+
+    window_start = (
+        datetime.now(timezone.utc) - timedelta(days=days)
+    ).isoformat()
+
+    with _connect() as connection:
+
+        rows = connection.execute(
+            "SELECT * FROM cases WHERE id != ? AND created_at >= ? "
+            "AND location = ? AND incident_type = ? "
+            "ORDER BY created_at DESC",
+            (case_id, window_start, case["location"], case["incident_type"]),
+        ).fetchall()
+
+    return [_row_to_case(row) for row in rows]
+
+
+# ============================================================
+# ESCALATION BRIEF
+# ============================================================
+
+def build_escalation_brief(case_id):
+    """
+    A human reviewer picking up an escalated case shouldn't have to
+    reconstruct context from a raw conversation -- this assembles
+    what's already known about the case (and anything correlated)
+    into one reviewable summary. Pure aggregation of existing case
+    data, no new detection logic. Returns None if the case doesn't
+    exist.
+    """
+
+    case = get_case(case_id)
+
+    if case is None:
+        return None
+
+    related = get_related_cases(case_id)
+
+    return {
+        "case_id": case["id"],
+        "status": case["status"],
+        "first_reported": case["created_at"],
+        "risk_tier": case["risk_tier"],
+        "risk_score": case["risk_score"],
+        "confidence": case["confidence"],
+        "incident_type": case["incident_type"],
+        "location": case["location"],
+        "language": case["language"],
+        "summary": case["original_text"],
+        "response_given": case["response"],
+        "reason": case["reason"],
+        "evidence_attached": case["evidence_path"] is not None,
+        "citations": case["citations"],
+        "related_cases": [
+            {
+                "case_id": r["id"],
+                "created_at": r["created_at"],
+                "incident_type": r["incident_type"],
+                "location": r["location"],
+                "risk_tier": r["risk_tier"],
+            }
+            for r in related
+        ] if related else [],
+    }

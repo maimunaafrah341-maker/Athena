@@ -42,7 +42,8 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
   "reason": "string" | null,
   "response": "string" | null,
   "case_id": 1 | null,
-  "case_status": "Escalated" | "Resolved" | null
+  "case_status": "Escalated" | "Resolved" | null,
+  "reasoning_trace": { ... } | null
 }
 ```
 
@@ -168,6 +169,75 @@ A case object looks like:
 
 Valid `status` values: `"New"`, `"Under Review"`, `"Escalated"`,
 `"In Progress"`, `"Resolved"`, `"Closed"`.
+
+## Reasoning trace (the "why" behind a result)
+
+Every `/report` response includes `reasoning_trace` — not new detection
+logic, just the same `incident`/`risk`/`citations` data already in the
+response, restructured to directly answer "why did Athena decide this?":
+
+```json
+{
+  "incident_classification": {"type": "domestic_violence", "confidence": 100.0},
+  "risk_assessment": {
+    "tier": "Critical", "score": 100,
+    "factors": ["Immediate danger detected", "Physical violence detected", "Threat detected", "Injury reported"]
+  },
+  "evidence_used": [
+    {"source": "domviolence.pdf", "page": 3, "similarity": 0.8245}
+  ]
+}
+```
+
+`null` only when `incident`/`risk` are both `null` (the empty-input case).
+
+## Related cases (honest correlation, not a clustering model)
+
+```
+GET /cases/{id}/related?days=30
+```
+
+Other cases sharing this case's **location AND incident type** (both, not
+either) within the window. Deliberately AND — either field alone is a broad
+category (many different households count as `"home"`; many different
+people's reports count as `"stalking"`), so matching on just one produces
+meaningless noise (two unrelated domestic-violence cases from different
+households would "match" purely by crime category). Requiring both together
+is a real, meaningfully tighter signal.
+
+**Be honest about what this is when demoing it**: `location` is a place
+*type* (`"college_campus"`), not a named real-world location — two related
+results share "something happened at a college campus, and it was
+stalking," not verified proof of the same physical spot. And this reflects
+whatever's actually in the database — with low case volume, don't present
+it as if backed by production usage it doesn't have. It's honest either
+way: a real match if one exists, an empty list if not.
+
+```json
+[
+  {
+    "case_id": 2,
+    "created_at": "2026-08-20T18:03:45+00:00",
+    "incident_type": "stalking",
+    "location": "college_campus",
+    "risk_tier": "Medium"
+  }
+]
+```
+
+404 if the case doesn't exist. `[]` (not an error) if the case has no
+location or no incident_type to correlate on, or nothing else matches.
+
+## Escalation brief (for a human reviewer)
+
+```
+GET /cases/{id}/brief
+```
+
+Everything known about an escalated case, assembled into one summary
+instead of making a reviewer reconstruct it from a raw report — risk,
+incident details, the response given, evidence, and any related cases
+(from the endpoint above) in one object. 404 if the case doesn't exist.
 
 ## Stats (for dashboard cards)
 

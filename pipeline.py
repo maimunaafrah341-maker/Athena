@@ -46,6 +46,40 @@ TOP_K = 5
 # PERSIST + RETURN
 # ============================================================
 
+def _build_reasoning_trace(result):
+    """
+    Restructure data the pipeline already computed into an explicit
+    "why did Athena decide this" trace -- no new detection logic,
+    just exposing the reasoning that was previously buried inside a
+    flat response instead of shown as its own thing. Answers the
+    "why is this High risk?" question a judge (or a real reviewer)
+    would ask, directly from real risk_factors/citations/confidence.
+    """
+
+    incident = result.get("incident") or {}
+    risk = result.get("risk") or {}
+
+    return {
+        "incident_classification": {
+            "type": incident.get("incident_type"),
+            "confidence": incident.get("confidence"),
+        },
+        "risk_assessment": {
+            "tier": risk.get("risk_tier"),
+            "score": risk.get("risk_score"),
+            "factors": risk.get("risk_factors", []),
+        },
+        "evidence_used": [
+            {
+                "source": citation.get("source"),
+                "page": citation.get("page"),
+                "similarity": citation.get("similarity"),
+            }
+            for citation in (result.get("citations") or [])
+        ],
+    }
+
+
 def _finalize(text, result, evidence_path=None):
     """
     Persist every processed report as a case (see cases.py) and
@@ -58,6 +92,7 @@ def _finalize(text, result, evidence_path=None):
 
     result["case_id"] = case_id
     result["case_status"] = "Escalated" if result["escalate"] else "Resolved"
+    result["reasoning_trace"] = _build_reasoning_trace(result)
 
     return result
 
@@ -105,6 +140,7 @@ def run_pipeline(text, language=None, top_k=TOP_K, evidence_path=None):
             "response": None,
             "case_id": None,
             "case_status": None,
+            "reasoning_trace": None,
         }
 
     # --------------------------------------------------------

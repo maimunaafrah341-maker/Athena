@@ -29,6 +29,8 @@ from cases import (
     update_status,
     get_stats,
     get_trend,
+    get_related_cases,
+    build_escalation_brief,
     VALID_STATUSES,
 )
 from ocr import extract_text
@@ -177,6 +179,39 @@ def get_case_by_id(case_id: int):
         raise HTTPException(status_code=404, detail="Case not found")
 
     return case
+
+
+@app.get("/cases/{case_id}/related")
+def get_case_related(case_id: int, days: int = 30):
+    """
+    Other cases sharing this case's location and/or incident type
+    within the last `days` days. Real query over real fields, not a
+    clustering model -- an empty list is a genuine "nothing found",
+    not a bug.
+    """
+
+    related = get_related_cases(case_id, days=days)
+
+    if related is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return related
+
+
+@app.get("/cases/{case_id}/brief")
+def get_case_brief(case_id: int):
+    """
+    Human-reviewer-facing escalation brief: everything known about
+    the case plus any related cases, assembled into one summary
+    instead of making a reviewer piece it together themselves.
+    """
+
+    brief = build_escalation_brief(case_id)
+
+    if brief is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return brief
 
 
 @app.patch("/cases/{case_id}/status")
