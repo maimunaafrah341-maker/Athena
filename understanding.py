@@ -881,6 +881,31 @@ def detect_location(text, threshold=0.70):
 # UNDERSTAND INCIDENT
 # ============================================================
 
+def detect_script(text, language):
+    """
+    Whether the text was written in the language's native script or
+    romanized (Latin letters) -- independent of detect_language(),
+    so this also works when the caller passes language explicitly
+    instead of relying on auto-detection.
+
+    This exists so Athena can reply in the same script the user
+    wrote in: previously the response always switched to native
+    Devanagari/Telugu script even for romanized input, which is
+    backwards for anyone who speaks the language but only
+    types/reads it in Latin letters (common on phone keyboards).
+    """
+
+    if language == "hi":
+        has_native = any(0x0900 <= ord(char) <= 0x097F for char in text)
+        return "native" if has_native else "romanized"
+
+    if language == "te":
+        has_native = any(0x0C00 <= ord(char) <= 0x0C7F for char in text)
+        return "native" if has_native else "romanized"
+
+    return "latin"
+
+
 def understand(text, language=None):
     """
     Convert a multilingual incident report into
@@ -900,6 +925,8 @@ def understand(text, language=None):
 
     if language is None:
         language = detect_language(text)
+
+    script = detect_script(text, language)
 
     incident_type, incident_confidence = classify_incident(text)
 
@@ -948,6 +975,7 @@ def understand(text, language=None):
     return {
         "original_text": text,
         "language": language,
+        "script": script,
         "incident_type": incident_type,
         "violence_types": violence_types,
         "immediate_danger": immediate_danger,

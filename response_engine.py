@@ -125,11 +125,26 @@ def build_prompt(
     """
 
     language_code = incident.get("language", "en")
+    script = incident.get("script", "native")
 
     language_name = LANGUAGE_NAMES.get(
         language_code,
         language_code
     )
+
+    # Reply in the same script the user actually wrote in -- someone
+    # who types Hindi/Telugu in Latin letters may not read the
+    # native script comfortably, so switching scripts on them in the
+    # response would be backwards.
+    if script == "romanized" and language_code in ("hi", "te"):
+        language_instruction = (
+            f"Respond ONLY in romanized {language_name} "
+            f"(write it phonetically using English/Latin letters, "
+            f"the same way the user wrote their report -- "
+            f"do NOT switch to {language_name}'s native script)."
+        )
+    else:
+        language_instruction = f"Respond ONLY in {language_name}."
 
     evidence = format_evidence(
         retrieved_documents
@@ -145,7 +160,7 @@ to the user's reported safety incident.
 STRICT GROUNDING RULES
 ============================================================
 
-1. Respond ONLY in {language_name}.
+1. {language_instruction}
 
 2. The user's incident details are observations extracted
    from the user's own report. You may acknowledge them,

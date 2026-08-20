@@ -33,6 +33,7 @@ from cases import (
     build_escalation_brief,
     VALID_STATUSES,
 )
+from voice_service import process_voice_to_text
 from ocr import extract_text
 
 EVIDENCE_DIR = "evidence"
@@ -134,6 +135,52 @@ async def report_image(
 
     result = run_pipeline(extracted_text, evidence_path=saved_path)
     result["extracted_text"] = extracted_text
+
+    return result
+
+
+@app.post("/report/voice")
+async def report_voice(
+    file: UploadFile = File(...),
+    language: str = Form("hi"),
+):
+    """
+    Voice report: transcribes spoken audio via Bhashini (through
+    voice_service.py) and runs the transcribed text through the
+    exact same pipeline as a typed report.
+
+    `language` selects which language Bhashini transcribes in
+    ("en"/"hi"/"te", default "hi") -- Bhashini needs this chosen up
+    front, it doesn't auto-detect the spoken language from audio the
+    way Whisper does (see API_CONTRACT.md).
+
+    NOTE: until real BHASHINI_USER_ID/BHASHINI_API_KEY credentials
+    are set in .env, voice_service.py's ASR call fails and silently
+    falls back to a fixed placeholder transcription regardless of
+    what was actually said -- this endpoint being live doesn't mean
+    voice transcription itself is live yet.
+
+    Calls process_voice_to_text() directly rather than going through
+    run_athena_voice_pipeline()'s callback wrapper -- that wrapper
+    only returns backend_pipeline_func's result when a callback is
+    given, with no way to also get the transcription back out, so
+    calling the underlying ASR function directly (same pattern as
+    the OCR endpoint above) is what actually lets us return both.
+    """
+
+    audio_bytes = await file.read()
+
+    extension = os.path.splitext(file.filename or "")[1] or ".wav"
+    saved_name = f"{uuid.uuid4().hex}{extension}"
+    saved_path = os.path.join(EVIDENCE_DIR, saved_name)
+
+    with open(saved_path, "wb") as f:
+        f.write(audio_bytes)
+
+    transcription = process_voice_to_text(saved_path, language)
+
+    result = run_pipeline(transcription, evidence_path=saved_path)
+    result["transcription"] = transcription
 
     return result
 

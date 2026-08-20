@@ -50,6 +50,7 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | Field | Type | Notes |
 |---|---|---|
 | `incident.language` | `"en" \| "hi" \| "te"` | auto-detected |
+| `incident.script` | `"native" \| "romanized" \| "latin"` | whether the report was written in native script (Devanagari/Telugu) or romanized (Latin letters); `"latin"` for English. The Gemini response matches this — romanized input gets a romanized reply, not a switch to native script |
 | `incident.incident_type` | string | e.g. `"domestic_violence"`, `"harassment"`, `"stalking"`, `"other"` |
 | `incident.violence_types` | string[] | subset of `["physical","threat","sexual","cyber"]` |
 | `incident.immediate_danger` / `.threat_present` / `.injury_present` | bool | |
@@ -325,6 +326,41 @@ and `"extracted_text": ""`.
 The uploaded image is saved server-side and linked to the case via
 `evidence_path` — not currently served back over HTTP (no `GET` route for the
 file itself yet), just tracked for now.
+
+## Voice report — **wired but not yet functional, see caveat below**
+
+```
+POST http://localhost:8000/report/voice
+Content-Type: multipart/form-data
+
+file: <audio>              (required)
+language: "en"|"hi"|"te"   (form field, default "hi" — which language Bhashini
+                             transcribes in; it needs this chosen up front,
+                             it does not auto-detect language from audio)
+```
+
+Transcribes the audio via Bhashini ASR, then runs the transcribed text
+through the same pipeline as `/report`. Same response shape as `/report`,
+plus the transcription itself so you can show the user what Athena heard
+(same principle as `extracted_text` on image upload):
+
+```json
+{
+  "transcription": "the text Bhashini transcribed from the audio",
+  "incident": { ... }, "risk": { ... }, "citations": [ ... ],
+  "escalate": true, "reason": "...", "response": "...",
+  "case_id": 6, "case_status": "Escalated"
+}
+```
+
+**Caveat — this is not actually functional yet**: until real
+`BHASHINI_USER_ID`/`BHASHINI_API_KEY` credentials are set in `.env`, every
+call to this endpoint returns the same fixed placeholder transcription
+regardless of what was actually said in the audio, because the underlying
+Bhashini call fails and silently falls back to mock data. The endpoint being
+live means the wiring is done, not that voice transcription itself works —
+don't build/demo frontend recording UI against this expecting real results
+until credentials are confirmed working.
 
 ## What the frontend needs to handle
 
