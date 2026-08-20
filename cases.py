@@ -18,7 +18,7 @@ it escalates?" needs to see actually exist.
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 DB_PATH = "cases.db"
 
@@ -253,6 +253,73 @@ def get_stats():
             "by_incident_type": _count_by(connection, "incident_type"),
             "by_language": _count_by(connection, "language"),
             "by_location": _count_by(connection, "location"),
+        }
+
+
+def get_trend(days=7):
+    """
+    Day-by-day case counts for the last `days` days (zero-filled, so
+    a chart doesn't have gaps), plus a current-vs-previous-window
+    comparison and an incident-type breakdown for the current window.
+
+    This is the real, computed version of the "Harassment up 8%"
+    style trend cards -- with low case volume it'll look sparse, but
+    every number is a genuine query result, not a placeholder.
+    """
+
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=days)
+    previous_window_start = now - timedelta(days=days * 2)
+    today = now.date()
+
+    with _connect() as connection:
+
+        rows = connection.execute(
+            "SELECT date(created_at), COUNT(*) FROM cases "
+            "WHERE created_at >= ? GROUP BY date(created_at)",
+            (window_start.isoformat(),),
+        ).fetchall()
+
+        counts_by_day = {row[0]: row[1] for row in rows}
+
+        # Calendar days from (today - (days-1)) through today inclusive,
+        # so "last 7 days" actually includes today rather than ending
+        # yesterday -- deriving this from window_start's wall-clock
+        # time (which has a time-of-day component) would leave today
+        # out, undercounting relative to current_window_total below.
+        by_day = {}
+
+        for offset in range(days):
+
+            day = (today - timedelta(days=days - 1 - offset)).isoformat()
+            by_day[day] = counts_by_day.get(day, 0)
+
+        current_window_total = connection.execute(
+            "SELECT COUNT(*) FROM cases WHERE created_at >= ?",
+            (window_start.isoformat(),),
+        ).fetchone()[0]
+
+        previous_window_total = connection.execute(
+            "SELECT COUNT(*) FROM cases "
+            "WHERE created_at >= ? AND created_at < ?",
+            (previous_window_start.isoformat(), window_start.isoformat()),
+        ).fetchone()[0]
+
+        incident_type_rows = connection.execute(
+            "SELECT incident_type, COUNT(*) FROM cases "
+            "WHERE created_at >= ? AND incident_type IS NOT NULL "
+            "GROUP BY incident_type",
+            (window_start.isoformat(),),
+        ).fetchall()
+
+        return {
+            "window_days": days,
+            "by_day": by_day,
+            "current_window_total": current_window_total,
+            "previous_window_total": previous_window_total,
+            "by_incident_type_in_window": {
+                row[0]: row[1] for row in incident_type_rows
+            },
         }
 
 

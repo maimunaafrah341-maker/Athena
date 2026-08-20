@@ -195,6 +195,32 @@ alerts," risk breakdowns, etc.):
 The `by_*` fields are plain `{value: count}` maps — only keys that actually
 occur in the data appear (no zero-filled entries for unused categories).
 
+## Trend (for "Harassment ↑ Stalking ↑" style cards)
+
+```
+GET /stats/trend            -> last 7 days
+GET /stats/trend?days=3     -> custom window
+```
+
+```json
+{
+  "window_days": 7,
+  "by_day": {
+    "2026-08-14": 0, "2026-08-15": 0, "2026-08-16": 0,
+    "2026-08-17": 0, "2026-08-18": 0, "2026-08-19": 1, "2026-08-20": 1
+  },
+  "current_window_total": 2,
+  "previous_window_total": 0,
+  "by_incident_type_in_window": {"domestic_violence": 2}
+}
+```
+
+`by_day` is zero-filled for every calendar day in the window (including
+today) so a chart has no gaps. `current_window_total` vs
+`previous_window_total` is the "up/down" comparison — with real but low case
+volume right now, don't expect dramatic numbers; every value here is a live
+query result, not a placeholder.
+
 ## Evidence upload (screenshots)
 
 ```

@@ -23,7 +23,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from pipeline import run_pipeline
-from cases import list_cases, get_case, update_status, get_stats, VALID_STATUSES
+from cases import (
+    list_cases,
+    get_case,
+    update_status,
+    get_stats,
+    get_trend,
+    VALID_STATUSES,
+)
 from ocr import extract_text
 
 EVIDENCE_DIR = "evidence"
@@ -138,6 +145,17 @@ def get_case_stats():
     """
 
     return get_stats()
+
+
+@app.get("/stats/trend")
+def get_case_trend(days: int = 7):
+    """
+    Day-by-day case counts and incident-type breakdown for the last
+    `days` days vs the window before that. ?days= to change the
+    window (default 7).
+    """
+
+    return get_trend(days=days)
 
 
 @app.get("/cases")
