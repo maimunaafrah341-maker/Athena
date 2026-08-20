@@ -161,7 +161,8 @@ A case object looks like:
   "reason": "High-risk incident requires human attention.",
   "response": "...",
   "citations": [ ... ],
-  "evidence_path": "evidence/3f9a...c1.png" | null
+  "evidence_path": "evidence/3f9a...c1.png" | null,
+  "location": "home" | null
 }
 ```
 
@@ -186,7 +187,8 @@ alerts," risk breakdowns, etc.):
   "by_status": {"Escalated": 1},
   "by_risk_tier": {"Critical": 1},
   "by_incident_type": {"domestic_violence": 1},
-  "by_language": {"en": 1}
+  "by_language": {"en": 1},
+  "by_location": {"home": 1}
 }
 ```
 

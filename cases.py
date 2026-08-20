@@ -31,6 +31,12 @@ VALID_STATUSES = (
     "Closed",
 )
 
+# Columns added after the original schema -- init_db() retrofits
+# these onto any cases.db that predates them.
+_NEW_COLUMNS = {
+    "location": "TEXT",
+}
+
 
 # ============================================================
 # CONNECTION
@@ -46,8 +52,13 @@ def _connect():
 
 def init_db():
     """
-    Create the cases table if it doesn't exist yet. Safe to call
-    on every startup.
+    Create the cases table if it doesn't exist yet, and add any
+    columns that were introduced after someone's local cases.db was
+    already created -- CREATE TABLE IF NOT EXISTS alone won't retrofit
+    new columns onto an existing file, which is exactly how
+    incident.location went missing from persisted cases even after
+    understanding.py started detecting it. Safe to call on every
+    startup.
     """
 
     with _connect() as connection:
@@ -74,6 +85,18 @@ def init_db():
                 evidence_path TEXT
             )
         """)
+
+        existing_columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(cases)")
+        }
+
+        for column, column_type in _NEW_COLUMNS.items():
+
+            if column not in existing_columns:
+                connection.execute(
+                    f"ALTER TABLE cases ADD COLUMN {column} {column_type}"
+                )
 
 
 # ============================================================
@@ -106,9 +129,9 @@ def create_case(original_text, pipeline_result, evidence_path=None):
                 original_text, language, incident_type,
                 risk_tier, risk_score, confidence,
                 escalate, reason, response, citations_json,
-                evidence_path
+                evidence_path, location
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -124,6 +147,7 @@ def create_case(original_text, pipeline_result, evidence_path=None):
                 pipeline_result.get("response"),
                 json.dumps(pipeline_result.get("citations") or []),
                 evidence_path,
+                incident.get("location"),
             ),
         )
 
@@ -151,6 +175,7 @@ def _row_to_case(row):
         "response": row["response"],
         "citations": json.loads(row["citations_json"]),
         "evidence_path": row["evidence_path"],
+        "location": row["location"],
     }
 
 
@@ -227,6 +252,7 @@ def get_stats():
             "by_risk_tier": _count_by(connection, "risk_tier"),
             "by_incident_type": _count_by(connection, "incident_type"),
             "by_language": _count_by(connection, "language"),
+            "by_location": _count_by(connection, "location"),
         }
 
 
