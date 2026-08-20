@@ -78,7 +78,6 @@ button {
     align-items: center;
     gap: 13px;
 }
-
 .brand-logo {
     width: 50px;
     height: 50px;
@@ -87,10 +86,16 @@ button {
     place-items: center;
 
     border-radius: 16px;
+    overflow: hidden;
 
-    background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+    background: #0F172A;
+}
 
-    box-shadow: 0 10px 30px rgba(139,92,246,.3);
+.brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 16px;
 }
 
 .brand-logo span {
@@ -598,7 +603,7 @@ button {
 }
 
 .map-icon {
-    background: var(--lavender-soft);
+   background: var(--lavender-soft);
     color: var(--lavender);
 }
 
@@ -2160,4 +2165,420 @@ button {
         align-items: flex-start;
         gap: 15px;
     }
+}
+/* Emergency 112 Button */
+.emergency-call-btn {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 15px 22px;
+  border-radius: 999px;
+
+  background: #E11D48;
+  color: #ffffff;
+
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+
+  box-shadow: 0 10px 30px rgba(225, 29, 72, 0.35);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.emergency-call-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 35px rgba(225, 29, 72, 0.45);
+}
+
+.emergency-call-btn:active {
+  transform: scale(0.96);
+}
+
+.emergency-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .emergency-call-btn {
+    right: 18px;
+    bottom: 18px;
+    width: 54px;
+    height: 54px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .emergency-label {
+    display: none;
+  }
+
+  .emergency-icon {
+    font-size: 21px;
+  }
+}
+/* =========================================
+   ATHENA — GLOBAL SIZE BOOST
+   ========================================= */
+
+/* Slightly increase the overall visual scale */
+body {
+    font-size: 16px;
+}
+
+/* Main content gets a little more breathing room */
+.page {
+    width: min(1300px, 92%);
+    padding-top: 48px;
+}
+
+/* Topbar */
+.topbar {
+    height: 108px;
+    padding-left: 5%;
+    padding-right: 5%;
+}
+
+.topbar h2 {
+    font-size: 27px;
+}
+
+.page-label {
+    font-size: 10px;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 300px;
+    padding: 32px 24px;
+}
+
+.main {
+    margin-left: 300px;
+}
+
+/* Brand */
+.brand-logo {
+    width: 54px;
+    height: 54px;
+}
+
+.brand-logo span {
+    font-size: 29px;
+}
+
+.brand h1 {
+    font-size: 24px;
+}
+
+.brand p {
+    font-size: 11px;
+}
+
+/* Navigation */
+.nav-item {
+    padding: 15px 16px;
+    font-size: 13px;
+}
+
+.nav-item span:first-child {
+    font-size: 18px;
+}
+
+/* Hero */
+.hero {
+    min-height: 270px;
+    padding: 48px 54px;
+    border-radius: 27px;
+}
+
+.hero-eyebrow {
+    font-size: 10px;
+}
+
+.hero h3 {
+    font-size: 38px;
+}
+
+.hero p {
+    font-size: 14px;
+    max-width: 580px;
+}
+
+/* Quick action cards */
+.quick-actions {
+    gap: 18px;
+    margin-top: 22px;
+}
+
+.quick-actions button {
+    padding: 20px;
+    border-radius: 19px;
+}
+
+.action-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 21px;
+}
+
+.quick-actions strong {
+    font-size: 13px;
+}
+
+.quick-actions span {
+    font-size: 10px;
+}
+
+/* Section headings */
+.section-heading {
+    margin-top: 42px;
+}
+
+.section-heading h3 {
+    font-size: 21px;
+}
+
+.section-heading small {
+    font-size: 10px;
+}
+
+/* Statistics */
+.stats-grid {
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.stat-card {
+    padding: 23px;
+    border-radius: 19px;
+}
+
+.stat-top {
+    font-size: 9px;
+}
+
+.stat-number {
+    font-size: 29px;
+}
+
+.stat-card p {
+    font-size: 10px;
+}
+
+.stat-change {
+    font-size: 10px;
+}
+
+/* Dashboard panels */
+.dashboard-grid {
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.panel {
+    padding: 23px;
+    border-radius: 21px;
+}
+
+.panel-header h3 {
+    font-size: 19px;
+}
+
+/* Map */
+.campus-map {
+    height: 290px;
+}
+
+/* Risk panel */
+.risk-alert {
+    margin-top: 26px;
+}
+
+.risk-alert strong {
+    font-size: 13px;
+}
+
+.risk-alert span {
+    font-size: 10px;
+}
+
+.risk-details {
+    margin-top: 26px;
+}
+
+.risk-details div {
+    padding: 13px;
+}
+
+.risk-details span {
+    font-size: 8px;
+}
+
+.risk-details strong {
+    font-size: 11px;
+}
+
+/* Report page */
+.report-header h3,
+.page-intro h3 {
+    font-size: 34px;
+}
+
+.report-header p,
+.page-intro p {
+    font-size: 13px;
+}
+
+.report-layout {
+    gap: 22px;
+}
+
+/* Chat */
+.chat-top {
+    padding: 20px 23px;
+}
+
+.athena-mini,
+.chat-avatar {
+    width: 44px;
+    height: 44px;
+}
+
+.chat-top strong {
+    font-size: 13px;
+}
+
+.chat-top span {
+    font-size: 9px;
+}
+
+.chat-messages {
+    min-height: 370px;
+    max-height: 500px;
+    padding: 30px;
+}
+
+.chat-bubble {
+    padding: 17px 20px;
+    font-size: 13px;
+    line-height: 1.75;
+    max-width: 620px;
+}
+
+.chat-input-area {
+    padding: 18px 21px;
+}
+
+.chat-input-area textarea {
+    min-height: 85px;
+    font-size: 13px;
+}
+
+.submit-report {
+    padding: 13px 17px;
+    font-size: 11px;
+}
+
+/* Information cards */
+.info-card {
+    padding: 23px;
+    border-radius: 19px;
+}
+
+.info-card h4 {
+    font-size: 15px;
+}
+
+.info-card p,
+.info-card li {
+    font-size: 11px;
+}
+
+/* Routes */
+.route-search {
+    padding: 25px;
+}
+
+.location-field input {
+    font-size: 13px;
+}
+
+.route-search > button {
+    padding: 14px 17px;
+    font-size: 11px;
+}
+
+.route-card {
+    padding: 23px;
+}
+
+.route-title strong {
+    font-size: 14px;
+}
+
+.route-main p {
+    font-size: 10px;
+}
+
+.route-meta {
+    font-size: 9px;
+}
+
+/* Alerts */
+.alert-card {
+    padding: 23px;
+}
+
+.alert-card h4 {
+    font-size: 14px;
+}
+
+.alert-card p {
+    font-size: 10px;
+}
+
+/* Tables */
+.table-head,
+.table-row {
+    padding: 18px 23px;
+}
+
+.table-row {
+    font-size: 11px;
+}
+
+/* Emergency button */
+.emergency-call-btn {
+    padding: 17px 24px;
+    font-size: 16px;
+}
+.voice-button {
+    padding: 10px 14px !important;
+
+    background: var(--lavender) !important;
+    color: white !important;
+
+    border: 1px solid var(--lavender) !important;
+
+    font-size: 10px !important;
+    font-weight: 700;
+
+    box-shadow: 0 5px 15px rgba(139,92,246,.18);
+}
+
+.voice-button:hover {
+    background: var(--lavender-dark) !important;
+    transform: translateY(-2px);
 }
