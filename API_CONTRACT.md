@@ -171,12 +171,50 @@ A case object looks like:
   "response": "...",
   "citations": [ ... ],
   "evidence_path": "evidence/3f9a...c1.png" | null,
-  "location": "home" | null
+  "location": "home" | null,
+  "latitude": 17.385 | null,
+  "longitude": 78.487 | null,
+  "is_sos": false
 }
 ```
 
 Valid `status` values: `"New"`, `"Under Review"`, `"Escalated"`,
 `"In Progress"`, `"Resolved"`, `"Closed"`.
+
+`latitude`/`longitude` are only non-null when the reporter chose to share a
+location, and are already rounded to ~100-150m before storage (see the
+privacy note under Nearby Help below) — never the exact coordinate.
+
+## Safety map (real case pins) — **fully functional today**
+
+```
+GET /cases/map
+```
+
+For a real map view (Leaflet.js + OSM tiles, no API key needed), not the old
+decorative mockup. Returns only cases that have a location, and deliberately
+**not** the full case object — no `original_text`, `response`, or
+`citations`, just enough to place and label a pin:
+
+```json
+[
+  {
+    "id": 33,
+    "created_at": "2026-08-21T12:34:35.491807+00:00",
+    "incident_type": "harassment",
+    "risk_tier": "Critical",
+    "latitude": 17.385,
+    "longitude": 78.487,
+    "location": "street",
+    "is_sos": true
+  }
+]
+```
+
+An empty array is a genuine "nobody's shared a location yet," not a bug —
+with current test-data volume, don't expect many pins. Registered before
+`/cases/{id}` in the route table specifically so `/cases/map` isn't swallowed
+as an invalid `case_id`.
 
 ## Reasoning trace (the "why" behind a result)
 

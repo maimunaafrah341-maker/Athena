@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from pipeline import run_pipeline
 from cases import (
     list_cases,
+    list_case_locations,
     get_case,
     update_status,
     get_stats,
@@ -317,6 +318,19 @@ def get_cases(status: Optional[str] = None):
     """
 
     return list_cases(status=status)
+
+
+@app.get("/cases/map")
+def get_case_map_locations():
+    """
+    Real pins for a safety map -- coordinates + incident type/risk
+    tier only, deliberately not the full case (see
+    list_case_locations' docstring). Registered before
+    /cases/{case_id} so "map" is never swallowed as a case_id path
+    param.
+    """
+
+    return list_case_locations()
 
 
 @app.get("/cases/{case_id}")

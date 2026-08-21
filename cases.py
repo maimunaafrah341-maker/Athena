@@ -220,6 +220,42 @@ def list_cases(status=None):
         return [_row_to_case(row) for row in rows]
 
 
+def list_case_locations():
+    """
+    Minimal fields for map rendering -- id, coordinates, incident
+    type, risk tier, place type, created_at -- deliberately NOT the
+    full case (original_text, response, citations). A map pin should
+    show "what kind of incident, roughly where, how serious," not
+    leak the report's actual content. Only returns cases that
+    actually have a location on them (most won't, unless the
+    reporter chose to share one) -- an empty list here is a genuine
+    "nobody's shared a location yet," not a bug.
+    """
+
+    with _connect() as connection:
+
+        rows = connection.execute(
+            "SELECT id, created_at, incident_type, risk_tier, "
+            "latitude, longitude, location, is_sos FROM cases "
+            "WHERE latitude IS NOT NULL AND longitude IS NOT NULL "
+            "ORDER BY id DESC"
+        ).fetchall()
+
+        return [
+            {
+                "id": row["id"],
+                "created_at": row["created_at"],
+                "incident_type": row["incident_type"],
+                "risk_tier": row["risk_tier"],
+                "latitude": row["latitude"],
+                "longitude": row["longitude"],
+                "location": row["location"],
+                "is_sos": bool(row["is_sos"]),
+            }
+            for row in rows
+        ]
+
+
 def get_case(case_id):
     """
     Fetch one case by id, or None if it doesn't exist.
