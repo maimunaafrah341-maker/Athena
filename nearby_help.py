@@ -119,3 +119,65 @@ def find_nearby_help(latitude, longitude, radius_km=3, limit_per_type=5):
             counts[r["type"]] += 1
 
     return capped
+
+
+# ============================================================
+# CALL OPTIONS
+# ============================================================
+#
+# Real numbers a "Call for help" button can actually dial via a
+# tel: link -- confirmed current as of 2026-08-21 (India's unified
+# emergency number 112, plus the older direct lines that still work
+# nationwide: 100 police, 181 women's helpline, 1098 Childline for a
+# child in distress). These are official public emergency numbers,
+# not something retrieved from the knowledge base -- hardcoding them
+# here is the correct, honest thing to do, the same way nearby real
+# police-station numbers come from live OpenStreetMap data rather
+# than being invented.
+
+NATIONAL_HELPLINES = [
+    {"label": "Emergency (Police / Fire / Ambulance)", "phone": "112", "source": "national"},
+    {"label": "Police", "phone": "100", "source": "national"},
+    {"label": "Women's Helpline", "phone": "181", "source": "national"},
+    {"label": "Childline (child in distress)", "phone": "1098", "source": "national"},
+]
+
+
+def get_call_options(latitude=None, longitude=None):
+    """
+    What a "Call for help" button should offer, in priority order:
+    the nearest real police station (if a location was shared AND
+    OpenStreetMap actually has a phone number for it -- often it
+    doesn't, that's a real data gap, not something to fake), then
+    the national helplines above, which are always available
+    regardless of location.
+
+    This only decides WHICH number(s) to offer -- actually placing a
+    call is a tel: link the frontend triggers, and should always sit
+    behind an explicit confirmation step in the UI so a live demo
+    never accidentally dials a real number.
+    """
+
+    options = []
+
+    if latitude is not None and longitude is not None:
+
+        nearby = find_nearby_help(latitude, longitude, radius_km=5, limit_per_type=3)
+
+        nearest_station_with_phone = next(
+            (place for place in nearby
+             if place["type"] == "police_station" and place.get("phone")),
+            None,
+        )
+
+        if nearest_station_with_phone:
+            options.append({
+                "label": f"Nearest Police Station — {nearest_station_with_phone['name']}",
+                "phone": nearest_station_with_phone["phone"],
+                "source": "nearest_station",
+                "distance_km": nearest_station_with_phone["distance_km"],
+            })
+
+    options.extend(NATIONAL_HELPLINES)
+
+    return options

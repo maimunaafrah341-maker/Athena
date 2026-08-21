@@ -593,6 +593,24 @@ RELATIONSHIP_EXAMPLES = {
         "Naa bharta nannu bedhiristunnadu."
     ],
 
+    "parent": [
+        "My father hits me.",
+        "My father is threatening me.",
+        "My mother hurts me.",
+        "मेरे पिता मुझे मारते हैं।",
+        "मेरे पिता मुझे धमकाते हैं।",
+        "నా తండ్రి నన్ను కొడతాడు.",
+        "నా తండ్రి నన్ను బెదిరిస్తాడు.",
+
+        # Romanized Hindi
+        "Mere pita mujhe maarte hain.",
+        "Mere pita mujhe dhamkate hain.",
+
+        # Romanized Telugu
+        "Naa thandri nannu kodutadu.",
+        "Naa thandri nannu bedhiristadu."
+    ],
+
     "family_member": [
         "A family member is hurting me.",
         "Someone in my family is abusing me.",

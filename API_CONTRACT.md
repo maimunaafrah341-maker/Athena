@@ -492,6 +492,27 @@ including `case_id`, `reasoning_trace`, and `nearby_help` (only present when
 this endpoint have `is_sos: true`, so a reviewer/dashboard can tell a
 manually-triggered panic case apart from a regular escalated report.
 
+## Call options (real numbers for a "Call for help" button) — **fully functional today**
+
+```
+GET /call-options                                -> national helplines only
+GET /call-options?latitude=X&longitude=Y         -> nearest real station + national helplines
+```
+
+```json
+[
+  { "label": "Nearest Police Station — Chaderghat Police Station", "phone": "91 40 27854782", "source": "nearest_station", "distance_km": 0.95 },
+  { "label": "Emergency (Police / Fire / Ambulance)", "phone": "112", "source": "national" },
+  { "label": "Police", "phone": "100", "source": "national" },
+  { "label": "Women's Helpline", "phone": "181", "source": "national" },
+  { "label": "Childline (child in distress)", "phone": "1098", "source": "national" }
+]
+```
+
+The nearest-station entry only appears when a location was given AND OpenStreetMap actually has a phone number for that station (often it doesn't). The 4 national numbers are always present regardless — real, current, official Indian emergency numbers (verified 2026-08-21), not something invented.
+
+**Important**: this endpoint only returns numbers, it never places a call. The frontend should turn a selected entry's `phone` into a `tel:` link — but always behind an explicit in-app confirmation step ("Call {label}? Cancel / Call Now"), so a live demo never accidentally dials a real number. On mobile, `tel:` links hand off to the device's own phone app; on desktop they generally do nothing, so don't rely on this being testable from a laptop browser during rehearsal.
+
 ## What the frontend needs to handle
 
 - `incident` and `risk` can both be `null` (case 4) — don't assume they exist.
@@ -509,3 +530,18 @@ manually-triggered panic case apart from a regular escalated report.
 - `incident.confidence` and `risk.confidence` are the same number right now
   (both come from the understanding step) — don't read them as two
   independent signals yet.
+- The app now explicitly supports reports from any age/gender (added a
+  `parent` relationship category, broadened the response framing beyond
+  "women's safety system" so a child reporting a parent's abuse gets an
+  age-appropriate response). **But risk-scoring for this case is still
+  unreliable**: a live test of "My father hits me... he beats me almost
+  every day" scored `risk_tier: Low`, `risk_score: 0` — the same signal-
+  level embedding-noise issue already documented for Hindi/Telugu stalking
+  cases, just newly confirmed here too. Don't market/pitch this as reliable
+  child-abuse detection yet. Also: don't assume cited law always applies to
+  the reporter — `domviolence.pdf` (India's PWDVA) is legally scoped to
+  women, and one test response paraphrased its protection-order provision
+  as protecting "a child" without naming the Act or its actual scope. A
+  prompt rule now asks Gemini to name gender-scoped laws explicitly, but
+  it isn't reliably followed yet — treat legal specifics in the response
+  text as unverified until this gets more testing.

@@ -36,7 +36,7 @@ from cases import (
 )
 from voice_service import process_voice_to_text
 from ocr import extract_text
-from nearby_help import find_nearby_help
+from nearby_help import find_nearby_help, get_call_options
 
 EVIDENCE_DIR = "evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
@@ -181,6 +181,24 @@ def sos(payload: SosRequest):
         )
 
     return result
+
+
+@app.get("/call-options")
+def call_options(latitude: Optional[float] = None, longitude: Optional[float] = None):
+    """
+    Real numbers a "Call for help" button can offer -- the nearest
+    real police station (if location is given and OSM has a phone
+    number for it) plus India's national emergency/helpline numbers,
+    which are always included regardless of location. See
+    nearby_help.get_call_options for the full reasoning.
+
+    This endpoint only returns numbers -- it never places a call.
+    The frontend should always show an explicit confirmation step
+    before turning any of these into a `tel:` link, so a live demo
+    never accidentally dials a real number.
+    """
+
+    return get_call_options(latitude, longitude)
 
 
 @app.get("/nearby")
