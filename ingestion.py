@@ -5,7 +5,7 @@ import chromadb
 from pypdf import PdfReader
 
 from embedding_model import model
-from language_detect import detect_language
+from understanding import detect_language
 
 
 # ============================================================
