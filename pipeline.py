@@ -81,15 +81,25 @@ def _build_reasoning_trace(result):
     }
 
 
-def _finalize(text, result, evidence_path=None):
+def _finalize(text, result, evidence_path=None, latitude=None, longitude=None):
     """
     Persist every processed report as a case (see cases.py) and
     attach its id/status to the contract before returning. This is
     the ESCALATE step made real -- previously an "escalate": true
     result had nowhere to go once returned.
+
+    latitude/longitude, if given, are expected to already be
+    privacy-rounded by the caller (app.py) -- this function and
+    cases.create_case() just persist whatever they're handed.
     """
 
-    case_id = create_case(text, result, evidence_path=evidence_path)
+    case_id = create_case(
+        text,
+        result,
+        evidence_path=evidence_path,
+        latitude=latitude,
+        longitude=longitude,
+    )
 
     result["case_id"] = case_id
     result["case_status"] = "Escalated" if result["escalate"] else "Resolved"
@@ -102,13 +112,24 @@ def _finalize(text, result, evidence_path=None):
 # RUN FULL PIPELINE
 # ============================================================
 
-def run_pipeline(text, language=None, top_k=TOP_K, evidence_path=None):
+def run_pipeline(
+    text,
+    language=None,
+    top_k=TOP_K,
+    evidence_path=None,
+    latitude=None,
+    longitude=None,
+):
     """
     Run one incident report through the full Athena pipeline.
 
     evidence_path: saved path of an uploaded screenshot/image, if
     this text came from OCR'd evidence rather than typed input --
     stored on the resulting case, otherwise ignored.
+
+    latitude/longitude: optional, only if the user chose to share
+    their location -- expected to already be privacy-rounded by the
+    caller before reaching here (see app.py).
 
     Returns a single JSON-serializable dict. This is the contract
     the frontend / API should rely on — nothing else should reach
@@ -177,7 +198,7 @@ def run_pipeline(text, language=None, top_k=TOP_K, evidence_path=None):
                 "escalating instead of guessing."
             ),
             "response": None,
-        }, evidence_path=evidence_path)
+        }, evidence_path=evidence_path, latitude=latitude, longitude=longitude)
 
     # --------------------------------------------------------
     # 5. Generate grounded response
@@ -203,7 +224,7 @@ def run_pipeline(text, language=None, top_k=TOP_K, evidence_path=None):
                 "Please try again in a moment."
             ),
             "response": None,
-        }, evidence_path=evidence_path)
+        }, evidence_path=evidence_path, latitude=latitude, longitude=longitude)
 
     # Critical / High-risk incidents should be flagged for
     # human attention even when verified evidence is available.
@@ -224,7 +245,7 @@ def run_pipeline(text, language=None, top_k=TOP_K, evidence_path=None):
             else None
         ),
         "response": result["response"],
-    }, evidence_path=evidence_path)
+    }, evidence_path=evidence_path, latitude=latitude, longitude=longitude)
 
 
 # ============================================================

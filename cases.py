@@ -35,6 +35,8 @@ VALID_STATUSES = (
 # these onto any cases.db that predates them.
 _NEW_COLUMNS = {
     "location": "TEXT",
+    "latitude": "REAL",
+    "longitude": "REAL",
 }
 
 
@@ -103,7 +105,13 @@ def init_db():
 # CREATE
 # ============================================================
 
-def create_case(original_text, pipeline_result, evidence_path=None):
+def create_case(
+    original_text,
+    pipeline_result,
+    evidence_path=None,
+    latitude=None,
+    longitude=None,
+):
     """
     Persist one pipeline result as a case row.
 
@@ -111,7 +119,10 @@ def create_case(original_text, pipeline_result, evidence_path=None):
     human attention, "Resolved" otherwise -- a human can move it
     from there. evidence_path is the saved path of an uploaded
     screenshot/image, if this case came from OCR'd evidence rather
-    than typed text. Returns the new case's id.
+    than typed text. latitude/longitude, if given, should already be
+    privacy-rounded by the caller (~150m) before reaching here --
+    this function just stores whatever it's handed, it doesn't
+    re-round. Returns the new case's id.
     """
 
     incident = pipeline_result.get("incident") or {}
@@ -129,9 +140,9 @@ def create_case(original_text, pipeline_result, evidence_path=None):
                 original_text, language, incident_type,
                 risk_tier, risk_score, confidence,
                 escalate, reason, response, citations_json,
-                evidence_path, location
+                evidence_path, location, latitude, longitude
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -148,6 +159,8 @@ def create_case(original_text, pipeline_result, evidence_path=None):
                 json.dumps(pipeline_result.get("citations") or []),
                 evidence_path,
                 incident.get("location"),
+                latitude,
+                longitude,
             ),
         )
 
@@ -176,6 +189,8 @@ def _row_to_case(row):
         "citations": json.loads(row["citations_json"]),
         "evidence_path": row["evidence_path"],
         "location": row["location"],
+        "latitude": row["latitude"],
+        "longitude": row["longitude"],
     }
 
 

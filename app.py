@@ -35,6 +35,7 @@ from cases import (
 )
 from voice_service import process_voice_to_text
 from ocr import extract_text
+from nearby_help import find_nearby_help
 
 EVIDENCE_DIR = "evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
@@ -63,6 +64,8 @@ app.add_middleware(
 class ReportRequest(BaseModel):
     text: str
     language: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class StatusUpdateRequest(BaseModel):
@@ -78,17 +81,62 @@ def health():
     return {"status": "ok"}
 
 
+# Rounding precision for any coordinates that get persisted to a
+# case -- ~3 decimal places is roughly 100m. Real-world safety-app
+# precedent: an anonymous-reporting platform storing a reporter's
+# exact GPS coordinates can effectively de-anonymize them (e.g.
+# revealing a home address on a domestic violence case). The nearby-
+# help lookup below still uses the precise coordinates the client
+# sent -- only what gets written to cases.db is rounded.
+LOCATION_ROUNDING_DECIMALS = 3
+
+
 @app.post("/report")
 def report(payload: ReportRequest):
     """
     Run one incident report through the full Athena pipeline
     and return the structured, grounded result.
+
+    If latitude/longitude are provided (only if the user chose to
+    share their location), the response also includes real nearby
+    police stations/hospitals under `nearby_help` -- looked up using
+    the precise coordinates, but only a rounded version is ever
+    persisted to the case (see LOCATION_ROUNDING_DECIMALS above).
     """
 
-    return run_pipeline(
+    rounded_lat = (
+        round(payload.latitude, LOCATION_ROUNDING_DECIMALS)
+        if payload.latitude is not None else None
+    )
+    rounded_lon = (
+        round(payload.longitude, LOCATION_ROUNDING_DECIMALS)
+        if payload.longitude is not None else None
+    )
+
+    result = run_pipeline(
         payload.text,
         language=payload.language,
+        latitude=rounded_lat,
+        longitude=rounded_lon,
     )
+
+    if payload.latitude is not None and payload.longitude is not None:
+        result["nearby_help"] = find_nearby_help(
+            payload.latitude, payload.longitude
+        )
+
+    return result
+
+
+@app.get("/nearby")
+def nearby(latitude: float, longitude: float, radius_km: float = 3):
+    """
+    Standalone lookup: real nearby police stations/hospitals, not
+    tied to filing a report at all -- for a "find help near me"
+    button anywhere in the app. Nothing here is persisted.
+    """
+
+    return find_nearby_help(latitude, longitude, radius_km=radius_km)
 
 
 @app.post("/report/image")

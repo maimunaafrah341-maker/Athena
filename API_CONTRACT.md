@@ -19,9 +19,15 @@ evidence screenshots (see **Evidence upload** below).
 ```json
 {
   "text": "user's incident report, any of English/Hindi/Telugu",
-  "language": null
+  "language": null,
+  "latitude": null,
+  "longitude": null
 }
 ```
+
+`latitude`/`longitude` are optional — only send them if the user actively
+chose to share their location (e.g. a browser geolocation prompt they
+accepted). Omit/null is the default and totally fine.
 
 - `text` (string, required): the raw report. Language is auto-detected — you
   don't need to pass `language` unless you want to force it (`"en"` / `"hi"` / `"te"`).
@@ -369,6 +375,50 @@ Bhashini call fails and silently falls back to mock data. The endpoint being
 live means the wiring is done, not that voice transcription itself works —
 don't build/demo frontend recording UI against this expecting real results
 until credentials are confirmed working.
+
+## Nearby help (real police stations / hospitals) — **fully functional today**
+
+Unlike voice, this one actually works right now, no credentials needed —
+free OpenStreetMap data (Overpass API), no API key.
+
+**Option A — bundled into `/report`**: send `latitude`/`longitude` in the
+request (see above) and the response includes:
+
+```json
+"nearby_help": [
+  {
+    "name": "Chaderghat Police Station",
+    "type": "police_station",
+    "phone": "91 40 27854782",
+    "address": null,
+    "latitude": 17.3779381,
+    "longitude": 78.4917299,
+    "distance_km": 0.95
+  }
+]
+```
+
+Sorted by distance, up to 5 police stations + 5 hospitals. `phone`/`address`
+are `null` when OpenStreetMap doesn't have that data for a given place —
+real gaps in crowd-sourced data, not a bug; always null-check before
+rendering. `nearby_help` is only present on the response at all when
+`latitude`/`longitude` were sent — omit them and there's no key, not an
+empty array.
+
+**Option B — standalone, no report needed**: `GET /nearby?latitude=X&longitude=Y&radius_km=3`
+— same shape as the array above. Good for a "find help near me" button
+anywhere in the app, e.g. paired with the emergency call button, without
+requiring someone to file a report first.
+
+**Privacy note, important**: the *lookup* uses whatever precise coordinates
+the client sends (accuracy matters for "nearest hospital" to actually be
+useful). But if the report gets persisted as a case, only a coordinate
+rounded to ~100m is ever stored (`cases.latitude`/`cases.longitude`) — never
+the exact value. This is deliberate: an anonymous-reporting safety app
+storing someone's exact GPS could effectively de-anonymize them (e.g.
+revealing a home address on a domestic violence case). Don't build a
+frontend feature that expects to retrieve the *exact* coordinates back from
+a saved case — the whole point is that they're not there.
 
 ## What the frontend needs to handle
 
