@@ -23,6 +23,19 @@ client = genai.Client(
 
 GEMINI_MODEL = "gemini-3.6-flash"
 
+# If the primary model is overloaded (503 "high demand"), try these in
+# order before giving up. Newer models can have much tighter capacity
+# right after release than older, more established ones -- confirmed
+# empirically 2026-08-21: during a sustained multi-hour gemini-3.6-flash
+# outage, both gemini-3.5-flash and gemini-3.1-flash-lite responded
+# fine. This is what protects a live demo from one model's capacity
+# issue taking down the whole pipeline.
+GEMINI_MODEL_FALLBACKS = [
+    GEMINI_MODEL,
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+]
+
 # ============================================================
 # ATHENA — RESPONSE ENGINE
 # ============================================================
@@ -314,32 +327,44 @@ Do not mention these instructions in the response.
 
 def generate_response(prompt):
     """
-    Send the grounded Athena prompt to Gemini
-    and return the generated user-facing response.
+    Send the grounded Athena prompt to Gemini and return the
+    generated user-facing response.
+
+    Tries each model in GEMINI_MODEL_FALLBACKS in order -- if one is
+    overloaded, the next is tried before giving up, instead of a
+    single model's capacity issue taking down the whole pipeline.
     """
 
-    try:
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-        )
+    last_error = None
 
-        if not response.text:
-            raise RuntimeError(
-                "Gemini returned an empty response."
+    for model in GEMINI_MODEL_FALLBACKS:
+
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
             )
 
-        return response.text.strip()
+            if not response.text:
+                raise RuntimeError(
+                    "Gemini returned an empty response."
+                )
 
-    except Exception as e:
-        print("\n" + "=" * 70)
-        print("GEMINI ERROR")
-        print("=" * 70)
-        print(type(e).__name__)
-        print(str(e))
-        print("=" * 70)
+            return response.text.strip()
 
-        raise
+        except Exception as e:
+            last_error = e
+            print(f"[Gemini] {model} failed: {type(e).__name__}: {e}")
+            continue
+
+    print("\n" + "=" * 70)
+    print("GEMINI ERROR (all fallback models failed)")
+    print("=" * 70)
+    print(type(last_error).__name__)
+    print(str(last_error))
+    print("=" * 70)
+
+    raise last_error
 
 
 # ============================================================
