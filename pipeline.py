@@ -81,7 +81,45 @@ def _build_reasoning_trace(result):
     }
 
 
-def _finalize(text, result, evidence_path=None, latitude=None, longitude=None):
+SOS_RISK_FACTOR = (
+    "Manual SOS trigger — user directly signaled immediate danger"
+)
+
+
+def _apply_sos_override(result):
+    """
+    A one-tap SOS button is a direct, unambiguous signal of immediate
+    danger from the user themselves -- a stronger signal than
+    anything understanding.py/risk.py could infer from wording. It
+    always overrides the classifier's guess to Critical/escalated,
+    rather than trusting whatever the (possibly terse, possibly
+    generic) SOS text happened to classify as.
+    """
+
+    if result.get("risk"):
+        result["risk"]["risk_tier"] = "Critical"
+        result["risk"]["risk_score"] = 100
+        if SOS_RISK_FACTOR not in result["risk"]["risk_factors"]:
+            result["risk"]["risk_factors"].append(SOS_RISK_FACTOR)
+
+    result["escalate"] = True
+
+    if not result.get("reason"):
+        result["reason"] = (
+            "Manual SOS trigger — flagged for immediate human attention."
+        )
+
+    return result
+
+
+def _finalize(
+    text,
+    result,
+    evidence_path=None,
+    latitude=None,
+    longitude=None,
+    is_sos=False,
+):
     """
     Persist every processed report as a case (see cases.py) and
     attach its id/status to the contract before returning. This is
@@ -93,12 +131,16 @@ def _finalize(text, result, evidence_path=None, latitude=None, longitude=None):
     cases.create_case() just persist whatever they're handed.
     """
 
+    if is_sos:
+        result = _apply_sos_override(result)
+
     case_id = create_case(
         text,
         result,
         evidence_path=evidence_path,
         latitude=latitude,
         longitude=longitude,
+        is_sos=is_sos,
     )
 
     result["case_id"] = case_id
@@ -119,6 +161,7 @@ def run_pipeline(
     evidence_path=None,
     latitude=None,
     longitude=None,
+    is_sos=False,
 ):
     """
     Run one incident report through the full Athena pipeline.
@@ -130,6 +173,11 @@ def run_pipeline(
     latitude/longitude: optional, only if the user chose to share
     their location -- expected to already be privacy-rounded by the
     caller before reaching here (see app.py).
+
+    is_sos: True when this report came from the one-tap SOS button
+    rather than a typed report -- forces the resulting case to
+    Critical/escalated regardless of what the text classifies as
+    (see _apply_sos_override above).
 
     Returns a single JSON-serializable dict. This is the contract
     the frontend / API should rely on — nothing else should reach
@@ -198,7 +246,8 @@ def run_pipeline(
                 "escalating instead of guessing."
             ),
             "response": None,
-        }, evidence_path=evidence_path, latitude=latitude, longitude=longitude)
+        }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
+           is_sos=is_sos)
 
     # --------------------------------------------------------
     # 5. Generate grounded response
@@ -224,7 +273,8 @@ def run_pipeline(
                 "Please try again in a moment."
             ),
             "response": None,
-        }, evidence_path=evidence_path, latitude=latitude, longitude=longitude)
+        }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
+           is_sos=is_sos)
 
     # Critical / High-risk incidents should be flagged for
     # human attention even when verified evidence is available.
@@ -245,7 +295,8 @@ def run_pipeline(
             else None
         ),
         "response": result["response"],
-    }, evidence_path=evidence_path, latitude=latitude, longitude=longitude)
+    }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
+       is_sos=is_sos)
 
 
 # ============================================================

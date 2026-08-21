@@ -269,6 +269,7 @@ alerts," risk breakdowns, etc.):
   "total_cases": 1,
   "escalated_cases": 1,
   "cases_with_evidence": 1,
+  "sos_cases": 0,
   "by_status": {"Escalated": 1},
   "by_risk_tier": {"Critical": 1},
   "by_incident_type": {"domestic_violence": 1},
@@ -419,6 +420,39 @@ storing someone's exact GPS could effectively de-anonymize them (e.g.
 revealing a home address on a domestic violence case). Don't build a
 frontend feature that expects to retrieve the *exact* coordinates back from
 a saved case — the whole point is that they're not there.
+
+## SOS (one-tap panic button) — **fully functional today**
+
+`POST /sos` — for a panic-button UI element, separate from the normal typed
+report flow.
+
+```json
+{
+  "latitude": 17.384999,
+  "longitude": 78.486712,
+  "text": null
+}
+```
+
+All fields optional. `text` defaults to a generic "I need immediate help
+right now" phrase if omitted — send actual typed/pre-filled text if you have
+it, but don't block the button on the user typing something first, that
+defeats the point.
+
+**The important difference from `/report`**: risk is NOT inferred from the
+text here. Pressing this button is itself the strongest possible signal of
+immediate danger — stronger than anything a classifier could guess from
+wording — so every `/sos` call is forced to `risk.risk_tier: "Critical"` and
+`escalate: true`, regardless of what the text would otherwise classify as.
+Verified this actually overrides (not just happens to agree): a deliberately
+vague/neutral test phrase ("I don't know what's going on, everything feels
+off today", which classifies with ~0% confidence) still comes back Critical.
+
+Response shape is otherwise identical to `/report`'s case 1-3 shapes,
+including `case_id`, `reasoning_trace`, and `nearby_help` (only present when
+`latitude`/`longitude` were sent — same as `/report`). Persisted cases from
+this endpoint have `is_sos: true`, so a reviewer/dashboard can tell a
+manually-triggered panic case apart from a regular escalated report.
 
 ## What the frontend needs to handle
 

@@ -72,6 +72,12 @@ class StatusUpdateRequest(BaseModel):
     status: str
 
 
+class SosRequest(BaseModel):
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    text: Optional[str] = None
+
+
 # ============================================================
 # ROUTES
 # ============================================================
@@ -118,6 +124,54 @@ def report(payload: ReportRequest):
         language=payload.language,
         latitude=rounded_lat,
         longitude=rounded_lon,
+    )
+
+    if payload.latitude is not None and payload.longitude is not None:
+        result["nearby_help"] = find_nearby_help(
+            payload.latitude, payload.longitude
+        )
+
+    return result
+
+
+DEFAULT_SOS_TEXT = "I need immediate help right now, I am in danger."
+
+
+@app.post("/sos")
+def sos(payload: SosRequest):
+    """
+    One-tap SOS. Unlike /report, risk/escalation is NOT inferred from
+    text -- pressing this button is itself the strongest possible
+    signal of immediate danger, so the resulting case is always
+    forced Critical/Escalated regardless of what the (often short or
+    generic) SOS text would otherwise classify as (see
+    pipeline._apply_sos_override).
+
+    latitude/longitude are optional (geolocation can be denied or
+    unavailable even in a real emergency) but are what make this
+    actually useful -- when given, the response includes real nearby
+    police stations/hospitals, same as /report. `text` is optional;
+    if the caller has nothing typed/pre-filled, a default SOS phrase
+    is used so the pipeline still has something to classify and
+    retrieve evidence against.
+    """
+
+    text = payload.text or DEFAULT_SOS_TEXT
+
+    rounded_lat = (
+        round(payload.latitude, LOCATION_ROUNDING_DECIMALS)
+        if payload.latitude is not None else None
+    )
+    rounded_lon = (
+        round(payload.longitude, LOCATION_ROUNDING_DECIMALS)
+        if payload.longitude is not None else None
+    )
+
+    result = run_pipeline(
+        text,
+        latitude=rounded_lat,
+        longitude=rounded_lon,
+        is_sos=True,
     )
 
     if payload.latitude is not None and payload.longitude is not None:

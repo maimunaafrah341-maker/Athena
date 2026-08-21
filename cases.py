@@ -37,6 +37,7 @@ _NEW_COLUMNS = {
     "location": "TEXT",
     "latitude": "REAL",
     "longitude": "REAL",
+    "is_sos": "INTEGER",
 }
 
 
@@ -111,6 +112,7 @@ def create_case(
     evidence_path=None,
     latitude=None,
     longitude=None,
+    is_sos=False,
 ):
     """
     Persist one pipeline result as a case row.
@@ -122,7 +124,9 @@ def create_case(
     than typed text. latitude/longitude, if given, should already be
     privacy-rounded by the caller (~150m) before reaching here --
     this function just stores whatever it's handed, it doesn't
-    re-round. Returns the new case's id.
+    re-round. is_sos marks a case that came from the one-tap SOS
+    button rather than a typed report, so a reviewer can tell the
+    two apart later. Returns the new case's id.
     """
 
     incident = pipeline_result.get("incident") or {}
@@ -140,9 +144,9 @@ def create_case(
                 original_text, language, incident_type,
                 risk_tier, risk_score, confidence,
                 escalate, reason, response, citations_json,
-                evidence_path, location, latitude, longitude
+                evidence_path, location, latitude, longitude, is_sos
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -161,6 +165,7 @@ def create_case(
                 incident.get("location"),
                 latitude,
                 longitude,
+                int(is_sos),
             ),
         )
 
@@ -191,6 +196,7 @@ def _row_to_case(row):
         "location": row["location"],
         "latitude": row["latitude"],
         "longitude": row["longitude"],
+        "is_sos": bool(row["is_sos"]),
     }
 
 
@@ -259,10 +265,15 @@ def get_stats():
             "SELECT COUNT(*) FROM cases WHERE evidence_path IS NOT NULL"
         ).fetchone()[0]
 
+        sos_cases = connection.execute(
+            "SELECT COUNT(*) FROM cases WHERE is_sos = 1"
+        ).fetchone()[0]
+
         return {
             "total_cases": total,
             "escalated_cases": escalated,
             "cases_with_evidence": with_evidence,
+            "sos_cases": sos_cases,
             "by_status": _count_by(connection, "status"),
             "by_risk_tier": _count_by(connection, "risk_tier"),
             "by_incident_type": _count_by(connection, "incident_type"),
@@ -448,6 +459,7 @@ def build_escalation_brief(case_id):
         "incident_type": case["incident_type"],
         "location": case["location"],
         "language": case["language"],
+        "is_sos": case["is_sos"],
         "summary": case["original_text"],
         "response_given": case["response"],
         "reason": case["reason"],
