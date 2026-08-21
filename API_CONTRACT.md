@@ -57,6 +57,7 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `incident.relationship` | string \| null | e.g. `"husband"`, `"stranger"`; null if not confidently detected |
 | `incident.location` | string \| null | a real-world place *type* mentioned in the report — one of `bus_stop`, `railway_station`, `hostel`, `home`, `workplace`, `college_campus`, `market`, `street`, `police_station`, `hospital`, `park`; null if no location is confidently mentioned (most reports won't have one — that's expected, not a bug) |
 | `incident.confidence` | float 0-100 | how confident the understanding step is — **low confidence is a real, meaningful state now** (see below) |
+| `incident.confidence_breakdown` | object | per-field confidence: `{incident_type, threat, injury, immediate_danger, relationship, location}`, each 0-100, calibrated the same way as `confidence` (comparable to each other, not raw similarity scores). A field can show low confidence even when its boolean came back `false`/`null` — that's the point, it explains *why* (e.g. `location: 43.4` alongside `location: null` means Athena saw a weak hint but wasn't confident enough to commit to it) |
 | `risk.risk_tier` | `"Low" \| "Medium" \| "High" \| "Critical"` | |
 | `risk.risk_score` | int 0-100 | |
 | `risk.risk_factors` | string[] | human-readable reasons, e.g. `"Immediate danger detected"`, `"Low understanding confidence — human review recommended"` |
@@ -179,7 +180,14 @@ response, restructured to directly answer "why did Athena decide this?":
 
 ```json
 {
-  "incident_classification": {"type": "domestic_violence", "confidence": 100.0},
+  "incident_classification": {
+    "type": "domestic_violence",
+    "confidence": 100.0,
+    "confidence_breakdown": {
+      "incident_type": 100.0, "threat": 89.12, "injury": 93.29,
+      "immediate_danger": 62.92, "relationship": 100.0, "location": 15.01
+    }
+  },
   "risk_assessment": {
     "tier": "Critical", "score": 100,
     "factors": ["Immediate danger detected", "Physical violence detected", "Threat detected", "Injury reported"]

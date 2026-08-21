@@ -63,6 +63,7 @@ def _build_reasoning_trace(result):
         "incident_classification": {
             "type": incident.get("incident_type"),
             "confidence": incident.get("confidence"),
+            "confidence_breakdown": incident.get("confidence_breakdown"),
         },
         "risk_assessment": {
             "tier": risk.get("risk_tier"),

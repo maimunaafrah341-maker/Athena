@@ -89,6 +89,26 @@ def neutral_ceiling(query_embedding):
     return float(similarities.max())
 
 
+def calibrate_confidence(raw_similarity, query_embedding):
+    """
+    Convert a raw cosine similarity into a calibrated 0-1 confidence,
+    the same way for every detector (incident type, each signal,
+    relationship, location) so they're actually comparable to each
+    other -- a margin of NEUTRAL_MARGIN over the neutral baseline
+    maps to 100%, a margin of 0 (this text matches the category no
+    better than it matches ordinary small talk) maps to 0%.
+
+    Shared by every detector below instead of each one inlining its
+    own copy of this formula, so a per-field confidence_breakdown
+    means the same thing in every field rather than mixing raw
+    similarity scores with calibrated ones.
+    """
+
+    margin = raw_similarity - neutral_ceiling(query_embedding)
+
+    return max(0.0, min(1.0, margin / (NEUTRAL_MARGIN * 2.5)))
+
+
 # ============================================================
 # LANGUAGE DETECTION
 # ============================================================
@@ -432,13 +452,7 @@ def classify_incident(text):
     incident_type = example_labels[best_index]
     raw_similarity = float(similarities[best_index])
 
-    # Calibrate confidence against the neutral baseline instead of
-    # trusting the raw cosine score: a margin of NEUTRAL_MARGIN over
-    # neutral text maps to 100% confidence, a margin of 0 (i.e. this
-    # text matches the incident category no better than it matches
-    # ordinary small talk) maps to 0%.
-    margin = raw_similarity - neutral_ceiling(query_embedding)
-    confidence = max(0.0, min(1.0, margin / (NEUTRAL_MARGIN * 2.5)))
+    confidence = calibrate_confidence(raw_similarity, query_embedding)
 
     return incident_type, confidence
 
@@ -551,7 +565,9 @@ def detect_signal(text, signal, threshold=0.72):
 
     present = best_similarity >= threshold and margin >= NEUTRAL_MARGIN
 
-    return present, best_similarity
+    confidence = calibrate_confidence(best_similarity, query_embedding)
+
+    return present, confidence
 
 
 # ============================================================
@@ -652,12 +668,14 @@ def detect_relationship(text, threshold=0.70):
 
     margin = best_similarity - neutral_ceiling(query_embedding)
 
+    confidence = calibrate_confidence(best_similarity, query_embedding)
+
     if best_similarity < threshold or margin < NEUTRAL_MARGIN:
-        return None, best_similarity
+        return None, confidence
 
     return (
         relationship_labels[best_index],
-        best_similarity
+        confidence
     )
 
 
@@ -868,12 +886,14 @@ def detect_location(text, threshold=0.70):
 
     margin = best_similarity - neutral_ceiling(query_embedding)
 
+    confidence = calibrate_confidence(best_similarity, query_embedding)
+
     if best_similarity < threshold or margin < NEUTRAL_MARGIN:
-        return None, best_similarity
+        return None, confidence
 
     return (
         location_labels[best_index],
-        best_similarity
+        confidence
     )
 
 
@@ -972,6 +992,22 @@ def understand(text, language=None):
         2
     )
 
+    # Per-field breakdown of the same calibrated confidence, instead
+    # of discarding threat_score/injury_score/danger_score/
+    # relationship_score/location_score after they've already been
+    # computed. Every field here is calibrated the same way as the
+    # top-level confidence (see calibrate_confidence) -- comparable
+    # to each other, not raw cosine similarity dressed up as a
+    # percentage.
+    confidence_breakdown = {
+        "incident_type": confidence,
+        "threat": round(threat_score * 100, 2),
+        "injury": round(injury_score * 100, 2),
+        "immediate_danger": round(danger_score * 100, 2),
+        "relationship": round(relationship_score * 100, 2),
+        "location": round(location_score * 100, 2),
+    }
+
     return {
         "original_text": text,
         "language": language,
@@ -984,6 +1020,7 @@ def understand(text, language=None):
         "relationship": relationship,
         "location": location,
         "confidence": confidence,
+        "confidence_breakdown": confidence_breakdown,
     }
 
 
