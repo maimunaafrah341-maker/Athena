@@ -17,7 +17,9 @@ response_engine.py needs to change for this to work.
 """
 
 from understanding import understand
-from risk import assess_risk
+from risk import assess_risk, INCIDENT_TYPE_CONFIDENCE_FLOOR
+from svi import assess_stress
+from kg import get_legal_guidance
 from retrieval import retrieve
 from response_engine import prepare_response
 from cases import init_db, create_case
@@ -58,6 +60,8 @@ def _build_reasoning_trace(result):
 
     incident = result.get("incident") or {}
     risk = result.get("risk") or {}
+    stress = result.get("stress_assessment") or {}
+    legal = result.get("legal_guidance") or {}
 
     return {
         "incident_classification": {
@@ -69,6 +73,20 @@ def _build_reasoning_trace(result):
             "tier": risk.get("risk_tier"),
             "score": risk.get("risk_score"),
             "factors": risk.get("risk_factors", []),
+        },
+        "stress_assessment": {
+            "tier": stress.get("svi_tier"),
+            "score": stress.get("svi_score"),
+            "confidence": stress.get("confidence"),
+            "modalities_used": stress.get("modalities_used"),
+            "factors": stress.get("contributing_factors", []),
+        },
+        "legal_guidance_summary": {
+            "provisions_cited": [
+                f"{p.get('act')} — {p.get('section')}"
+                for p in (legal.get("applicable_provisions") or [])
+            ],
+            "escalation_contact_found": legal.get("escalation_contact") is not None,
         },
         "evidence_used": [
             {
@@ -162,6 +180,8 @@ def run_pipeline(
     latitude=None,
     longitude=None,
     is_sos=False,
+    voice_features=None,
+    district=None,
 ):
     """
     Run one incident report through the full Athena pipeline.
@@ -179,9 +199,21 @@ def run_pipeline(
     Critical/escalated regardless of what the text classifies as
     (see _apply_sos_override above).
 
+    voice_features: optional pre-extracted voice signal (pitch
+    variation, pause ratio, speech rate -- see svi.py) fused with the
+    text signal into stress_assessment. None for text-only input,
+    which is the normal case today.
+
+    district: optional reporter district name (e.g. "Hyderabad"),
+    used only to resolve legal_guidance.escalation_contact (see
+    kg.py). None just means that field comes back null -- applicable
+    legal provisions and procedural steps still get returned either
+    way, district only affects the contact lookup.
+
     Returns a single JSON-serializable dict. This is the contract
     the frontend / API should rely on — nothing else should reach
-    into understanding/risk/retrieval/response_engine directly.
+    into understanding/risk/svi/kg/retrieval/response_engine
+    directly.
     """
 
     # --------------------------------------------------------
@@ -203,6 +235,8 @@ def run_pipeline(
         return {
             "incident": None,
             "risk": None,
+            "stress_assessment": None,
+            "legal_guidance": None,
             "citations": [],
             "top_similarity": 0.0,
             "escalate": True,
@@ -214,10 +248,12 @@ def run_pipeline(
         }
 
     # --------------------------------------------------------
-    # 2. Assess risk
+    # 2. Assess risk + stress vulnerability
     # --------------------------------------------------------
 
     risk_assessment = assess_risk(incident)
+    stress_assessment = assess_stress(incident, voice_features)
+    legal_guidance = get_legal_guidance(incident, district=district)
 
     # --------------------------------------------------------
     # 3. Retrieve verified evidence
@@ -236,6 +272,8 @@ def run_pipeline(
         return _finalize(text, {
             "incident": incident,
             "risk": risk_assessment,
+            "stress_assessment": stress_assessment,
+            "legal_guidance": legal_guidance,
             "citations": [],
             "top_similarity": top_similarity,
             "escalate": True,
@@ -265,6 +303,8 @@ def run_pipeline(
         return _finalize(text, {
             "incident": incident,
             "risk": risk_assessment,
+            "stress_assessment": stress_assessment,
+            "legal_guidance": legal_guidance,
             "citations": [],
             "top_similarity": top_similarity,
             "escalate": True,
@@ -276,24 +316,60 @@ def run_pipeline(
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
            is_sos=is_sos)
 
-    # Critical / High-risk incidents should be flagged for
-    # human attention even when verified evidence is available.
-    needs_human_escalation = risk_assessment["risk_tier"] in (
-       "Critical",
-       "High",
-    )
+    # Critical/High-risk incidents, a Critical stress/trauma reading,
+    # OR low understanding confidence should each independently be
+    # enough to flag for human attention, even when verified evidence
+    # was available and Gemini produced a normal-looking answer.
+    #
+    # The third trigger closes a real gap found via live adversarial
+    # testing 2026-08-21/22: retrieval similarity and understanding
+    # confidence measure different things -- a short, genuinely
+    # ambiguous report ("I don't know what's going on, everything
+    # feels off today") can score 0% on incident.confidence (the
+    # system has no real idea what happened) while retrieval still
+    # coincidentally finds a chunk above RETRIEVAL_CONFIDENCE_THRESHOLD
+    # by similarity alone, letting a confident-sounding, non-escalated
+    # response through with nobody ever reviewing it -- directly
+    # contradicting the "escalate when uncertain" design this project
+    # is pitched on. risk.py already computed a "Low understanding
+    # confidence" risk_factor STRING for this exact situation, but
+    # that string was never actually wired to force escalate=True
+    # unless it also happened to push risk/stress into a high tier,
+    # which a low-signal ambiguous report structurally can't do.
+    # INCIDENT_TYPE_CONFIDENCE_FLOOR is reused rather than a new
+    # constant since it's already the bar risk.py uses to decide
+    # whether classify_incident()'s output is trustworthy at all --
+    # same question, same answer, single source of truth.
+    risk_escalation = risk_assessment["risk_tier"] in ("Critical", "High")
+    stress_escalation = stress_assessment["svi_tier"] == "Critical"
+    understanding_escalation = incident["confidence"] < INCIDENT_TYPE_CONFIDENCE_FLOOR
+    needs_human_escalation = risk_escalation or stress_escalation or understanding_escalation
+
+    escalation_reasons = []
+
+    if risk_escalation:
+        escalation_reasons.append("High-risk incident requires human attention.")
+
+    if stress_escalation:
+        escalation_reasons.append(
+            "Critical stress/trauma indicators detected — human review recommended."
+        )
+
+    if understanding_escalation:
+        escalation_reasons.append(
+            "Low understanding confidence — unable to reliably classify this "
+            "report, human review recommended."
+        )
 
     return _finalize(text, {
        "incident": incident,
        "risk": risk_assessment,
+       "stress_assessment": stress_assessment,
+       "legal_guidance": legal_guidance,
        "citations": result["citations"],
        "top_similarity": top_similarity,
        "escalate": needs_human_escalation,
-       "reason": (
-           "High-risk incident requires human attention."
-            if needs_human_escalation
-            else None
-        ),
+       "reason": " ".join(escalation_reasons) if escalation_reasons else None,
         "response": result["response"],
     }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
        is_sos=is_sos)

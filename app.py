@@ -62,11 +62,30 @@ app.add_middleware(
 # REQUEST MODEL
 # ============================================================
 
+class VoiceFeatures(BaseModel):
+    """
+    Pre-extracted voice signal, fused with text into stress_assessment
+    (see svi.py). Feature extraction itself happens upstream in the
+    voice pipeline -- this is just the receiving contract. The three
+    required fields are what's assumed available today; the two
+    optional ones let the voice team add signal later without a
+    contract change.
+    """
+
+    pitch_variation: float
+    pause_ratio: float
+    speech_rate_wpm: float
+    avg_pause_duration_sec: Optional[float] = None
+    voice_energy_variability: Optional[float] = None
+
+
 class ReportRequest(BaseModel):
     text: str
     language: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    voice_features: Optional[VoiceFeatures] = None
+    district: Optional[str] = None
 
 
 class StatusUpdateRequest(BaseModel):
@@ -77,6 +96,8 @@ class SosRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     text: Optional[str] = None
+    voice_features: Optional[VoiceFeatures] = None
+    district: Optional[str] = None
 
 
 # ============================================================
@@ -125,6 +146,11 @@ def report(payload: ReportRequest):
         language=payload.language,
         latitude=rounded_lat,
         longitude=rounded_lon,
+        voice_features=(
+            payload.voice_features.model_dump()
+            if payload.voice_features else None
+        ),
+        district=payload.district,
     )
 
     if payload.latitude is not None and payload.longitude is not None:
@@ -173,6 +199,11 @@ def sos(payload: SosRequest):
         latitude=rounded_lat,
         longitude=rounded_lon,
         is_sos=True,
+        voice_features=(
+            payload.voice_features.model_dump()
+            if payload.voice_features else None
+        ),
+        district=payload.district,
     )
 
     if payload.latitude is not None and payload.longitude is not None:

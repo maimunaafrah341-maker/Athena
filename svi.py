@@ -1,0 +1,360 @@
+# ============================================================
+# ATHENA — STRESS VULNERABILITY INDEX (SVI) ENGINE
+# ============================================================
+
+"""
+Fuses text-derived distress signals (from understanding.py's already-
+computed incident structure) with optional voice-derived signals
+(pitch variation, pause patterns, speech rate -- assumed pre-extracted
+by the voice pipeline, not computed here) into a single Stress
+Vulnerability Index.
+
+This is a DIFFERENT axis from risk.py's risk_tier. risk.py answers
+"how legally/physically dangerous is this situation" -- this answers
+"how much acute psychological distress does this person appear to be
+carrying right now," which matters for triage tone/pacing and whether
+to route to a trauma-informed responder, not just whether to escalate.
+The two usually move together but aren't the same thing: a missing-
+person report carries high reporter distress even with no threat/
+injury to the reporter themselves, and a calmly-worded report can
+still carry a highly distressed voice underneath it.
+
+Mirrors risk.py's shape deliberately: one public function
+(assess_stress, alongside assess_risk), explainable additive scoring
+with named factors instead of an opaque model, same style of
+"heuristic starting point, tune from real data if there's time"
+caveats already used throughout this codebase.
+"""
+
+from risk import INCIDENT_TYPE_CONFIDENCE_FLOOR
+
+
+# ============================================================
+# TEXT DISTRESS
+# ============================================================
+#
+# Baseline distress weight per incident type. NOT the same numbers as
+# risk.py's INCIDENT_TYPE_BASE_SCORE (that table weights legal/physical
+# severity; this one weights typical psychological load of reporting
+# this category of incident) -- domestic_violence and missing_person
+# score here even though risk.py gives missing_person a lower weight
+# than sexual_violence, because the axes being measured are different.
+
+TEXT_DISTRESS_BASE = {
+    "sexual_violence": 30,
+    "trafficking": 30,
+    "domestic_violence": 20,
+    "missing_person": 20,
+    "stalking": 15,
+    "cyber_harassment": 10,
+    "harassment": 10,
+    "other": 0,
+}
+
+
+def _text_distress_score(incident):
+    """
+    Score text-derived distress from the incident structure
+    understanding.py already computed -- no new detection logic, no
+    second embedding pass. Reuses immediate_danger/threat_present/
+    injury_present the same way risk.py does, but weighted for
+    "how distressing does reporting this sound" rather than "how
+    severe/dangerous is this."
+    """
+
+    score = 0
+    factors = []
+
+    if incident.get("immediate_danger"):
+        score += 35
+        factors.append("Immediate danger reported")
+
+    if incident.get("threat_present"):
+        score += 15
+        factors.append("Threat present in report")
+
+    if incident.get("injury_present"):
+        score += 15
+        factors.append("Injury reported")
+
+    # Same confidence floor risk.py uses before trusting incident_type
+    # enough to apply its baseline -- a low-confidence misclassification
+    # shouldn't smuggle in distress points it hasn't earned.
+    confidence = incident.get("confidence", 0.0)
+
+    if confidence >= INCIDENT_TYPE_CONFIDENCE_FLOOR:
+
+        incident_type = incident.get("incident_type")
+        base = TEXT_DISTRESS_BASE.get(incident_type, 0)
+
+        if base > 0:
+            score += base
+            label = (incident_type or "incident").replace("_", " ")
+            factors.append(f"{label.capitalize()} carries elevated baseline distress")
+
+    return min(score, 100), factors
+
+
+# ============================================================
+# VOICE STRESS
+# ============================================================
+#
+# Rough conversational baselines used only to score *deviation* from
+# them -- not claimed as clinically validated thresholds, just a
+# reasonable hackathon-scale starting point. Same caveat pipeline.py
+# already carries for RETRIEVAL_CONFIDENCE_THRESHOLD: tune against
+# real labeled voice samples if there's time before the deadline, not
+# blocking for the demo.
+
+CALM_SPEECH_RATE_RANGE = (110, 150)    # words/min, typical conversational pace
+CALM_PAUSE_RATIO_CEILING = 0.25        # fraction of speaking time spent paused
+
+# Pitch weighted slightly higher -- erratic/breaking pitch is the most
+# commonly cited paralinguistic stress marker in voice-stress
+# literature. Pause and rate split the remainder evenly since there's
+# no calibration data yet to justify favoring one over the other.
+VOICE_WEIGHTS = {
+    "pitch": 0.4,
+    "pause": 0.3,
+    "rate": 0.3,
+}
+
+REQUIRED_VOICE_FIELDS = ("pitch_variation", "pause_ratio", "speech_rate_wpm")
+
+
+def _voice_stress_score(voice_features):
+    """
+    Score voice-derived stress from pre-extracted features.
+
+    Returns (None, []) when voice_features is absent or missing a
+    required field -- this is a normal, expected outcome (most reports
+    are text-only, or the voice pipeline hasn't shipped yet), not an
+    error, matching the rest of this codebase's pattern of treating
+    "no signal available" as a valid None rather than forcing a guess.
+    """
+
+    if not voice_features:
+        return None, []
+
+    if any(voice_features.get(field) is None for field in REQUIRED_VOICE_FIELDS):
+        return None, []
+
+    factors = []
+
+    # Pitch variation: single-sided (only "too erratic" is penalized).
+    # A "too flat" / monotone direction can also indicate distress
+    # (dissociation, emotional numbing) but modeling that non-monotonic
+    # relationship needs real calibration data this project doesn't
+    # have yet -- deliberately not guessing at it.
+    pitch_variation = max(0.0, min(1.0, voice_features["pitch_variation"]))
+    pitch_component = pitch_variation * 100
+
+    if pitch_component > 60:
+        factors.append("High pitch variability / voice breaks")
+
+    # Pause ratio: single-sided (elevated pausing -- searching for
+    # words, choking up -- reads as distress; unusually fluent speech
+    # doesn't reliably read as calm on its own).
+    pause_ratio = voice_features["pause_ratio"]
+    pause_component = 0.0
+
+    if pause_ratio > CALM_PAUSE_RATIO_CEILING:
+        pause_component = min(
+            1.0,
+            (pause_ratio - CALM_PAUSE_RATIO_CEILING) / (1 - CALM_PAUSE_RATIO_CEILING),
+        ) * 100
+        factors.append("Elevated pausing in speech")
+
+    # Speech rate: two-sided. Pressured/rapid speech (panic) and
+    # unusually slow/flat speech (freeze response, dissociation) are
+    # both recognized stress presentations -- unlike pitch/pause above,
+    # this one genuinely needs both directions modeled.
+    rate = voice_features["speech_rate_wpm"]
+    low, high = CALM_SPEECH_RATE_RANGE
+    rate_component = 0.0
+
+    if rate > high:
+        rate_component = min(1.0, (rate - high) / high) * 100
+        factors.append("Pressured / rapid speech rate")
+
+    elif rate < low:
+        rate_component = min(1.0, (low - rate) / low) * 100
+        factors.append("Unusually slow / flat speech rate")
+
+    score = (
+        VOICE_WEIGHTS["pitch"] * pitch_component
+        + VOICE_WEIGHTS["pause"] * pause_component
+        + VOICE_WEIGHTS["rate"] * rate_component
+    )
+
+    return round(min(score, 100), 2), factors
+
+
+# ============================================================
+# FUSION + CONFIDENCE
+# ============================================================
+#
+# Even 50/50 weighting when voice is present -- deliberately round
+# rather than an asymmetric split neither number could be justified
+# well enough to defend. The real point of fusing voice in at all: a
+# caller can consciously soften their words while their voice betrays
+# more distress underneath (or vice versa, e.g. a coerced caller
+# forcing a calm voice) -- see the divergence flag below, which is
+# arguably the most useful single signal this engine produces.
+TEXT_WEIGHT_WITH_VOICE = 0.5
+VOICE_WEIGHT_WITH_VOICE = 0.5
+
+# Confidence ceiling when only one modality is available -- can't
+# cross-validate a single signal against a second one, so text-only
+# confidence is capped below what text+voice agreement can reach.
+TEXT_ONLY_CONFIDENCE_CAP = 0.75
+
+# How far apart text_distress_score and voice_stress_score need to be
+# (0-100 scale) before it's worth flagging as a genuine disagreement
+# rather than ordinary noise.
+DIVERGENCE_FLAG_THRESHOLD = 50
+
+
+def _tier(score):
+    """Same cut points as risk.py's tiers, for consistent judge-facing
+    explanation ("same thresholds, different construct") -- just
+    "Moderate" instead of "Medium" to keep the two axes visually
+    distinct in the UI."""
+
+    if score >= 60:
+        return "Critical"
+    if score >= 40:
+        return "High"
+    if score >= 20:
+        return "Moderate"
+    return "Low"
+
+
+def assess_stress(incident, voice_features=None):
+    """
+    Compute the Stress Vulnerability Index for a structured incident,
+    optionally fused with pre-extracted voice features.
+
+    Parameters
+    ----------
+    incident : dict
+        Structured output from understanding.understand().
+    voice_features : dict | None
+        Pre-extracted voice signal: pitch_variation, pause_ratio,
+        speech_rate_wpm (required if present), plus optional
+        avg_pause_duration_sec / voice_energy_variability. None for
+        text-only input.
+
+    Returns
+    -------
+    dict
+        svi_score, svi_tier, confidence, modalities_used, components,
+        contributing_factors -- see API_CONTRACT.md.
+    """
+
+    text_score, factors = _text_distress_score(incident)
+    voice_score, voice_factors = _voice_stress_score(voice_features)
+
+    incident_confidence = incident.get("confidence", 0.0)  # 0-100
+
+    if voice_score is not None:
+
+        svi_score = (
+            TEXT_WEIGHT_WITH_VOICE * text_score
+            + VOICE_WEIGHT_WITH_VOICE * voice_score
+        )
+
+        agreement = 1 - abs(text_score - voice_score) / 100
+        confidence = (incident_confidence / 100) * (0.5 + 0.5 * agreement) * 100
+        modalities_used = ["text", "voice"]
+
+        factors = factors + voice_factors
+
+        if abs(text_score - voice_score) >= DIVERGENCE_FLAG_THRESHOLD:
+            factors.append(
+                "Text and voice-derived stress signals diverge sharply -- "
+                "possible suppressed distress or a caller unable to speak "
+                "freely; recommend human review"
+            )
+
+    else:
+        svi_score = text_score
+        confidence = (incident_confidence / 100) * TEXT_ONLY_CONFIDENCE_CAP * 100
+        modalities_used = ["text"]
+
+    if incident_confidence < INCIDENT_TYPE_CONFIDENCE_FLOOR:
+        factors.append("Low understanding confidence -- stress estimate less reliable")
+
+    svi_score = round(min(svi_score, 100), 2)
+    confidence = round(max(0.0, min(confidence, 100.0)), 2)
+
+    return {
+        "svi_score": svi_score,
+        "svi_tier": _tier(svi_score),
+        "confidence": confidence,
+        "modalities_used": modalities_used,
+        "components": {
+            "text_distress_score": round(text_score, 2),
+            "voice_stress_score": voice_score,
+        },
+        "contributing_factors": factors,
+    }
+
+
+# ============================================================
+# TEST
+# ============================================================
+
+if __name__ == "__main__":
+
+    text_only_incident = {
+        "incident_type": "domestic_violence",
+        "immediate_danger": True,
+        "threat_present": True,
+        "injury_present": True,
+        "confidence": 98.31,
+    }
+
+    calm_voice = {
+        "pitch_variation": 0.15,
+        "pause_ratio": 0.15,
+        "speech_rate_wpm": 125,
+    }
+
+    agreeing_distressed_voice = {
+        "pitch_variation": 0.85,
+        "pause_ratio": 0.55,
+        "speech_rate_wpm": 210,
+    }
+
+    print("\n" + "=" * 70)
+    print("TEXT ONLY")
+    print("=" * 70)
+    for key, value in assess_stress(text_only_incident).items():
+        print(f"{key:20}: {value}")
+
+    print("\n" + "=" * 70)
+    print("TEXT + AGREEING DISTRESSED VOICE")
+    print("=" * 70)
+    for key, value in assess_stress(text_only_incident, agreeing_distressed_voice).items():
+        print(f"{key:20}: {value}")
+
+    calm_text_incident = {
+        "incident_type": "harassment",
+        "immediate_danger": False,
+        "threat_present": False,
+        "injury_present": False,
+        "confidence": 92.0,
+    }
+
+    highly_distressed_voice = {
+        "pitch_variation": 0.95,
+        "pause_ratio": 0.75,
+        "speech_rate_wpm": 230,
+    }
+
+    print("\n" + "=" * 70)
+    print("CALM TEXT + DISTRESSED VOICE (divergence case)")
+    print("=" * 70)
+    for key, value in assess_stress(calm_text_incident, highly_distressed_voice).items():
+        print(f"{key:20}: {value}")

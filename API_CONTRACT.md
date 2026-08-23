@@ -21,7 +21,9 @@ evidence screenshots (see **Evidence upload** below).
   "text": "user's incident report, any of English/Hindi/Telugu",
   "language": null,
   "latitude": null,
-  "longitude": null
+  "longitude": null,
+  "voice_features": null,
+  "district": null
 }
 ```
 
@@ -32,6 +34,15 @@ accepted). Omit/null is the default and totally fine.
 - `text` (string, required): the raw report. Language is auto-detected — you
   don't need to pass `language` unless you want to force it (`"en"` / `"hi"` / `"te"`).
 - `language` (string, optional): omit or send `null` in the normal case.
+- `voice_features` (object, optional): pre-extracted voice signal, see
+  **Stress Vulnerability Index (SVI)** below. Omit/null for text-only input,
+  which is the normal case today.
+- `district` (string, optional): the reporter's district (e.g. `"Karimnagar"`,
+  `"Hyderabad"`) — used only to resolve `legal_guidance.escalation_contact`
+  (see **Legal & escalation guidance** below). Currently only recognized for
+  Telangana's 33 districts plus a handful of other-state entries — see that
+  section for coverage caveats. Case-insensitive; unrecognized/omitted
+  district just means `escalation_contact` comes back `null`, not an error.
 
 ### Response body
 
@@ -42,6 +53,8 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 {
   "incident": { ... } | null,
   "risk": { ... } | null,
+  "stress_assessment": { ... } | null,
+  "legal_guidance": null,
   "citations": [ ... ],
   "top_similarity": 0.0,
   "escalate": true | false,
@@ -63,14 +76,22 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `incident.relationship` | string \| null | e.g. `"husband"`, `"stranger"`; null if not confidently detected |
 | `incident.location` | string \| null | a real-world place *type* mentioned in the report — one of `bus_stop`, `railway_station`, `hostel`, `home`, `workplace`, `college_campus`, `market`, `street`, `police_station`, `hospital`, `park`; null if no location is confidently mentioned (most reports won't have one — that's expected, not a bug) |
 | `incident.confidence` | float 0-100 | how confident the understanding step is — **low confidence is a real, meaningful state now** (see below) |
-| `incident.confidence_breakdown` | object | per-field confidence: `{incident_type, threat, injury, immediate_danger, relationship, location}`, each 0-100, calibrated the same way as `confidence` (comparable to each other, not raw similarity scores). A field can show low confidence even when its boolean came back `false`/`null` — that's the point, it explains *why* (e.g. `location: 43.4` alongside `location: null` means Athena saw a weak hint but wasn't confident enough to commit to it) |
+| `incident.confidence_breakdown` | object | per-field confidence: `{incident_type, threat, injury, immediate_danger, relationship, location, caste_based_motive}`, each 0-100, calibrated the same way as `confidence` (comparable to each other, not raw similarity scores). A field can show low confidence even when its boolean came back `false`/`null` — that's the point, it explains *why* (e.g. `location: 43.4` alongside `location: null` means Athena saw a weak hint but wasn't confident enough to commit to it) |
+| `incident.caste_based_motive` | bool | whether the report describes a caste-based motive (public insult/humiliation, denial of access, forced eviction because of caste — grounded in the SC/ST Act's own enumerated offences, not a generic "harassment" guess). **This raw boolean can be `true` on generic non-caste harassment text** (confirmed via live testing — caste-based insult is a semantic subset of generic insult, hard for a short-phrase embedding model to cleanly separate); don't trust it alone. `legal_guidance` only adds SC/ST Act provisions when this field's confidence clears 80 — always check `confidence_breakdown.caste_based_motive`, not just the boolean. Treat as advisory even above that bar; this is not a legal determination |
 | `risk.risk_tier` | `"Low" \| "Medium" \| "High" \| "Critical"` | |
 | `risk.risk_score` | int 0-100 | |
 | `risk.risk_factors` | string[] | human-readable reasons, e.g. `"Immediate danger detected"`, `"Low understanding confidence — human review recommended"` |
+| `stress_assessment.svi_tier` | `"Low" \| "Moderate" \| "High" \| "Critical"` | Stress Vulnerability Index tier — a *different axis from `risk_tier`*, see below. Deliberately "Moderate" not "Medium" so the two tier sets are never visually confused in the UI |
+| `stress_assessment.svi_score` | float 0-100 | |
+| `stress_assessment.confidence` | float 0-100 | same 0-100 convention as `incident.confidence`/`risk.confidence` — do not treat as a 0-1 scale |
+| `stress_assessment.modalities_used` | string[] | `["text"]` or `["text","voice"]` — tells you whether voice signal actually contributed |
+| `stress_assessment.components` | object | `{text_distress_score, voice_stress_score}`, the two 0-100 sub-scores that were fused; `voice_stress_score` is `null` when voice wasn't used |
+| `stress_assessment.contributing_factors` | string[] | human-readable reasons, same style as `risk.risk_factors`. Watch for the divergence factor (below) — it's the most actionable one |
+| `legal_guidance` | object \| `null` | knowledge-graph lookup: applicable law/section(s), procedural next steps, district escalation contact — see **Legal & escalation guidance** below. `null` when `incident_type` isn't mapped (`"other"`, `"missing_person"`) |
 | `citations` | array of `{source, page, similarity}` | grounding evidence actually used in the response; empty if none |
 | `top_similarity` | float | best retrieval match score |
-| `escalate` | bool | **true** = show "human assistance recommended" UI; frontend should treat this as the primary signal, not risk_tier alone |
-| `reason` | string \| null | why it escalated, or null when it didn't |
+| `escalate` | bool | **true** = show "human assistance recommended" UI; frontend should treat this as the primary signal, not risk_tier alone. Three independent triggers, any one is enough: `risk_tier` in Critical/High, `svi_tier` is Critical, or `incident.confidence` is below 60 (this third one is real — a report the system can't reliably classify escalates even if retrieval happened to find high-similarity evidence and Gemini produced a normal-looking answer; found via live adversarial testing, not a corner case to design around) |
+| `reason` | string \| null | why it escalated — can concatenate more than one of the three triggers above in a single string (space-separated sentences), not just one |
 | `response` | string \| null | the actual message to show the user, in their input language; **null whenever escalate is true and nothing could be generated** |
 | `case_id` | int \| null | id of the persisted case (see Case tracking below); **null only for empty/whitespace input**, where nothing is saved |
 | `case_status` | string \| null | `"Escalated"` or `"Resolved"` at creation time; can change later via the `/cases` endpoints below |
@@ -236,6 +257,15 @@ response, restructured to directly answer "why did Athena decide this?":
     "tier": "Critical", "score": 100,
     "factors": ["Immediate danger detected", "Physical violence detected", "Threat detected", "Injury reported"]
   },
+  "stress_assessment": {
+    "tier": "Critical", "score": 85.0, "confidence": 73.73,
+    "modalities_used": ["text"],
+    "factors": ["Immediate danger reported", "Threat present in report", "Injury reported", "Domestic violence carries elevated baseline distress"]
+  },
+  "legal_guidance_summary": {
+    "provisions_cited": ["Protection of Women from Domestic Violence Act, 2005 — Protection orders (Chapter IV)"],
+    "escalation_contact_found": false
+  },
   "evidence_used": [
     {"source": "domviolence.pdf", "page": 3, "similarity": 0.8245}
   ]
@@ -243,6 +273,146 @@ response, restructured to directly answer "why did Athena decide this?":
 ```
 
 `null` only when `incident`/`risk` are both `null` (the empty-input case).
+
+## Stress Vulnerability Index (SVI)
+
+`stress_assessment` on every `/report`/`/sos` response (see `svi.py`). This
+is a **different axis from `risk`**, not a rename of it:
+
+- `risk_tier` answers *"how legally/physically dangerous is this
+  situation"* — drives escalation.
+- `svi_tier` answers *"how much acute distress does this person appear to
+  be carrying right now"* — drives triage tone/pacing, e.g. whether a
+  human reviewer should route the case to a trauma-informed responder.
+
+They usually move together but aren't the same number — e.g. a calmly
+worded report can still carry a highly distressed voice underneath it,
+which is exactly the case `stress_assessment` is built to catch.
+
+```json
+"stress_assessment": {
+  "svi_score": 71.5,
+  "svi_tier": "Critical",
+  "confidence": 85.04,
+  "modalities_used": ["text", "voice"],
+  "components": {"text_distress_score": 85.0, "voice_stress_score": 58.0},
+  "contributing_factors": [
+    "Immediate danger reported",
+    "Threat present in report",
+    "High pitch variability / voice breaks"
+  ]
+}
+```
+
+**Text-only vs. text+voice**: `voice_features` is optional on the request
+(see above) — most reports today are text-only, so `modalities_used` will
+usually be `["text"]` and `voice_stress_score` will be `null`. When voice
+is present, `confidence` is generally higher (two independent signals to
+cross-check instead of one) — text-only confidence is deliberately capped
+lower for this reason.
+
+**The divergence flag is the most useful single signal this produces.**
+When the text-derived and voice-derived scores disagree sharply,
+`contributing_factors` includes an explicit note ("Text and voice-derived
+stress signals diverge sharply — possible suppressed distress or a caller
+unable to speak freely; recommend human review"). This matters
+specifically for a helpline context: a caller might consciously soften
+their wording (or be prevented from speaking freely, e.g. someone
+listening nearby) while their voice tells a different story. Don't treat
+`svi_score` alone as the whole picture — a reviewer should always see
+`contributing_factors`.
+
+**Escalation**: `svi_tier: "Critical"` forces `escalate: true` the same way
+`risk_tier` in `("Critical", "High")` does — either trigger alone is
+enough, and both can fire together (see `reason`, which concatenates
+whichever triggered).
+
+**Honesty about calibration**: the voice-side scoring (pitch/pause/rate
+deviation from a calm baseline) is a reasonable hackathon-scale heuristic,
+not a clinically validated model — same caveat this codebase already
+carries elsewhere (e.g. `RETRIEVAL_CONFIDENCE_THRESHOLD`). Don't pitch this
+as a validated stress-detection model to judges; pitch it as an
+explainable, tunable fusion layer with an honest confidence signal.
+
+## Legal & escalation guidance (knowledge graph) — **live** (`kg.py`)
+
+`legal_guidance` on every `/report`/`/sos` response — a lightweight
+`networkx` knowledge graph (see `kg.py` for the full tradeoff writeup
+against a full graph database), not a flat lookup table, because a
+case's applicable provisions come from **two independent signals
+converging**: `incident_type`, and whether `caste_based_motive` fired.
+Both can add provisions to the same result at once (e.g. a
+caste-motivated sexual violence report pulls in BNS *and* SC/ST Act
+3(1)(xi)/(xii) together) — that's real multi-hop graph traversal, not
+a single-key dict lookup.
+
+```json
+"legal_guidance": {
+  "applicable_provisions": [
+    {
+      "act": "Bharatiya Nyaya Sanhita, 2023",
+      "section": "General cognizable offence",
+      "description": "Physical assault, criminal intimidation, or similar offences reported here are cognizable under the Bharatiya Nyaya Sanhita, 2023 -- police are required to register an FIR without prior magistrate approval.",
+      "source": "kg_seed"
+    },
+    {
+      "act": "Scheduled Castes and Scheduled Tribes (Prevention of Atrocities) Act, 1989",
+      "section": "Section 3(1)(x)",
+      "description": "Intentionally insults or intimidates with intent to humiliate a member of a Scheduled Caste or Scheduled Tribe in any place within public view.",
+      "source": "kg_seed"
+    }
+  ],
+  "procedural_next_steps": [
+    {"step": 1, "action": "File a complaint (FIR) at the nearest police station..."},
+    {"step": 2, "action": "SC/ST Act cases are tried in a Special Court designated for the district under Section 14..."},
+    {"step": 3, "action": "A Special Public Prosecutor is appointed for SC/ST Act cases under Section 15."},
+    {"step": 4, "action": "You are entitled to legal aid and travel/maintenance expense support... under Section 21 of the SC/ST Act."}
+  ],
+  "escalation_contact": {
+    "district": "Karimnagar", "state": "Telangana",
+    "address": "...", "phone": "0878-2244644", "email": "...",
+    "contact_person": "D. Laxmi", "contact_person_phone": "9642333464",
+    "source": "kg_seed"
+  } | null
+}
+```
+
+`null` only when `incident_type` isn't mapped in the graph at all
+(`"other"`, `"missing_person"`) — a deliberate omission, not a bug; see
+`kg.py`'s docstring for why `missing_person` isn't force-mapped to a
+provision.
+
+**`source` on every item is `"kg_seed"`**, never `"rag_verified"` — this
+distinction is deliberate and matches the same grounding discipline as
+`citations` elsewhere in this contract. `"kg_seed"` means it came from a
+maintained lookup table (transcribed from real source PDFs, not
+invented — see below), not a live RAG retrieval against the ingested
+knowledge base. Don't blur the two.
+
+**Data provenance, so you can trust what this actually is**:
+- Legal provisions are transcribed directly from the real SC/ST Act
+  bare-act text (`data/sources/SCSTpoaact1989.pdf`, now also ingested
+  into the RAG knowledge base) — not recalled from general knowledge.
+- `escalation_contact` comes from `district_contacts.py`, itself
+  transcribed from real Sakhi/One Stop Centre directories
+  (`Sakhi-OSC Contact list Updated _list.pdf` for Telangana — all 33
+  districts — plus a handful of other-state entries from a national
+  directory PDF). **Coverage is Telangana-complete, not national** —
+  extending it further is a data-entry task against that PDF, not a
+  code change. An unrecognized district returns `escalation_contact:
+  null`, never a wrong or made-up contact.
+
+**`caste_based_motive` is advisory, always** — even when its confidence
+clears the bar to add SC/ST Act provisions (80, deliberately set
+higher than `INCIDENT_TYPE_CONFIDENCE_FLOOR`'s 60 elsewhere, after
+live testing found a real false positive at 76.66% on plain,
+non-caste harassment text — see the field table above), this is
+routing information for a human reviewer, not a legal determination. Whether a
+reporter is legally a member of a Scheduled Caste/Tribe, and whether
+the specific facts meet a section's elements, is a legal judgment this
+system cannot and should not make on its own. Don't present
+`legal_guidance` to a user as "this law applies to you" — present it as
+"this may be relevant, a human reviewer should confirm."
 
 ## Related cases (honest correlation, not a clustering model)
 
@@ -492,6 +662,16 @@ including `case_id`, `reasoning_trace`, and `nearby_help` (only present when
 this endpoint have `is_sos: true`, so a reviewer/dashboard can tell a
 manually-triggered panic case apart from a regular escalated report.
 
+`/sos` also accepts the same optional `voice_features` field as `/report`.
+**Unlike `risk`, `stress_assessment` is NOT force-overridden on `/sos`** —
+pressing the button is a deliberate act that forces the danger *tier*
+(that's the whole point of a panic button), but `svi_tier` stays a genuine
+reading of the caller's apparent state. Overriding it would make the field
+meaningless on every SOS case, exactly when a reviewer most wants to know
+how the caller actually sounds. Note `/sos` already forces `escalate: true`
+regardless of `svi_tier`, so this doesn't change whether an SOS case
+escalates — only whether `stress_assessment` stays honest.
+
 ## Call options (real numbers for a "Call for help" button) — **fully functional today**
 
 ```
@@ -515,7 +695,13 @@ The nearest-station entry only appears when a location was given AND OpenStreetM
 
 ## What the frontend needs to handle
 
-- `incident` and `risk` can both be `null` (case 4) — don't assume they exist.
+- `incident`, `risk`, `stress_assessment`, and `legal_guidance` can all be
+  `null` (case 4, plus `legal_guidance` alone is also `null` whenever
+  `incident_type` is `"other"` or `"missing_person"`) — don't assume any
+  of them exist.
+- Within a non-null `legal_guidance`, `escalation_contact` is its own
+  independent null-check — provisions/steps can be present with
+  `escalation_contact: null` (no district given, or an unrecognized one).
 - `response` can be `null` even when `escalate` is `false`-adjacent cases don't
   really occur, but always null-check before rendering it.
 - Always render based on `escalate`/`reason`, never on HTTP status — this API
@@ -527,6 +713,27 @@ The nearest-station entry only appears when a location was given AND OpenStreetM
 - CORS is currently wide open (`allow_origins=["*"]`) — fine for local dev,
   tighten before any real deployment.
 - No auth on the endpoint yet.
+- `stress_assessment`'s text component (`text_distress_score`) is built
+  from the same `incident` fields (`threat_present`, `injury_present`,
+  `immediate_danger`, `incident_type`/`confidence`) as `risk`, via a
+  different weighting — so it inherits the same known signal-detection
+  gaps as `risk` for cases where those underlying fields misfire (see the
+  documented romanized Hindi/Telugu and cross-signal embedding-noise
+  issues). A case that scores an artificially low `risk_score` for that
+  reason will also score an artificially low `text_distress_score`. The
+  voice component, when present, is independent of this and isn't
+  affected.
+- The voice-side scoring in `stress_assessment` (pitch/pause/rate
+  deviation from a fixed "calm baseline") is a heuristic starting point
+  for the hackathon, not a clinically validated stress-detection model —
+  don't pitch it to judges as more than that.
+- `legal_guidance` only ever cites the SC/ST Act — deliberate, matching
+  the actual target scope (an SC/ST-specific helpline). The detection
+  *mechanism* (`caste_based_motive`, via `understanding.py`'s generic
+  `detect_signal()`) isn't caste-hardcoded and could extend to another
+  protected characteristic later given real source-law text — see the
+  scope note in `kg.py`'s module docstring — but nothing beyond SC/ST Act
+  is built or planned for this pass.
 - `incident.confidence` and `risk.confidence` are the same number right now
   (both come from the understanding step) — don't read them as two
   independent signals yet.

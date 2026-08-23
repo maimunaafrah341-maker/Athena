@@ -180,6 +180,7 @@ def detect_language(text):
 
     devanagari_count = 0
     telugu_count = 0
+    other_script_count = 0
 
     for char in text:
 
@@ -193,6 +194,22 @@ def detect_language(text):
         elif 0x0C00 <= code <= 0x0C7F:
             telugu_count += 1
 
+        # Any other non-Latin script this project doesn't support
+        # (Tamil, Kannada, Malayalam, Bengali, Gurmukhi, Gujarati,
+        # Odia, Arabic, etc.) -- see the guard below for why this is
+        # checked separately from the semantic fallback.
+        elif (
+            0x0B80 <= code <= 0x0BFF  # Tamil
+            or 0x0C80 <= code <= 0x0CFF  # Kannada
+            or 0x0D00 <= code <= 0x0D7F  # Malayalam
+            or 0x0980 <= code <= 0x09FF  # Bengali
+            or 0x0A00 <= code <= 0x0A7F  # Gurmukhi (Punjabi)
+            or 0x0A80 <= code <= 0x0AFF  # Gujarati
+            or 0x0B00 <= code <= 0x0B7F  # Odia
+            or 0x0600 <= code <= 0x06FF  # Arabic
+        ):
+            other_script_count += 1
+
     # --------------------------------------------------------
     # Strong native-script detection
     # --------------------------------------------------------
@@ -203,8 +220,25 @@ def detect_language(text):
     if telugu_count > 0:
         return "te"
 
+    # A script this project definitively does not support (confirmed
+    # by real character ranges, not a guess) must never reach the
+    # semantic fallback below -- that fallback measures "which
+    # language's distress-anchors sound semantically similar to this
+    # text," not "what script is this," and those are different
+    # questions. Live testing 2026-08-22 found it answers the first
+    # question in a way that's actively misleading for the second:
+    # native Tamil script text was confidently (100%) misdetected as
+    # Hindi and the user got a romanized-Hindi response to Tamil
+    # input -- a specific wrong language, not a safe default. Any
+    # confirmed non-Latin/non-Devanagari/non-Telugu script skips
+    # straight to the safe "en" default instead.
+    if other_script_count > 0:
+        return "en"
+
     # --------------------------------------------------------
-    # Fallback to multilingual semantic detection
+    # Fallback to multilingual semantic detection -- only reachable
+    # for Latin-script text now, where its actual job (English vs.
+    # romanized Hindi vs. romanized Telugu) is well-posed.
     # --------------------------------------------------------
 
     query_embedding = model.encode(
@@ -319,7 +353,26 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Telugu
         "Evarina nannu nirantaram vedhistunnaru.",
-        "Evarina nannu pade pade bedhiristunnaru."
+        "Evarina nannu pade pade bedhiristunnaru.",
+
+        # Caste-based public insult/humiliation -- without these,
+        # classify_incident() had no real anchor for this kind of
+        # text at all and was picking essentially arbitrary incident
+        # types for genuinely caste-motivated reports (confirmed via
+        # live testing 2026-08-22: a temple-access-denial report came
+        # back "domestic_violence", an eviction report came back
+        # "trafficking"). This directly corrupts which SC/ST Act
+        # section kg.py cites, since it keys off incident_type.
+        "Someone publicly insulted and humiliated me because of my caste.",
+        "I was denied entry to a place because of my caste.",
+        "मेरी जाति के कारण मुझे सार्वजनिक रूप से अपमानित किया गया।",
+        "నా కులం కారణంగా నన్ను బహిరంగంగా అవమానించారు.",
+
+        # Romanized Hindi
+        "Meri jaati ke karan mujhe sarvajanik roop se apmanit kiya gaya.",
+
+        # Romanized Telugu
+        "Naa kulam karananga nannu bahirangamga avamanincharu."
     ],
 
     "stalking": [
@@ -515,6 +568,33 @@ SIGNAL_EXAMPLES = {
         # Romanized Telugu
         "Naaku ippudu pramadam undi.",
         "Atanu ippudu naapai daadi chestunnadu."
+    ],
+
+    # Examples grounded directly in the enumerated offences under the
+    # Scheduled Castes and Scheduled Tribes (Prevention of Atrocities)
+    # Act, 1989, Section 3(1) (public insult/humiliation because of
+    # caste, denial of access, forced eviction) -- not a general
+    # "harassment" paraphrase. Feeds kg.py's decision on whether to
+    # surface SC/ST Act provisions. Kept advisory/confidence-gated
+    # everywhere it's used -- see kg.py -- because misclassifying a
+    # protected-characteristic motive (either direction) is a higher-
+    # stakes error than the other signals here.
+    "caste_based_motive": [
+        "Someone insulted and humiliated me in public because of my caste.",
+        "I was denied entry to a place because I belong to a Scheduled Caste.",
+        "They used a casteist slur against me.",
+        "मेरी जाति के कारण मुझे सार्वजनिक रूप से अपमानित किया गया।",
+        "मुझे मेरी जाति के कारण प्रवेश से रोका गया।",
+        "నా కులం కారణంగా నన్ను బహిరంగంగా అవమానించారు.",
+        "నా కులం వల్ల నన్ను లోపలికి రానివ్వలేదు.",
+
+        # Romanized Hindi
+        "Meri jaati ke karan mujhe sarvajanik roop se apmanit kiya gaya.",
+        "Mujhe meri jaati ke karan pravesh se roka gaya.",
+
+        # Romanized Telugu
+        "Naa kulam karananga nannu bahirangamga avamanincharu.",
+        "Naa kulam valla nannu lopaliki ranivvaledu."
     ],
 }
 
@@ -983,6 +1063,11 @@ def understand(text, language=None):
         "immediate_danger"
     )
 
+    caste_based_motive, caste_score = detect_signal(
+        text,
+        "caste_based_motive"
+    )
+
     relationship, relationship_score = detect_relationship(text)
 
     location, location_score = detect_location(text)
@@ -1024,6 +1109,7 @@ def understand(text, language=None):
         "immediate_danger": round(danger_score * 100, 2),
         "relationship": round(relationship_score * 100, 2),
         "location": round(location_score * 100, 2),
+        "caste_based_motive": round(caste_score * 100, 2),
     }
 
     return {
@@ -1037,6 +1123,7 @@ def understand(text, language=None):
         "injury_present": injury_present,
         "relationship": relationship,
         "location": location,
+        "caste_based_motive": caste_based_motive,
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
     }
