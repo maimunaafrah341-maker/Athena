@@ -179,6 +179,35 @@ empty or low-similarity, `escalate: true`:
 Frontend should validate non-empty input client-side too, but the API won't
 500 if that check is skipped.
 
+## Admin authentication
+
+As of 2026-08-23, every endpoint that exposes case data or lets someone
+change case state requires an `X-API-Key` header matching `ADMIN_API_KEY`
+(set in `.env`, gitignored — ask Maimuna for the current value). Missing or
+wrong key returns `401`; if the server has no `ADMIN_API_KEY` configured at
+all, admin endpoints fail closed with `503` rather than silently allowing
+open access.
+
+**Gated** (send `X-API-Key`): `GET /cases`, `GET /cases/{id}`,
+`GET /cases/{id}/related`, `GET /cases/{id}/brief`,
+`PATCH /cases/{id}/status`, `GET /stats`, `GET /stats/trend`.
+
+**Not gated, unchanged**: `POST /report`, `POST /sos`,
+`POST /report/image`, `POST /report/voice`, `GET /call-options`,
+`GET /nearby`, `GET /consent/voice-recording`, `GET /health`, and
+`GET /cases/map` — the map endpoint is deliberately public since it
+already returns only anonymized pins (coordinates + incident type/risk
+tier, never the report content — see `list_case_locations()`'s docstring
+in `cases.py`), unlike every other `/cases/*` route.
+
+**Be honest about what this is**: one shared secret, not per-counsellor
+accounts, roles, or an audit log of who accessed what. It closes the real
+gap that existed (zero access control on case data, including reporter
+names/contacts on full-disclosure cases) without pretending to be more
+than a hackathon-scale project can realistically finish — see
+`consent.py`'s `access_control_status` field, which reflects this
+honestly rather than overstating it.
+
 ## Case tracking
 
 Every processed report (except empty input) is now persisted as a **case** —
@@ -739,11 +768,11 @@ aspirational policy language. The honest, load-bearing facts it discloses:
 - It's sent to **Bhashini** (a Government of India ASR service) for
   transcription — the one real third-party transfer that happens, and the
   only one.
-- **There is currently no dedicated access-control layer** on this API at
-  all (no auth, CORS wide open) — the policy states this honestly rather
-  than implying a protection that doesn't exist. Worth fixing before this
-  goes in front of real users; flagged here rather than quietly
-  soft-pedaled in the policy text.
+- **Case data (including a saved recording's reference) sits behind a
+  single shared admin API key as of 2026-08-23** — see **Admin
+  authentication** above. Real, but a single shared secret, not
+  per-counsellor accounts or an audit log — the policy states this
+  honestly rather than overstating it.
 - Points the reader at `disclosure_level` (`/report`'s `"partial"`/
   `"anonymous"` modes) as the actual lever for reducing what's kept on a
   case, voice or not.

@@ -15,12 +15,16 @@ Then POST to:
 """
 
 import os
+import secrets
 import uuid
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+load_dotenv()
 
 from pipeline import run_pipeline
 from cases import (
@@ -42,6 +46,49 @@ from consent import get_voice_recording_policy
 
 EVIDENCE_DIR = "evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
+
+
+# ============================================================
+# ADMIN AUTHENTICATION
+# ============================================================
+#
+# Minimal, deliberately not a full auth system: a single shared API
+# key (set as ADMIN_API_KEY in .env) that the counsellor/admin
+# dashboard sends as the X-API-Key header. No per-user accounts, no
+# roles, no session tokens -- this closes the actual gap that existed
+# (zero access control on case data, including reporter names/contact
+# info on full-disclosure cases) without building more than a
+# hackathon-scale project can realistically finish and demo reliably.
+# A real deployment would want per-counsellor accounts and an audit
+# log; this is the honest, bounded fix for right now.
+#
+# Only gates admin-facing endpoints (/cases/*, /stats*) -- everything
+# a complainant's own client calls (/report, /sos, /report/image,
+# /report/voice, /call-options, /nearby, /consent/voice-recording,
+# /health) stays open, unchanged, exactly as before.
+
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+
+
+def require_admin_key(x_api_key: Optional[str] = Header(None)):
+    """
+    FastAPI dependency for every admin-facing route below. Fails
+    closed: if ADMIN_API_KEY isn't configured on the server at all,
+    admin endpoints refuse everything (503) rather than silently
+    falling back to open access -- a missing env var should never be
+    the thing standing between case data and the public internet.
+    secrets.compare_digest avoids leaking the real key's length/value
+    through response-time differences on a naive string comparison.
+    """
+
+    if not ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin endpoints are not available: ADMIN_API_KEY is not configured on this server.",
+        )
+
+    if not x_api_key or not secrets.compare_digest(x_api_key, ADMIN_API_KEY):
+        raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key header.")
 
 
 def _strip_counsellor_only_fields(result):
@@ -421,7 +468,7 @@ async def report_voice(
     return _strip_counsellor_only_fields(result)
 
 
-@app.get("/stats")
+@app.get("/stats", dependencies=[Depends(require_admin_key)])
 def get_case_stats():
     """
     Real aggregate counts over every case -- total, escalated, by
@@ -432,7 +479,7 @@ def get_case_stats():
     return get_stats()
 
 
-@app.get("/stats/trend")
+@app.get("/stats/trend", dependencies=[Depends(require_admin_key)])
 def get_case_trend(days: int = 7):
     """
     Day-by-day case counts and incident-type breakdown for the last
@@ -443,7 +490,7 @@ def get_case_trend(days: int = 7):
     return get_trend(days=days)
 
 
-@app.get("/cases")
+@app.get("/cases", dependencies=[Depends(require_admin_key)])
 def get_cases(status: Optional[str] = None):
     """
     List cases, most recent first. Optional ?status= filter, e.g.
@@ -466,7 +513,7 @@ def get_case_map_locations():
     return list_case_locations()
 
 
-@app.get("/cases/{case_id}")
+@app.get("/cases/{case_id}", dependencies=[Depends(require_admin_key)])
 def get_case_by_id(case_id: int):
 
     case = get_case(case_id)
@@ -477,7 +524,7 @@ def get_case_by_id(case_id: int):
     return case
 
 
-@app.get("/cases/{case_id}/related")
+@app.get("/cases/{case_id}/related", dependencies=[Depends(require_admin_key)])
 def get_case_related(case_id: int, days: int = 30):
     """
     Other cases sharing this case's location and/or incident type
@@ -494,7 +541,7 @@ def get_case_related(case_id: int, days: int = 30):
     return related
 
 
-@app.get("/cases/{case_id}/brief")
+@app.get("/cases/{case_id}/brief", dependencies=[Depends(require_admin_key)])
 def get_case_brief(case_id: int):
     """
     Human-reviewer-facing escalation brief: everything known about
@@ -510,7 +557,7 @@ def get_case_brief(case_id: int):
     return brief
 
 
-@app.patch("/cases/{case_id}/status")
+@app.patch("/cases/{case_id}/status", dependencies=[Depends(require_admin_key)])
 def patch_case_status(case_id: int, payload: StatusUpdateRequest):
     """
     Move a case to a new status, e.g. "Under Review" -> "Resolved".

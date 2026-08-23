@@ -22,9 +22,11 @@ of 2026-08-23, not aspirational policy language:
 - Nothing in this codebase deletes or expires evidence files -- no
   cron job, no TTL, no cleanup routine exists anywhere in the repo
   (checked directly, not assumed).
-- app.py has no authentication/access-control layer at all (CORS is
-  wide open). "Who can access it" is answered honestly below rather
-  than implying a protection that doesn't exist yet.
+- app.py gates admin-facing endpoints (/cases/*, /stats*) behind a
+  single shared API key as of 2026-08-23 -- real, but a minimal
+  single-shared-secret check, not per-counsellor accounts, roles, or
+  an audit log. "Who can access it" is answered honestly below rather
+  than overstating what this actually is.
 
 If any of these mechanics change (deletion gets implemented, an auth
 layer gets added, a different ASR provider is used), this object must
@@ -73,11 +75,12 @@ VOICE_RECORDING_POLICY = {
             "is accessible through this helpline's case-review system."
         ),
         "access_control_status": (
-            "A dedicated access-control layer restricting this "
-            "specifically to authorized counsellors has not been built "
-            "yet. This is a real, current limitation, not a guarantee of "
-            "restricted access -- stated honestly rather than implying a "
-            "protection that doesn't exist."
+            "Case data, including recordings, is behind a shared "
+            "access key used by this helpline's staff -- it is not "
+            "openly accessible. This is a single shared credential, "
+            "not individual counsellor accounts or an audit log of who "
+            "viewed what -- a real but still basic protection, stated "
+            "honestly rather than overstated."
         ),
     },
     "your_choices": {
