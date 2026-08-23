@@ -888,15 +888,26 @@ The nearest-station entry only appears when a location was given AND OpenStreetM
 - The app now explicitly supports reports from any age/gender (added a
   `parent` relationship category, broadened the response framing beyond
   "women's safety system" so a child reporting a parent's abuse gets an
-  age-appropriate response). **But risk-scoring for this case is still
-  unreliable**: a live test of "My father hits me... he beats me almost
-  every day" scored `risk_tier: Low`, `risk_score: 0` — the same signal-
-  level embedding-noise issue already documented for Hindi/Telugu stalking
-  cases, just newly confirmed here too. Don't market/pitch this as reliable
-  child-abuse detection yet. Also: don't assume cited law always applies to
-  the reporter — `domviolence.pdf` (India's PWDVA) is legally scoped to
-  women, and one test response paraphrased its protection-order provision
-  as protecting "a child" without naming the Act or its actual scope. A
-  prompt rule now asks Gemini to name gender-scoped laws explicitly, but
-  it isn't reliably followed yet — treat legal specifics in the response
-  text as unverified until this gets more testing.
+  age-appropriate response). **Risk-scoring for this case is fixed as of
+  2026-08-23**: the "My father hits me... he beats me almost every day"
+  case used to score `risk_tier: Low`, `risk_score: 0` (the signal-level
+  embedding-noise issue documented elsewhere in this file) — new
+  multi-clause anchor examples in `understanding.py`'s `injury_present`
+  fixed it, verified live to now score `risk_tier: High`. Also fixed:
+  don't assume cited law always applies to the reporter —
+  `domviolence.pdf` (India's PWDVA) is legally scoped to women, and this
+  used to be inconsistently disclosed (one live test showed the Act named
+  and scoped correctly, another omitted the Act's name entirely). Root
+  cause found: the actual "aggrieved person means any woman..." definition
+  (PWDVA Section 2(a), verified present in the ingested PDF at page 1) is
+  a poor retrieval match for incident-style queries, so it usually isn't
+  in the evidence Gemini sees alongside a protection-order provision —
+  asking Gemini to "note the scope" left it guessing from training
+  knowledge rather than the actual retrieved text. Fixed by stating the
+  verified scope directly and mechanically in the system prompt (grounding
+  rule 11) rather than depending on retrieval or Gemini's own recall — now
+  requires naming the Act by its full name AND stating the women-only
+  scope together whenever any cited evidence comes from it, regardless of
+  what the specific retrieved chunk says. Verified 4/4 live calls now
+  comply (was inconsistent before, ~2/4), with no leakage of the caveat
+  into unrelated (non-PWDVA) responses.

@@ -542,7 +542,22 @@ SIGNAL_EXAMPLES = {
 
         # Romanized Telugu
         "Nannu bedhiristunnaru.",
-        "Atanu nannu bedhiristunnadu."
+        "Atanu nannu bedhiristunnadu.",
+
+        # Compound husband-abuse phrasing (beating + threatening in one
+        # sentence) -- residual gap documented 2026-08-22: only 2
+        # romanized examples per category meant a genuine compound
+        # report like "Naa bharta nannu kottutunnadu mariyu
+        # bediristunnadu" (my husband is beating and threatening me)
+        # scored too weakly on both threat_present and injury_present
+        # to clear the neutral margin reliably. This got measurably
+        # worse once the hard-negative check (see
+        # SIGNAL_HARD_NEGATIVES below) shipped 2026-08-23 -- a thinly-
+        # anchored signal is more fragile against a second rejection
+        # check, not just the first. Broader anchor coverage is the
+        # real fix for both, not a threshold tweak.
+        "Mera pati mujhe maarta hai aur dhamki deta hai.",
+        "Naa bharta nannu kottutunnadu mariyu bediristunnadu."
     ],
 
     "injury_present": [
@@ -561,6 +576,12 @@ SIGNAL_EXAMPLES = {
         # Romanized Telugu
         "Naaku shareerika gayalu ayyayi.",
         "Nannu kodutunnaru.",
+
+        # Compound husband-abuse phrasing (beating + threatening in one
+        # sentence) -- same residual romanized-coverage gap as
+        # threat_present above, same fix.
+        "Mera pati mujhe maarta hai aur dhamki deta hai.",
+        "Naa bharta nannu kottutunnadu mariyu bediristunnadu.",
 
         # Longer, multi-clause repeated-abuse phrasing (e.g. a parent
         # hitting a child regularly) -- without these, a genuine report
