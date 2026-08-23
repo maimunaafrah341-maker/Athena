@@ -31,6 +31,13 @@ VALID_STATUSES = (
     "Closed",
 )
 
+# How much the reporter chose to identify themselves. See create_case()
+# for what each level actually gates -- this isn't just a label, "partial"
+# and "anonymous" are enforced at the persistence boundary (never stored,
+# not just hidden from the response) regardless of what a caller passes in
+# for reporter_name/reporter_contact/latitude/longitude.
+VALID_DISCLOSURE_LEVELS = ("full", "partial", "anonymous")
+
 # Columns added after the original schema -- init_db() retrofits
 # these onto any cases.db that predates them.
 _NEW_COLUMNS = {
@@ -38,6 +45,24 @@ _NEW_COLUMNS = {
     "latitude": "REAL",
     "longitude": "REAL",
     "is_sos": "INTEGER",
+    # svi.py's full stress_assessment (incl. the counsellor-facing
+    # "explainability" breakdown) and kg.py's legal_guidance, stored
+    # as JSON so a case reviewed later still has them -- previously
+    # create_case() never read these keys off pipeline_result at all,
+    # so they existed only in the immediate /report response and were
+    # silently lost the moment that response was gone. Nullable: a
+    # case created before this column existed just reads back None.
+    "stress_assessment_json": "TEXT",
+    "legal_guidance_json": "TEXT",
+    # Low-disclosure reporting. disclosure_level defaults to "full" at
+    # the SQL level for any row that predates this column (existing
+    # cases were all full-identification reports, that's an accurate
+    # backfill, not a guess). reporter_name is only ever non-null for
+    # "full"; reporter_contact is non-null for "full" or "partial" --
+    # see create_case()'s redaction, the actual enforcement point.
+    "disclosure_level": "TEXT NOT NULL DEFAULT 'full'",
+    "reporter_name": "TEXT",
+    "reporter_contact": "TEXT",
 }
 
 
@@ -113,6 +138,9 @@ def create_case(
     latitude=None,
     longitude=None,
     is_sos=False,
+    disclosure_level="full",
+    reporter_name=None,
+    reporter_contact=None,
 ):
     """
     Persist one pipeline result as a case row.
@@ -127,10 +155,47 @@ def create_case(
     re-round. is_sos marks a case that came from the one-tap SOS
     button rather than a typed report, so a reviewer can tell the
     two apart later. Returns the new case's id.
+
+    disclosure_level ("full" | "partial" | "anonymous") gates
+    reporter_name/reporter_contact/latitude/longitude at THIS
+    function -- the actual persistence boundary -- rather than
+    trusting the caller (app.py) to have already redacted them, so a
+    client-side bug or a reporter accidentally typing their name into
+    a field can't leak identity into a case they asked to keep more
+    private. "partial" drops name and precise coordinates but keeps
+    reporter_contact if given (contactable without being identified
+    or located); "anonymous" drops all three. This is the real
+    tradeoff of partial/anonymous reporting: case follow-up is
+    genuinely limited for these cases, not just hidden from a view --
+    documented in API_CONTRACT.md rather than solved further.
     """
+
+    if disclosure_level not in VALID_DISCLOSURE_LEVELS:
+        raise ValueError(
+            f"Unknown disclosure_level {disclosure_level!r}. "
+            f"Must be one of {VALID_DISCLOSURE_LEVELS}."
+        )
+
+    # "partial" keeps a contact method (so a counsellor can still
+    # follow up) but drops the name and precise coordinates -- the
+    # reporter is contactable without being identified or located.
+    # "anonymous" drops all three: genuinely no way to reach back out,
+    # which is the real tradeoff documented in API_CONTRACT.md, not
+    # just a hidden field. Neither level touches `district` -- that's
+    # a routing hint (which contact list to check), not an identifier,
+    # so it stays available even for anonymous reports.
+    if disclosure_level in ("partial", "anonymous"):
+        reporter_name = None
+        latitude = None
+        longitude = None
+
+    if disclosure_level == "anonymous":
+        reporter_contact = None
 
     incident = pipeline_result.get("incident") or {}
     risk = pipeline_result.get("risk") or {}
+    stress_assessment = pipeline_result.get("stress_assessment")
+    legal_guidance = pipeline_result.get("legal_guidance")
 
     escalate = bool(pipeline_result.get("escalate"))
     status = "Escalated" if escalate else "Resolved"
@@ -144,9 +209,11 @@ def create_case(
                 original_text, language, incident_type,
                 risk_tier, risk_score, confidence,
                 escalate, reason, response, citations_json,
-                evidence_path, location, latitude, longitude, is_sos
+                evidence_path, location, latitude, longitude, is_sos,
+                stress_assessment_json, legal_guidance_json,
+                disclosure_level, reporter_name, reporter_contact
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -166,6 +233,11 @@ def create_case(
                 latitude,
                 longitude,
                 int(is_sos),
+                json.dumps(stress_assessment) if stress_assessment is not None else None,
+                json.dumps(legal_guidance) if legal_guidance is not None else None,
+                disclosure_level,
+                reporter_name,
+                reporter_contact,
             ),
         )
 
@@ -177,6 +249,8 @@ def create_case(
 # ============================================================
 
 def _row_to_case(row):
+
+    row_keys = row.keys()
 
     return {
         "id": row["id"],
@@ -197,6 +271,25 @@ def _row_to_case(row):
         "latitude": row["latitude"],
         "longitude": row["longitude"],
         "is_sos": bool(row["is_sos"]),
+        # None for a case created before this column existed, or one
+        # whose pipeline result genuinely had no stress_assessment
+        # (e.g. an empty-input submission) -- both are real, valid
+        # None, not an error.
+        "stress_assessment": (
+            json.loads(row["stress_assessment_json"])
+            if "stress_assessment_json" in row_keys and row["stress_assessment_json"]
+            else None
+        ),
+        "legal_guidance": (
+            json.loads(row["legal_guidance_json"])
+            if "legal_guidance_json" in row_keys and row["legal_guidance_json"]
+            else None
+        ),
+        "disclosure_level": (
+            row["disclosure_level"] if "disclosure_level" in row_keys else "full"
+        ),
+        "reporter_name": row["reporter_name"] if "reporter_name" in row_keys else None,
+        "reporter_contact": row["reporter_contact"] if "reporter_contact" in row_keys else None,
     }
 
 
@@ -485,6 +578,8 @@ def build_escalation_brief(case_id):
 
     related = get_related_cases(case_id)
 
+    stress_assessment = case["stress_assessment"] or {}
+
     return {
         "case_id": case["id"],
         "status": case["status"],
@@ -501,6 +596,22 @@ def build_escalation_brief(case_id):
         "reason": case["reason"],
         "evidence_attached": case["evidence_path"] is not None,
         "citations": case["citations"],
+        # Counsellor-facing: exactly which signals pushed the SVI
+        # tier where it landed. Category-level only (signal names +
+        # confidence/points, e.g. "threat_present detected, 80.66%,
+        # +15 points") -- never the original report text, which stays
+        # in `summary` above where a reviewer already expects it.
+        # None for a pre-SVI case or an empty-input submission.
+        "svi_tier": stress_assessment.get("svi_tier"),
+        "svi_score": stress_assessment.get("svi_score"),
+        "svi_explainability": stress_assessment.get("explainability"),
+        "legal_guidance": case["legal_guidance"],
+        # A reviewer needs to see this before trying to follow up --
+        # "anonymous"/"partial" cases genuinely have no name/contact/
+        # precise location on file, not just a hidden one.
+        "disclosure_level": case["disclosure_level"],
+        "reporter_name": case["reporter_name"],
+        "reporter_contact": case["reporter_contact"],
         "related_cases": [
             {
                 "case_id": r["id"],

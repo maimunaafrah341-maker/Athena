@@ -60,22 +60,52 @@ def _text_distress_score(incident):
     injury_present the same way risk.py does, but weighted for
     "how distressing does reporting this sound" rather than "how
     severe/dangerous is this."
+
+    factors is a list of structured dicts, not plain strings --
+    {signal, label, confidence, points} -- so a counsellor-facing
+    breakdown (see assess_stress's "explainability") can show exactly
+    which signal contributed exactly how many points, reusing
+    understanding.py's confidence_breakdown values (the same
+    per-signal confidence numbers already computed there) rather than
+    inventing a second confidence scale. Category-level only
+    ("threat_present detected, 80.66%") -- never the original report
+    text, which stays out of this breakdown entirely.
     """
 
     score = 0
     factors = []
 
+    confidence_breakdown = incident.get("confidence_breakdown") or {}
+
     if incident.get("immediate_danger"):
-        score += 35
-        factors.append("Immediate danger reported")
+        points = 35
+        score += points
+        factors.append({
+            "signal": "immediate_danger",
+            "label": "Immediate danger reported",
+            "confidence": confidence_breakdown.get("immediate_danger"),
+            "points": points,
+        })
 
     if incident.get("threat_present"):
-        score += 15
-        factors.append("Threat present in report")
+        points = 15
+        score += points
+        factors.append({
+            "signal": "threat_present",
+            "label": "Threat present in report",
+            "confidence": confidence_breakdown.get("threat"),
+            "points": points,
+        })
 
     if incident.get("injury_present"):
-        score += 15
-        factors.append("Injury reported")
+        points = 15
+        score += points
+        factors.append({
+            "signal": "injury_present",
+            "label": "Injury reported",
+            "confidence": confidence_breakdown.get("injury"),
+            "points": points,
+        })
 
     # Same confidence floor risk.py uses before trusting incident_type
     # enough to apply its baseline -- a low-confidence misclassification
@@ -90,7 +120,12 @@ def _text_distress_score(incident):
         if base > 0:
             score += base
             label = (incident_type or "incident").replace("_", " ")
-            factors.append(f"{label.capitalize()} carries elevated baseline distress")
+            factors.append({
+                "signal": "incident_type_baseline",
+                "label": f"{label.capitalize()} carries elevated baseline distress",
+                "confidence": confidence_breakdown.get("incident_type"),
+                "points": base,
+            })
 
     return min(score, 100), factors
 
@@ -131,6 +166,15 @@ def _voice_stress_score(voice_features):
     are text-only, or the voice pipeline hasn't shipped yet), not an
     error, matching the rest of this codebase's pattern of treating
     "no signal available" as a valid None rather than forcing a guess.
+
+    factors is a list of structured dicts (signal, label, value,
+    threshold, points), same reasoning as _text_distress_score above.
+    "value" is the actual measured number (e.g. pitch_variation: 0.71)
+    -- there's no discrete pause-event count available from
+    voice_features (only pause_ratio, and optionally
+    avg_pause_duration_sec), so the pause factor reports the real
+    ratio/duration this system actually computed rather than
+    fabricating an event count nothing here tracks.
     """
 
     if not voice_features:
@@ -150,7 +194,14 @@ def _voice_stress_score(voice_features):
     pitch_component = pitch_variation * 100
 
     if pitch_component > 60:
-        factors.append("High pitch variability / voice breaks")
+        points = round(VOICE_WEIGHTS["pitch"] * pitch_component, 2)
+        factors.append({
+            "signal": "pitch_variation",
+            "label": "High pitch variability / voice breaks",
+            "value": round(pitch_variation, 2),
+            "threshold": 0.60,
+            "points": points,
+        })
 
     # Pause ratio: single-sided (elevated pausing -- searching for
     # words, choking up -- reads as distress; unusually fluent speech
@@ -163,7 +214,19 @@ def _voice_stress_score(voice_features):
             1.0,
             (pause_ratio - CALM_PAUSE_RATIO_CEILING) / (1 - CALM_PAUSE_RATIO_CEILING),
         ) * 100
-        factors.append("Elevated pausing in speech")
+
+        pause_factor = {
+            "signal": "pause_ratio",
+            "label": "Elevated pausing in speech",
+            "value": round(pause_ratio, 2),
+            "threshold": CALM_PAUSE_RATIO_CEILING,
+            "points": round(VOICE_WEIGHTS["pause"] * pause_component, 2),
+        }
+
+        if voice_features.get("avg_pause_duration_sec") is not None:
+            pause_factor["avg_pause_duration_sec"] = voice_features["avg_pause_duration_sec"]
+
+        factors.append(pause_factor)
 
     # Speech rate: two-sided. Pressured/rapid speech (panic) and
     # unusually slow/flat speech (freeze response, dissociation) are
@@ -175,11 +238,23 @@ def _voice_stress_score(voice_features):
 
     if rate > high:
         rate_component = min(1.0, (rate - high) / high) * 100
-        factors.append("Pressured / rapid speech rate")
+        factors.append({
+            "signal": "speech_rate_wpm",
+            "label": "Pressured / rapid speech rate",
+            "value": rate,
+            "threshold": high,
+            "points": round(VOICE_WEIGHTS["rate"] * rate_component, 2),
+        })
 
     elif rate < low:
         rate_component = min(1.0, (low - rate) / low) * 100
-        factors.append("Unusually slow / flat speech rate")
+        factors.append({
+            "signal": "speech_rate_wpm",
+            "label": "Unusually slow / flat speech rate",
+            "value": rate,
+            "threshold": low,
+            "points": round(VOICE_WEIGHTS["rate"] * rate_component, 2),
+        })
 
     score = (
         VOICE_WEIGHTS["pitch"] * pitch_component
@@ -252,10 +327,18 @@ def assess_stress(incident, voice_features=None):
         contributing_factors -- see API_CONTRACT.md.
     """
 
-    text_score, factors = _text_distress_score(incident)
+    text_score, text_factors = _text_distress_score(incident)
     voice_score, voice_factors = _voice_stress_score(voice_features)
 
     incident_confidence = incident.get("confidence", 0.0)  # 0-100
+
+    # Plain-language strings for contributing_factors -- unchanged
+    # format from before this function had structured factors, derived
+    # from the same structured list rather than duplicated separately,
+    # so the two can never drift out of sync with each other.
+    factors = [f["label"] for f in text_factors]
+
+    divergence = None
 
     if voice_score is not None:
 
@@ -268,9 +351,17 @@ def assess_stress(incident, voice_features=None):
         confidence = (incident_confidence / 100) * (0.5 + 0.5 * agreement) * 100
         modalities_used = ["text", "voice"]
 
-        factors = factors + voice_factors
+        factors = factors + [f["label"] for f in voice_factors]
 
-        if abs(text_score - voice_score) >= DIVERGENCE_FLAG_THRESHOLD:
+        gap = abs(text_score - voice_score)
+        divergence = {
+            "detected": gap >= DIVERGENCE_FLAG_THRESHOLD,
+            "text_score": round(text_score, 2),
+            "voice_score": voice_score,
+            "gap": round(gap, 2),
+        }
+
+        if divergence["detected"]:
             factors.append(
                 "Text and voice-derived stress signals diverge sharply -- "
                 "possible suppressed distress or a caller unable to speak "
@@ -288,6 +379,19 @@ def assess_stress(incident, voice_features=None):
     svi_score = round(min(svi_score, 100), 2)
     confidence = round(max(0.0, min(confidence, 100.0)), 2)
 
+    # Counsellor/admin-facing breakdown of exactly which signals pushed
+    # the tier where it landed -- deliberately kept out of the
+    # complainant-facing response (app.py strips this key before
+    # returning /report, /sos, /report/image, /report/voice results;
+    # it's only surfaced via the case-detail/brief endpoints an admin
+    # dashboard would call). See _text_distress_score/_voice_stress_
+    # score above for what "signal"/"points"/"value" mean per entry.
+    explainability = {
+        "text_signals": text_factors,
+        "voice_signals": voice_factors if voice_score is not None else None,
+        "divergence": divergence,
+    }
+
     return {
         "svi_score": svi_score,
         "svi_tier": _tier(svi_score),
@@ -298,6 +402,7 @@ def assess_stress(incident, voice_features=None):
             "voice_stress_score": voice_score,
         },
         "contributing_factors": factors,
+        "explainability": explainability,
     }
 
 

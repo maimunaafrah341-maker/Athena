@@ -23,7 +23,10 @@ evidence screenshots (see **Evidence upload** below).
   "latitude": null,
   "longitude": null,
   "voice_features": null,
-  "district": null
+  "district": null,
+  "disclosure_level": "full",
+  "reporter_name": null,
+  "reporter_contact": null
 }
 ```
 
@@ -43,6 +46,19 @@ accepted). Omit/null is the default and totally fine.
   Telangana's 33 districts plus a handful of other-state entries — see that
   section for coverage caveats. Case-insensitive; unrecognized/omitted
   district just means `escalation_contact` comes back `null`, not an error.
+  **Not gated by `disclosure_level`** — a district name routes to a contact
+  list, it doesn't identify the reporter, so it's honored even on an
+  anonymous report.
+- `disclosure_level` (string, optional, default `"full"`): `"full"` |
+  `"partial"` | `"anonymous"` — see **Low-disclosure reporting** below.
+  Omitting it is identical to sending `"full"`, so existing integrations
+  don't need to change anything. 400 if you send anything else.
+- `reporter_name` / `reporter_contact` (string, optional): only ever
+  persisted when `disclosure_level` is `"full"` (`reporter_contact` is also
+  kept for `"partial"` — see below). Harmless to send either at any
+  disclosure level; they're redacted server-side, not just ignored
+  client-side, so a UI bug that sends a name on an "anonymous" submission
+  can't leak it.
 
 ### Response body
 
@@ -95,6 +111,7 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `response` | string \| null | the actual message to show the user, in their input language; **null whenever escalate is true and nothing could be generated** |
 | `case_id` | int \| null | id of the persisted case (see Case tracking below); **null only for empty/whitespace input**, where nothing is saved |
 | `case_status` | string \| null | `"Escalated"` or `"Resolved"` at creation time; can change later via the `/cases` endpoints below |
+| `disclosure_level` | `"full" \| "partial" \| "anonymous"` | echoes back what was actually used (the request default is `"full"`) — see **Low-disclosure reporting** below |
 
 ## The 4 response shapes you'll actually see
 
@@ -195,16 +212,65 @@ A case object looks like:
   "location": "home" | null,
   "latitude": 17.385 | null,
   "longitude": 78.487 | null,
-  "is_sos": false
+  "is_sos": false,
+  "stress_assessment": { ... } | null,
+  "legal_guidance": { ... } | null,
+  "disclosure_level": "full",
+  "reporter_name": "Priya S" | null,
+  "reporter_contact": "9876543210" | null
 }
 ```
 
 Valid `status` values: `"New"`, `"Under Review"`, `"Escalated"`,
 `"In Progress"`, `"Resolved"`, `"Closed"`.
 
+**`stress_assessment` here is the FULL object, including `explainability`
+(see SVI section below)** — unlike `/report`/`/sos`, which strip
+`explainability` out before returning to the reporter. `GET /cases/*` is the
+admin/counsellor-facing surface; this is the intended place to actually
+render the per-signal breakdown. `null` for a case created before this
+field existed, or one whose pipeline result genuinely had none.
+
 `latitude`/`longitude` are only non-null when the reporter chose to share a
 location, and are already rounded to ~100-150m before storage (see the
 privacy note under Nearby Help below) — never the exact coordinate.
+
+## Low-disclosure reporting
+
+A reporter isn't required to identify themselves to get a real, fully
+processed report — `disclosure_level` on `/report`/`/sos` controls how much
+identity/location gets **persisted to the case**, without changing anything
+about how the report is processed. Every level gets the full pipeline: real
+`incident` classification, `risk`, `stress_assessment` (SVI), and
+`legal_guidance`, and `escalate` fires exactly the same way regardless of
+disclosure level.
+
+| Level | What's persisted to the case | What's not |
+|---|---|---|
+| `"full"` (default) | `reporter_name`, `reporter_contact`, precise `latitude`/`longitude` | — |
+| `"partial"` | `reporter_contact` (so a counsellor can still follow up) | `reporter_name`, `latitude`/`longitude` |
+| `"anonymous"` | — | `reporter_name`, `reporter_contact`, `latitude`/`longitude` |
+
+`district` is available at every level (see the request field above) — it's
+a routing hint, not an identifier, so even an anonymous report can still get
+a district-level `legal_guidance.escalation_contact`. Redaction happens
+server-side in `cases.create_case()`, not just left out of the response — a
+frontend bug that accidentally sends `reporter_name` on an anonymous
+submission still can't leak it into the case record.
+
+**The honest tradeoff, not solved further here**: a `"partial"`/`"anonymous"`
+case genuinely cannot be followed up on the way a `"full"` one can — no name
+to reference, no precise location to correlate against, and for
+`"anonymous"` specifically, no contact method at all. That's the real cost
+of low-disclosure reporting, not a gap to silently paper over. Pitch it
+honestly: "you can report anonymously and still get a real risk assessment
+and guidance," not "anonymous reports get the same follow-up as identified
+ones."
+
+`GET /cases/{id}` and `/cases/{id}/brief` return `disclosure_level`,
+`reporter_name`, `reporter_contact` alongside everything else — a
+counsellor needs to see the disclosure level before attempting any
+follow-up, not discover mid-call that there's no name on file.
 
 ## Safety map (real case pins) — **fully functional today**
 
@@ -334,6 +400,51 @@ carries elsewhere (e.g. `RETRIEVAL_CONFIDENCE_THRESHOLD`). Don't pitch this
 as a validated stress-detection model to judges; pitch it as an
 explainable, tunable fusion layer with an honest confidence signal.
 
+### Explainability breakdown (admin/counsellor view only)
+
+`stress_assessment.explainability` gives the exact per-signal breakdown of
+which signals pushed `svi_tier` where it landed — every entry's `points`
+sum to the axis's score (`components.text_distress_score` /
+`.voice_stress_score`), so this is a literal accounting, not a vague
+summary:
+
+```json
+"explainability": {
+  "text_signals": [
+    {"signal": "immediate_danger", "label": "Immediate danger reported", "confidence": 67.65, "points": 35},
+    {"signal": "threat_present", "label": "Threat present in report", "confidence": 80.66, "points": 15},
+    {"signal": "incident_type_baseline", "label": "Domestic violence carries elevated baseline distress", "confidence": 100.0, "points": 20}
+  ],
+  "voice_signals": [
+    {"signal": "pitch_variation", "label": "High pitch variability / voice breaks", "value": 0.85, "threshold": 0.60, "points": 34.0},
+    {"signal": "pause_ratio", "label": "Elevated pausing in speech", "value": 0.55, "threshold": 0.25, "points": 12.0, "avg_pause_duration_sec": 2.4}
+  ] | null,
+  "divergence": {"detected": false, "text_score": 85.0, "voice_score": 58.0, "gap": 27.0} | null
+}
+```
+
+`text_signals[].confidence` reuses `incident.confidence_breakdown`'s
+per-signal numbers directly (same field, same 0-100 calibration) — not a
+second, separately-invented confidence scale. Every label is
+category-level (`"threat_present detected, 80.66%"`), never the original
+report text or a verbatim quote — the same discipline `incident_type` and
+`caste_based_motive` already follow elsewhere in this contract.
+`pause_ratio`'s entry reports the real measured ratio (and
+`avg_pause_duration_sec` when the voice pipeline sent it) rather than a
+discrete pause-event count, since nothing in this pipeline currently
+computes one — don't display a fabricated event count that isn't backed by
+real data.
+
+**This key is deliberately absent from `/report`/`/sos`/`/report/image`/
+`/report/voice` responses** — those go straight to the complainant's own
+client, and a live psychological-distress readout ("your pitch variability
+suggests distress") is not something to show the person who just filed the
+report. It's only present in `GET /cases/{id}` and `GET /cases/{id}/brief`
+(as `svi_explainability`), the actual admin/counsellor-facing surface. If
+you're building the counsellor dashboard, read it from there — if you're
+building the reporter-facing UI, you won't see this key and shouldn't need
+to.
+
 ## Legal & escalation guidance (knowledge graph) — **live** (`kg.py`)
 
 `legal_guidance` on every `/report`/`/sos` response — a lightweight
@@ -460,7 +571,11 @@ GET /cases/{id}/brief
 Everything known about an escalated case, assembled into one summary
 instead of making a reviewer reconstruct it from a raw report — risk,
 incident details, the response given, evidence, and any related cases
-(from the endpoint above) in one object. 404 if the case doesn't exist.
+(from the endpoint above) in one object. Also includes `svi_tier`,
+`svi_score`, `svi_explainability` (the same object as
+`stress_assessment.explainability` above — this is the intended read path
+for a counsellor dashboard) and `legal_guidance`. 404 if the case doesn't
+exist.
 
 ## Stats (for dashboard cards)
 
@@ -585,6 +700,34 @@ live means the wiring is done, not that voice transcription itself works —
 don't build/demo frontend recording UI against this expecting real results
 until credentials are confirmed working.
 
+### Consent / data-retention content for a voice-recording screen
+
+```
+GET /consent/voice-recording
+```
+
+Static policy content — **not** a consent-management system (no per-report
+consent tracking, no opt-out enforcement, no automated deletion pipeline).
+Exists so the frontend team's consent screen has real content to render
+instead of a placeholder. See `consent.py` for the full object and why each
+claim in it is checked against what the code actually does, not
+aspirational policy language. The honest, load-bearing facts it discloses:
+
+- The recording is saved to disk indefinitely alongside the case — **there
+  is no automatic deletion**, checked directly against the codebase (no
+  cron/TTL/cleanup exists anywhere in this repo).
+- It's sent to **Bhashini** (a Government of India ASR service) for
+  transcription — the one real third-party transfer that happens, and the
+  only one.
+- **There is currently no dedicated access-control layer** on this API at
+  all (no auth, CORS wide open) — the policy states this honestly rather
+  than implying a protection that doesn't exist. Worth fixing before this
+  goes in front of real users; flagged here rather than quietly
+  soft-pedaled in the policy text.
+- Points the reader at `disclosure_level` (`/report`'s `"partial"`/
+  `"anonymous"` modes) as the actual lever for reducing what's kept on a
+  case, voice or not.
+
 ## Nearby help (real police stations / hospitals) — **fully functional today**
 
 Unlike voice, this one actually works right now, no credentials needed —
@@ -662,7 +805,12 @@ including `case_id`, `reasoning_trace`, and `nearby_help` (only present when
 this endpoint have `is_sos: true`, so a reviewer/dashboard can tell a
 manually-triggered panic case apart from a regular escalated report.
 
-`/sos` also accepts the same optional `voice_features` field as `/report`.
+`/sos` also accepts the same optional `voice_features`, `district`,
+`disclosure_level`, `reporter_name`, `reporter_contact` fields as `/report`,
+with identical behavior — see **Low-disclosure reporting** above. An
+anonymous SOS press still forces Critical/escalated and still gets
+`nearby_help` from whatever coordinates were sent live; it just won't have a
+name/contact/precise location on the persisted case afterward.
 **Unlike `risk`, `stress_assessment` is NOT force-overridden on `/sos`** —
 pressing the button is a deliberate act that forces the danger *tier*
 (that's the whole point of a panic button), but `svi_tier` stays a genuine

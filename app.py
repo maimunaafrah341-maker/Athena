@@ -33,13 +33,37 @@ from cases import (
     get_related_cases,
     build_escalation_brief,
     VALID_STATUSES,
+    VALID_DISCLOSURE_LEVELS,
 )
 from voice_service import process_voice_to_text
 from ocr import extract_text
 from nearby_help import find_nearby_help, get_call_options
+from consent import get_voice_recording_policy
 
 EVIDENCE_DIR = "evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
+
+
+def _strip_counsellor_only_fields(result):
+    """
+    svi.py's stress_assessment.explainability is a per-signal
+    psychological-distress breakdown (pitch/pause values, which text
+    signals fired) meant for an admin/counsellor reviewing a case, not
+    the complainant whose own report this is -- showing a reporter in
+    crisis a live readout of "your pitch variability suggests distress"
+    is a UX/ethics problem this project doesn't want, even though the
+    same detail is exactly what a counsellor needs. persisted in full
+    to cases.db regardless (see cases.py) and surfaced via /cases/*.
+    Called on every endpoint that returns run_pipeline()'s result
+    directly to whoever filed the report.
+    """
+
+    stress_assessment = result.get("stress_assessment")
+
+    if stress_assessment:
+        stress_assessment.pop("explainability", None)
+
+    return result
 
 
 # ============================================================
@@ -86,6 +110,9 @@ class ReportRequest(BaseModel):
     longitude: Optional[float] = None
     voice_features: Optional[VoiceFeatures] = None
     district: Optional[str] = None
+    disclosure_level: Optional[str] = "full"
+    reporter_name: Optional[str] = None
+    reporter_contact: Optional[str] = None
 
 
 class StatusUpdateRequest(BaseModel):
@@ -98,6 +125,26 @@ class SosRequest(BaseModel):
     text: Optional[str] = None
     voice_features: Optional[VoiceFeatures] = None
     district: Optional[str] = None
+    disclosure_level: Optional[str] = "full"
+    reporter_name: Optional[str] = None
+    reporter_contact: Optional[str] = None
+
+
+def _validate_disclosure_level(disclosure_level):
+    """
+    Shared 400-on-typo check for /report and /sos -- same pattern as
+    PATCH /cases/{id}/status validating against VALID_STATUSES.
+    cases.create_case() also re-checks this (defense in depth, single
+    source of truth in cases.py), but failing fast here with a clear
+    400 is friendlier than letting a typo surface as a 500 from
+    inside case creation.
+    """
+
+    if disclosure_level not in VALID_DISCLOSURE_LEVELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"disclosure_level must be one of {VALID_DISCLOSURE_LEVELS}",
+        )
 
 
 # ============================================================
@@ -107,6 +154,22 @@ class SosRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/consent/voice-recording")
+def consent_voice_recording():
+    """
+    Static policy content for a "what happens to my voice recording"
+    consent screen -- how long it's stored, whether it's sent anywhere
+    beyond this report, who can access it. Not a consent-management
+    system (no per-report consent tracking, no opt-out enforcement) --
+    just real content for the frontend team's consent screen to
+    display instead of a placeholder. See consent.py for what backs
+    this and why each claim is accurate to the current system, not
+    aspirational.
+    """
+
+    return get_voice_recording_policy()
 
 
 # Rounding precision for any coordinates that get persisted to a
@@ -129,8 +192,18 @@ def report(payload: ReportRequest):
     share their location), the response also includes real nearby
     police stations/hospitals under `nearby_help` -- looked up using
     the precise coordinates, but only a rounded version is ever
-    persisted to the case (see LOCATION_ROUNDING_DECIMALS above).
+    persisted to the case (see LOCATION_ROUNDING_DECIMALS above), and
+    only when disclosure_level is "full" (see cases.create_case()).
+
+    disclosure_level ("full" | "partial" | "anonymous", default
+    "full") controls what gets persisted to the case, not what this
+    response includes -- nearby_help still uses whatever coordinates
+    were sent, same as always; only the stored case is affected. See
+    API_CONTRACT.md's low-disclosure section for what each level
+    actually does and the follow-up tradeoff it carries.
     """
+
+    _validate_disclosure_level(payload.disclosure_level)
 
     rounded_lat = (
         round(payload.latitude, LOCATION_ROUNDING_DECIMALS)
@@ -151,6 +224,9 @@ def report(payload: ReportRequest):
             if payload.voice_features else None
         ),
         district=payload.district,
+        disclosure_level=payload.disclosure_level,
+        reporter_name=payload.reporter_name,
+        reporter_contact=payload.reporter_contact,
     )
 
     if payload.latitude is not None and payload.longitude is not None:
@@ -158,7 +234,7 @@ def report(payload: ReportRequest):
             payload.latitude, payload.longitude
         )
 
-    return result
+    return _strip_counsellor_only_fields(result)
 
 
 DEFAULT_SOS_TEXT = "I need immediate help right now, I am in danger."
@@ -181,7 +257,12 @@ def sos(payload: SosRequest):
     if the caller has nothing typed/pre-filled, a default SOS phrase
     is used so the pipeline still has something to classify and
     retrieve evidence against.
+
+    disclosure_level applies the same way it does on /report -- see
+    that endpoint's docstring.
     """
+
+    _validate_disclosure_level(payload.disclosure_level)
 
     text = payload.text or DEFAULT_SOS_TEXT
 
@@ -204,6 +285,9 @@ def sos(payload: SosRequest):
             if payload.voice_features else None
         ),
         district=payload.district,
+        disclosure_level=payload.disclosure_level,
+        reporter_name=payload.reporter_name,
+        reporter_contact=payload.reporter_contact,
     )
 
     if payload.latitude is not None and payload.longitude is not None:
@@ -211,7 +295,7 @@ def sos(payload: SosRequest):
             payload.latitude, payload.longitude
         )
 
-    return result
+    return _strip_counsellor_only_fields(result)
 
 
 @app.get("/call-options")
@@ -288,7 +372,7 @@ async def report_image(
     result = run_pipeline(extracted_text, evidence_path=saved_path)
     result["extracted_text"] = extracted_text
 
-    return result
+    return _strip_counsellor_only_fields(result)
 
 
 @app.post("/report/voice")
@@ -334,7 +418,7 @@ async def report_voice(
     result = run_pipeline(transcription, evidence_path=saved_path)
     result["transcription"] = transcription
 
-    return result
+    return _strip_counsellor_only_fields(result)
 
 
 @app.get("/stats")

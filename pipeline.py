@@ -137,6 +137,9 @@ def _finalize(
     latitude=None,
     longitude=None,
     is_sos=False,
+    disclosure_level="full",
+    reporter_name=None,
+    reporter_contact=None,
 ):
     """
     Persist every processed report as a case (see cases.py) and
@@ -147,6 +150,12 @@ def _finalize(
     latitude/longitude, if given, are expected to already be
     privacy-rounded by the caller (app.py) -- this function and
     cases.create_case() just persist whatever they're handed.
+
+    disclosure_level/reporter_name/reporter_contact are passed
+    straight through to create_case(), which is the actual
+    enforcement point for what "partial"/"anonymous" redacts -- see
+    its docstring. Not re-validated or re-redacted here, to keep a
+    single source of truth for that logic.
     """
 
     if is_sos:
@@ -159,10 +168,14 @@ def _finalize(
         latitude=latitude,
         longitude=longitude,
         is_sos=is_sos,
+        disclosure_level=disclosure_level,
+        reporter_name=reporter_name,
+        reporter_contact=reporter_contact,
     )
 
     result["case_id"] = case_id
     result["case_status"] = "Escalated" if result["escalate"] else "Resolved"
+    result["disclosure_level"] = disclosure_level
     result["reasoning_trace"] = _build_reasoning_trace(result)
 
     return result
@@ -182,6 +195,9 @@ def run_pipeline(
     is_sos=False,
     voice_features=None,
     district=None,
+    disclosure_level="full",
+    reporter_name=None,
+    reporter_contact=None,
 ):
     """
     Run one incident report through the full Athena pipeline.
@@ -192,7 +208,9 @@ def run_pipeline(
 
     latitude/longitude: optional, only if the user chose to share
     their location -- expected to already be privacy-rounded by the
-    caller before reaching here (see app.py).
+    caller before reaching here (see app.py). Still used live for
+    nearby_help regardless of disclosure_level; only what's PERSISTED
+    to the case is gated by disclosure_level (see create_case()).
 
     is_sos: True when this report came from the one-tap SOS button
     rather than a typed report -- forces the resulting case to
@@ -208,7 +226,22 @@ def run_pipeline(
     used only to resolve legal_guidance.escalation_contact (see
     kg.py). None just means that field comes back null -- applicable
     legal provisions and procedural steps still get returned either
-    way, district only affects the contact lookup.
+    way, district only affects the contact lookup. Still honored
+    regardless of disclosure_level -- a district name routes to a
+    contact, it doesn't identify the reporter, so even an anonymous
+    report can use it (see API_CONTRACT.md's low-disclosure section).
+
+    disclosure_level: "full" | "partial" | "anonymous" (default
+    "full", so existing callers that don't pass this get identical
+    behavior to before this parameter existed). Gates what
+    create_case() persists -- see its docstring for exactly what
+    "partial"/"anonymous" redact. The rest of the pipeline
+    (understanding/risk/svi/kg/retrieval/response) runs identically
+    regardless of this value -- an anonymous report still gets a full
+    SVI score, risk assessment, and escalation, same as any other.
+
+    reporter_name/reporter_contact: optional, only meaningful (i.e.
+    only ever persisted) when disclosure_level == "full".
 
     Returns a single JSON-serializable dict. This is the contract
     the frontend / API should rely on — nothing else should reach
@@ -244,6 +277,7 @@ def run_pipeline(
             "response": None,
             "case_id": None,
             "case_status": None,
+            "disclosure_level": disclosure_level,
             "reasoning_trace": None,
         }
 
@@ -285,7 +319,8 @@ def run_pipeline(
             ),
             "response": None,
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
-           is_sos=is_sos)
+           is_sos=is_sos, disclosure_level=disclosure_level,
+           reporter_name=reporter_name, reporter_contact=reporter_contact)
 
     # --------------------------------------------------------
     # 5. Generate grounded response
@@ -314,7 +349,8 @@ def run_pipeline(
             ),
             "response": None,
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
-           is_sos=is_sos)
+           is_sos=is_sos, disclosure_level=disclosure_level,
+           reporter_name=reporter_name, reporter_contact=reporter_contact)
 
     # Critical/High-risk incidents, a Critical stress/trauma reading,
     # OR low understanding confidence should each independently be
@@ -372,7 +408,8 @@ def run_pipeline(
        "reason": " ".join(escalation_reasons) if escalation_reasons else None,
         "response": result["response"],
     }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
-       is_sos=is_sos)
+       is_sos=is_sos, disclosure_level=disclosure_level,
+       reporter_name=reporter_name, reporter_contact=reporter_contact)
 
 
 # ============================================================
