@@ -89,22 +89,33 @@ def neutral_ceiling(query_embedding):
     return float(similarities.max())
 
 
-def calibrate_confidence(raw_similarity, query_embedding):
+def calibrate_confidence(raw_similarity, query_embedding, ceiling=None):
     """
     Convert a raw cosine similarity into a calibrated 0-1 confidence,
     the same way for every detector (incident type, each signal,
     relationship, location) so they're actually comparable to each
-    other -- a margin of NEUTRAL_MARGIN over the neutral baseline
+    other -- a margin of NEUTRAL_MARGIN over the rejection ceiling
     maps to 100%, a margin of 0 (this text matches the category no
-    better than it matches ordinary small talk) maps to 0%.
+    better than it matches the ceiling) maps to 0%.
 
     Shared by every detector below instead of each one inlining its
     own copy of this formula, so a per-field confidence_breakdown
     means the same thing in every field rather than mixing raw
     similarity scores with calibrated ones.
+
+    `ceiling` lets a caller pass an already-computed rejection ceiling
+    (e.g. detect_signal()'s hard-negative-aware one) instead of the
+    plain neutral baseline, so the reported confidence agrees with
+    whatever ceiling actually decided present/absent -- otherwise a
+    signal correctly rejected via a hard negative could still report a
+    misleadingly high confidence computed against the weaker neutral-
+    only baseline.
     """
 
-    margin = raw_similarity - neutral_ceiling(query_embedding)
+    if ceiling is None:
+        ceiling = neutral_ceiling(query_embedding)
+
+    margin = raw_similarity - ceiling
 
     return max(0.0, min(1.0, margin / (NEUTRAL_MARGIN * 2.5)))
 
@@ -549,7 +560,26 @@ SIGNAL_EXAMPLES = {
 
         # Romanized Telugu
         "Naaku shareerika gayalu ayyayi.",
-        "Nannu kodutunnaru."
+        "Nannu kodutunnaru.",
+
+        # Longer, multi-clause repeated-abuse phrasing (e.g. a parent
+        # hitting a child regularly) -- without these, a genuine report
+        # like "My father hits me. He beats me almost every day. I'm
+        # scared." fell just short of the neutral margin (+0.0136 vs the
+        # 0.04 floor) because its embedding sits further from the short,
+        # punchy anchors above than a single-clause report would. Found
+        # via live adversarial testing 2026-08-2x on the child-victim-
+        # coverage case; see athena_known_issues.md.
+        "My father hits me. He beats me almost every day.",
+        "My parent hits me regularly and I am scared.",
+        "मेरे पिता मुझे मारते हैं। वह लगभग रोज़ मुझे पीटते हैं।",
+        "నా తండ్రి నన్ను కొడతాడు. అతను దాదాపు ప్రతిరోజూ నన్ను కొడతాడు.",
+
+        # Romanized Hindi
+        "Mere pita mujhe maarte hain. Woh lagbhag roz mujhe peetate hain.",
+
+        # Romanized Telugu
+        "Naa thandri nannu kodathadu. Atanu dadapu prathi roju nannu kodathadu."
     ],
 
     "immediate_danger": [
@@ -600,6 +630,99 @@ SIGNAL_EXAMPLES = {
 
 
 # ============================================================
+# SIGNAL HARD NEGATIVES
+# ============================================================
+#
+# The shared NEUTRAL_EXAMPLES bank (generic small talk) rejects
+# off-topic/gibberish text, but it can't reject a text that's genuinely
+# safety-relevant while still being the WRONG signal -- confirmed live
+# 2026-08-20 (teammate Yusra): "कोई मेरा पीछा कर रहा है।" (pure stalking,
+# "someone is following me," no violence/threat mentioned) fired
+# injury_present=true, and its Telugu equivalent fired both
+# injury_present AND threat_present. Root cause: for short Hindi/Telugu
+# phrases, multilingual-e5-small embeds "following/pursuing" close
+# enough to "beating"/"threatening" that it clears the neutral margin
+# on its own -- these anchor sets just aren't confusable with generic
+# small talk, but they ARE confusable with each other.
+#
+# Fix: give the specific signals with a confirmed confusion pair their
+# own hard-negative example set (real, topical, but NOT that signal),
+# and require a genuine positive to beat that ceiling too, not just the
+# generic neutral one. Only added where a real confusion was found and
+# verified -- not applied speculatively to every signal.
+
+SIGNAL_HARD_NEGATIVES = {
+
+    "injury_present": [
+        "Someone is following me everywhere.",
+        "Someone keeps following me.",
+        "Someone is watching me and following me.",
+        "कोई मेरा पीछा कर रहा है।",
+        "कोई मेरा लगातार पीछा कर रहा है।",
+        "ఎవరైనా నన్ను వెంబడిస్తున్నారు.",
+        "ఎవరైనా నన్ను నిరంతరం అనుసరిస్తున్నారు.",
+        "Koi mera peecha kar raha hai.",
+        "Evarina nannu vembadistunnaru.",
+    ],
+
+    "threat_present": [
+        "Someone is following me everywhere.",
+        "Someone keeps following me.",
+        "Someone is watching me and following me.",
+        "कोई मेरा पीछा कर रहा है।",
+        "कोई मेरा लगातार पीछा कर रहा है।",
+        "ఎవరైనా నన్ను వెంబడిస్తున్నారు.",
+        "ఎవరైనా నన్ను నిరంతరం అనుసరిస్తున్నారు.",
+        "Koi mera peecha kar raha hai.",
+        "Evarina nannu vembadistunnaru.",
+    ],
+}
+
+hard_negative_embeddings = {}
+
+for signal, examples in SIGNAL_HARD_NEGATIVES.items():
+
+    hard_negative_embeddings[signal] = model.encode(
+        ["query: " + example for example in examples],
+        normalize_embeddings=True
+    )
+
+
+# How much a signal's own best match must beat its hard-negative
+# category's best match by, before the signal is trusted over the
+# more specific, documented confusion. Deliberately a separate,
+# smaller constant from NEUTRAL_MARGIN rather than reusing it -- this
+# check answers a different, easier question ("is this a better match
+# for injury than for stalking?") than NEUTRAL_MARGIN's job ("is this
+# meaningfully more than generic small talk?"). Reusing NEUTRAL_MARGIN
+# here (i.e. requiring the full 0.04 lead over the hard negative too)
+# was tried first and caused a real regression: a genuine Telugu
+# domestic-violence threat only led its stalking hard-negative by
+# 0.0352, just under 0.04, and got wrongly rejected. The four
+# calibration cases (2 confirmed bugs, 2 genuine positives) show a
+# clean sign flip at zero -- genuine positives beat their hard
+# negative, the confirmed false positives lose to it -- so 0.02 (half
+# of NEUTRAL_MARGIN, as a safety margin against float noise right at
+# the boundary) separates them with room to spare in both directions.
+HARD_NEGATIVE_MARGIN = 0.02
+
+
+def hard_negative_ceiling(query_embedding, signal):
+    """
+    How well this query matches signal's documented confusion category,
+    if it has one. Returns None for signals with no hard-negative set
+    (most of them) so callers can skip the check entirely.
+    """
+
+    if signal not in hard_negative_embeddings:
+        return None
+
+    similarities = query_embedding @ hard_negative_embeddings[signal].T
+
+    return float(similarities.max())
+
+
+# ============================================================
 # BUILD SIGNAL EMBEDDINGS
 # ============================================================
 
@@ -641,11 +764,34 @@ def detect_signal(text, signal, threshold=0.72):
 
     best_similarity = float(similarities.max())
 
-    margin = best_similarity - neutral_ceiling(query_embedding)
+    neutral_ceil = neutral_ceiling(query_embedding)
+    neutral_margin_ok = (best_similarity - neutral_ceil) >= NEUTRAL_MARGIN
 
-    present = best_similarity >= threshold and margin >= NEUTRAL_MARGIN
+    hard_neg_ceil = hard_negative_ceiling(query_embedding, signal)
+    hard_negative_margin_ok = (
+        hard_neg_ceil is None
+        or (best_similarity - hard_neg_ceil) >= HARD_NEGATIVE_MARGIN
+    )
 
-    confidence = calibrate_confidence(best_similarity, query_embedding)
+    present = (
+        best_similarity >= threshold
+        and neutral_margin_ok
+        and hard_negative_margin_ok
+    )
+
+    if present:
+        # Calibrate against the neutral baseline only, same formula
+        # every other detector in this file uses -- the hard-negative
+        # check already passed by the time we get here, so it
+        # shouldn't compress a genuine positive's displayed confidence.
+        confidence = calibrate_confidence(best_similarity, query_embedding, ceiling=neutral_ceil)
+    else:
+        # Rejected -- report confidence against whichever ceiling
+        # actually rejected it (the higher of the two), so
+        # confidence_breakdown never shows a misleadingly high number
+        # for a signal the system decided is NOT present.
+        effective_ceiling = neutral_ceil if hard_neg_ceil is None else max(neutral_ceil, hard_neg_ceil)
+        confidence = calibrate_confidence(best_similarity, query_embedding, ceiling=effective_ceiling)
 
     return present, confidence
 
