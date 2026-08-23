@@ -41,11 +41,13 @@ accepted). Omit/null is the default and totally fine.
   **Stress Vulnerability Index (SVI)** below. Omit/null for text-only input,
   which is the normal case today.
 - `district` (string, optional): the reporter's district (e.g. `"Karimnagar"`,
-  `"Hyderabad"`) — used only to resolve `legal_guidance.escalation_contact`
-  (see **Legal & escalation guidance** below). Currently only recognized for
-  Telangana's 33 districts plus a handful of other-state entries — see that
-  section for coverage caveats. Case-insensitive; unrecognized/omitted
-  district just means `escalation_contact` comes back `null`, not an error.
+  `"Agra"`, `"Kanyakumari"`) — used only to resolve
+  `legal_guidance.escalation_contact` (see **Legal & escalation guidance**
+  below). Covers 554 districts across 33 states/UTs as of 2026-08-23 — see
+  that section for the manual-vs-parsed confidence distinction and the
+  handful of ambiguous names that are deliberately excluded. Case-
+  insensitive; unrecognized/omitted district just means `escalation_contact`
+  comes back `null`, not an error.
   **Not gated by `disclosure_level`** — a district name routes to a contact
   list, it doesn't identify the reporter, so it's honored even on an
   anonymous report.
@@ -483,10 +485,21 @@ a single-key dict lookup.
     "district": "Karimnagar", "state": "Telangana",
     "address": "...", "phone": "0878-2244644", "email": "...",
     "contact_person": "D. Laxmi", "contact_person_phone": "9642333464",
+    "verification": "manual" | "parsed",
     "source": "kg_seed"
   } | null
 }
 ```
+
+**`escalation_contact.verification`** tells you how this specific
+contact's confidence tier: `"manual"` means individually checked against
+the source PDF (Telangana's 33 districts, plus a handful of other-state
+entries); `"parsed"` means machine-extracted from the national directory
+PDF's table structure and spot-checked, not row-by-row hand-verified — see
+`district_contacts.py`'s module docstring for the extraction method and
+what's excluded. Show this distinction to a counsellor if you're
+displaying this contact in a UI — don't present both tiers with identical
+visual confidence.
 
 `null` only when `incident_type` isn't mapped in the graph at all
 (`"other"`, `"missing_person"`) — a deliberate omission, not a bug; see
@@ -504,14 +517,21 @@ knowledge base. Don't blur the two.
 - Legal provisions are transcribed directly from the real SC/ST Act
   bare-act text (`data/sources/SCSTpoaact1989.pdf`, now also ingested
   into the RAG knowledge base) — not recalled from general knowledge.
-- `escalation_contact` comes from `district_contacts.py`, itself
-  transcribed from real Sakhi/One Stop Centre directories
-  (`Sakhi-OSC Contact list Updated _list.pdf` for Telangana — all 33
-  districts — plus a handful of other-state entries from a national
-  directory PDF). **Coverage is Telangana-complete, not national** —
-  extending it further is a data-entry task against that PDF, not a
-  code change. An unrecognized district returns `escalation_contact:
-  null`, never a wrong or made-up contact.
+- `escalation_contact` comes from `district_contacts.py`. **554
+  districts across 33 states/UTs as of 2026-08-23** — Telangana's 33 (and
+  a handful of other pre-existing entries) individually hand-verified
+  against `Sakhi-OSC Contact list Updated _list.pdf`
+  (`verification: "manual"`), the remaining 518 machine-parsed from the
+  national directory PDF's actual table structure via `pdfplumber`
+  (`verification: "parsed"` — see above). Nothing here is invented; every
+  field traces to what the source PDF actually says. 6 district names
+  that collide across different states (e.g. Bilaspur exists in both
+  Chhattisgarh and Himachal Pradesh) are deliberately excluded rather
+  than guessed at, since `district` has no state qualifier to
+  disambiguate them — see `district_contacts.py`'s docstring for the
+  full list. An unrecognized (or deliberately-excluded-as-ambiguous)
+  district returns `escalation_contact: null`, never a wrong or
+  made-up contact.
 
 **`caste_based_motive` is advisory, always** — even when its confidence
 clears the bar to add SC/ST Act provisions (80, deliberately set
