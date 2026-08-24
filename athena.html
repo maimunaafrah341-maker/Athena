@@ -8,6 +8,10 @@
     <title>Athena — National Helpline Support</title>
 
     <link rel="stylesheet" href="athena.css">
+	<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
 </head>
 
 <body>
@@ -421,22 +425,10 @@
                             <div
                                 id="miniDistrictMap"
                                 class="mini-map"
-                            >
-
-                                <div class="map-shape">
-                                    INDIA
-                                </div>
-
-                                <div class="map-point point-1"></div>
-                                <div class="map-point point-2"></div>
-                                <div class="map-point point-3"></div>
-                                <div class="map-point point-4"></div>
-
-                                <span class="map-label">
-                                    National district coverage
-                                </span>
-
-                            </div>
+							<div
+								id="districtMap"
+								class="large-map"
+							></div>
 
                         </div>
 
@@ -1076,6 +1068,9 @@
 
 </div>
 
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
 
 <script src="athena.js"></script>
 

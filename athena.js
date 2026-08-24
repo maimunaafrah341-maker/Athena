@@ -28,6 +28,8 @@ const state = {
 
     cases: [],
 
+    mapCases: [],
+
     mediaRecorder: null,
 
     audioChunks: []
@@ -86,16 +88,20 @@ function showPage(pageName) {
 
 
     if (pageName === "overview") {
-        loadDashboard();
-    }
+    loadDashboard();
+}
 
-    if (pageName === "cases") {
-        renderCasesTable();
-    }
+if (pageName === "cases") {
+    renderCasesTable();
+}
 
-    if (pageName === "alerts") {
-        renderAlerts();
-    }
+if (pageName === "risk-map") {
+    loadRiskMap();
+}
+
+if (pageName === "alerts") {
+    renderAlerts();
+}
 }
 
 
@@ -927,6 +933,146 @@ function updateDashboardStats() {
 
 }
 
+/* =========================================================
+   LOAD DASHBOARD STATS
+========================================================= */
+
+async function loadStats() {
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE_URL}/stats`
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Stats request failed"
+            );
+
+        }
+
+        const stats =
+            await response.json();
+
+
+        const total =
+            stats.total_cases || 0;
+
+        const critical =
+            stats.by_risk_tier?.Critical || 0;
+
+        const high =
+            stats.by_risk_tier?.High || 0;
+
+        const low =
+            stats.by_risk_tier?.Low || 0;
+
+        const moderate =
+            stats.by_risk_tier?.Medium || 0;
+
+
+        const pending =
+            (stats.by_status?.New || 0) +
+            (stats.by_status?.["Under Review"] || 0);
+
+
+        /* =========================
+           TOP STAT CARDS
+        ========================= */
+
+        setText(
+            "#totalCases",
+            total
+        );
+
+        setText(
+            "#criticalCases",
+            critical
+        );
+
+        setText(
+            "#highCases",
+            high
+        );
+
+        setText(
+            "#pendingCases",
+            pending
+        );
+
+
+        /* =========================
+           RISK DISTRIBUTION
+        ========================= */
+
+        setText(
+            "#riskTotal",
+            total
+        );
+
+        setText(
+            "#lowPercent",
+            percentage(
+                low,
+                total
+            )
+        );
+
+        setText(
+            "#moderatePercent",
+            percentage(
+                moderate,
+                total
+            )
+        );
+
+        setText(
+            "#highPercent",
+            percentage(
+                high,
+                total
+            )
+        );
+
+        setText(
+            "#criticalPercent",
+            percentage(
+                critical,
+                total
+            )
+        );
+
+
+        /* =========================
+           ALERT COUNT
+        ========================= */
+
+        setText(
+            "#alertCount",
+            critical + high
+        );
+
+
+        console.log(
+            "Dashboard stats:",
+            stats
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Could not load dashboard stats:",
+            error
+        );
+
+    }
+
+}
 
 /* =========================================================
    LOAD DASHBOARD
@@ -934,7 +1080,119 @@ function updateDashboardStats() {
 
 async function loadDashboard() {
 
-    await loadCases();
+    await Promise.all([
+
+        loadCases(),
+
+        loadStats()
+
+    ]);
+
+}
+
+/* =========================================================
+   RISK MAP
+========================================================= */
+
+async function loadRiskMap() {
+
+    const mapContainer =
+        $("#districtMap");
+
+    if (!mapContainer) return;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE_URL}/cases/map`
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Risk map request failed: ${response.status}`
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "Risk map data:",
+            data
+        );
+
+
+        state.mapCases =
+            Array.isArray(data)
+                ? data
+                : data.cases || data.data || [];
+
+
+        renderRiskMap();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Could not load risk map:",
+            error
+        );
+
+        mapContainer.innerHTML = `
+            <div class="map-error">
+                Unable to load district risk data.
+            </div>
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER RISK MAP
+========================================================= */
+
+function renderRiskMap() {
+
+    const mapContainer =
+        $("#districtMap");
+
+    if (!mapContainer) return;
+
+
+    if (!state.mapCases.length) {
+
+        mapContainer.innerHTML = `
+            <div class="map-empty">
+                No district risk data available.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    mapContainer.innerHTML = `
+
+        <div class="large-india">
+            INDIA
+        </div>
+
+        <div class="map-data-label">
+            ${state.mapCases.length} district case records
+        </div>
+
+    `;
 
 }
 
