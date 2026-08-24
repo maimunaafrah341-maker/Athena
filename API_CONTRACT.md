@@ -99,6 +99,7 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `risk.risk_tier` | `"Low" \| "Medium" \| "High" \| "Critical"` | |
 | `risk.risk_score` | int 0-100 | |
 | `risk.risk_factors` | string[] | human-readable reasons, e.g. `"Immediate danger detected"`, `"Low understanding confidence — human review recommended"` |
+| `risk.response_protocol` | object | `{sla, route, action}` staff-facing triage routing for this `risk_tier` (from `risk.py`'s `RESPONSE_PROTOCOL` table, added 2026-08-24 per Samreen's SLA/routing spec) — e.g. Critical: `{"sla": "Immediate", "route": "ERSS 112 Hard Override", "action": "Auto 112 Dispatch + SP Intercept"}`. Descriptive routing metadata only — nothing in this codebase actually calls ERSS-112 or dispatches police; a human still acts on it, same as `legal_guidance.escalation_contact` |
 | `stress_assessment.svi_tier` | `"Low" \| "Moderate" \| "High" \| "Critical"` | Stress Vulnerability Index tier — a *different axis from `risk_tier`*, see below. Deliberately "Moderate" not "Medium" so the two tier sets are never visually confused in the UI |
 | `stress_assessment.svi_score` | float 0-100 | |
 | `stress_assessment.confidence` | float 0-100 | same 0-100 convention as `incident.confidence`/`risk.confidence` — do not treat as a 0-1 scale |
@@ -190,7 +191,8 @@ open access.
 
 **Gated** (send `X-API-Key`): `GET /cases`, `GET /cases/{id}`,
 `GET /cases/{id}/related`, `GET /cases/{id}/brief`,
-`PATCH /cases/{id}/status`, `GET /stats`, `GET /stats/trend`.
+`PATCH /cases/{id}/status`, `GET /stats`, `GET /stats/trend`,
+`GET /stats/districts`.
 
 **Not gated, unchanged**: `POST /report`, `POST /sos`,
 `POST /report/image`, `POST /report/voice`, `GET /call-options`,
@@ -248,7 +250,8 @@ A case object looks like:
   "legal_guidance": { ... } | null,
   "disclosure_level": "full",
   "reporter_name": "Priya S" | null,
-  "reporter_contact": "9876543210" | null
+  "reporter_contact": "9876543210" | null,
+  "district": "Hyderabad" | null
 }
 ```
 
@@ -447,8 +450,8 @@ summary:
     {"signal": "incident_type_baseline", "label": "Domestic violence carries elevated baseline distress", "confidence": 100.0, "points": 20}
   ],
   "voice_signals": [
-    {"signal": "pitch_variation", "label": "High pitch variability / voice breaks", "value": 0.85, "threshold": 0.60, "points": 34.0},
-    {"signal": "pause_ratio", "label": "Elevated pausing in speech", "value": 0.55, "threshold": 0.25, "points": 12.0, "avg_pause_duration_sec": 2.4}
+    {"signal": "pitch_variation", "label": "High pitch variability / voice breaks", "value": 0.85, "threshold": 0.35, "points": 42.5},
+    {"signal": "pause_ratio", "label": "Elevated pausing in speech", "value": 0.55, "threshold": 0.15, "points": 12.0, "avg_pause_duration_sec": 2.4}
   ] | null,
   "divergence": {"detected": false, "text_score": 85.0, "voice_score": 58.0, "gap": 27.0} | null
 }
@@ -679,6 +682,64 @@ today) so a chart has no gaps. `current_window_total` vs
 volume right now, don't expect dramatic numbers; every value here is a live
 query result, not a placeholder.
 
+## Flagged districts (for the admin "flagged districts" panel)
+
+```
+GET /stats/districts            -> last 7 days vs the 7 before
+GET /stats/districts?days=3     -> custom window, same semantics as /stats/trend
+```
+
+Districts whose case count rose meaningfully in the current window vs the
+previous one, aggregated from the `district` reporters optionally supply on
+`/report`/`/sos` (see the **Report incident** request field above) —
+real SQL aggregation, not a prediction model. A district nobody named, or
+one that isn't actually rising, doesn't appear:
+
+```json
+{
+  "window_days": 7,
+  "min_cases_to_flag": 3,
+  "rising_threshold_ratio": 1.5,
+  "flagged": [
+    {
+      "district": "Hyderabad",
+      "current_window_count": 5,
+      "previous_window_count": 2,
+      "change_ratio": 2.5,
+      "incident_type_breakdown": {"stalking": 3, "cyber_harassment": 2}
+    },
+    {
+      "district": "Warangal",
+      "current_window_count": 3,
+      "previous_window_count": 0,
+      "change_ratio": null,
+      "incident_type_breakdown": {"domestic_violence": 3}
+    }
+  ]
+}
+```
+
+A district is only flagged when **both** hold: at least `min_cases_to_flag`
+cases in the current window (an absolute floor, so 1 case doubling to 2
+never reads as a "spike"), and either the previous window had zero cases
+(any real activity where there was none before is itself the pattern —
+`change_ratio` is `null` here, not a divide-by-zero) or the current count is
+at least `rising_threshold_ratio` times the previous one. `flagged` is
+sorted with the sharpest rises (and any brand-new district) first.
+`incident_type_breakdown` is the current-window incident-type counts for
+that district — surfaces whether the rise is one repeating incident type
+(a possible pattern) or a general increase, without claiming to identify a
+specific repeat offender. These are heuristic starting-point thresholds
+(same caveat as `risk.py`/`svi.py`'s scoring constants), not calibrated
+against real data.
+
+`district` is also on every case object (`/cases`, `/cases/{id}`,
+`/cases/{id}/brief`) — `null` when nobody supplied one, otherwise the same
+display name (e.g. `"Hyderabad"`) `escalation_contact` resolves to when it's
+a known district, or the raw name capitalized when it isn't. It's stored
+regardless of `disclosure_level` — see the **Report incident** request
+field docs, `district` is a routing hint, not an identifier.
+
 ## Evidence upload (screenshots)
 
 ```
@@ -721,33 +782,41 @@ POST http://localhost:8000/report/voice
 Content-Type: multipart/form-data
 
 file: <audio>              (required)
-language: "en"|"hi"|"te"   (form field, default "hi" — which language Bhashini
-                             transcribes in; it needs this chosen up front,
-                             it does not auto-detect language from audio)
+language: "en"|"hi"|"te"   (form field, default "hi" — which language the
+                             transcription API transcribes in; it needs
+                             this chosen up front, it does not auto-detect
+                             language from audio)
 ```
 
-Transcribes the audio via Bhashini ASR, then runs the transcribed text
-through the same pipeline as `/report`. Same response shape as `/report`,
-plus the transcription itself so you can show the user what Athena heard
-(same principle as `extracted_text` on image upload):
+Transcribes the audio via OpenAI's transcription API (`whisper-1`), then
+runs the transcribed text through the same pipeline as `/report`. Same
+response shape as `/report`, plus the transcription itself so you can show
+the user what Athena heard (same principle as `extracted_text` on image
+upload):
 
 ```json
 {
-  "transcription": "the text Bhashini transcribed from the audio",
+  "transcription": "the text OpenAI transcribed from the audio",
   "incident": { ... }, "risk": { ... }, "citations": [ ... ],
   "escalate": true, "reason": "...", "response": "...",
   "case_id": 6, "case_status": "Escalated"
 }
 ```
 
-**Caveat — this is not actually functional yet**: until real
-`BHASHINI_USER_ID`/`BHASHINI_API_KEY` credentials are set in `.env`, every
-call to this endpoint returns the same fixed placeholder transcription
-regardless of what was actually said in the audio, because the underlying
-Bhashini call fails and silently falls back to mock data. The endpoint being
-live means the wiring is done, not that voice transcription itself works —
-don't build/demo frontend recording UI against this expecting real results
-until credentials are confirmed working.
+**Provider history**: originally built against Bhashini (a Government of
+India ASR service, keeping voice data domestic), swapped to OpenAI
+2026-08-24 because Bhashini's government approval queue never cleared
+before the deadline. This is a real change in the consent story, not just a
+vendor swap — see `consent.py` and the section below.
+
+**Caveat — confirm real credits before demoing**: until `OPENAI_API_KEY` in
+`.env` belongs to an account with active billing/credits, every call to
+this endpoint returns the same fixed placeholder transcription regardless
+of what was actually said in the audio, because the underlying API call
+fails (e.g. `"You have no credits remaining"`) and silently falls back to
+mock data. The endpoint being live means the wiring is done and verified
+against the real API, not that voice transcription itself will work for a
+demo — confirm a live, non-mock transcription immediately before presenting.
 
 ### Consent / data-retention content for a voice-recording screen
 
@@ -765,9 +834,11 @@ aspirational policy language. The honest, load-bearing facts it discloses:
 - The recording is saved to disk indefinitely alongside the case — **there
   is no automatic deletion**, checked directly against the codebase (no
   cron/TTL/cleanup exists anywhere in this repo).
-- It's sent to **Bhashini** (a Government of India ASR service) for
-  transcription — the one real third-party transfer that happens, and the
-  only one.
+- It's sent to **OpenAI** (a US-based transcription API) for transcription —
+  the one real third-party transfer that happens, and the only one. This
+  means a voice recording briefly leaves India for processing, unlike the
+  original Bhashini design — stated plainly to the reporter, not glossed
+  over.
 - **Case data (including a saved recording's reference) sits behind a
   single shared admin API key as of 2026-08-23** — see **Admin
   authentication** above. Real, but a single shared secret, not
@@ -959,4 +1030,30 @@ The nearest-station entry only appears when a location was given AND OpenStreetM
   scope together whenever any cited evidence comes from it, regardless of
   what the specific retrieved chunk says. Verified 4/4 live calls now
   comply (was inconsistent before, ~2/4), with no leakage of the caveat
-  into unrelated (non-PWDVA) responses.
+  into unrelated (non-PWDVA) responses. **Re-verified live 2026-08-25**
+  with a fresh native-Hindi protection-order query — Act named in full
+  (Hindi + English) with scope stated correctly, still holds.
+- **Romanized-script queries can miss the correct source PDF when a much
+  larger source exists, even though the same query in native script or
+  English retrieves it correctly** — found 2026-08-25 while re-testing
+  the rule above. A romanized-Hindi protection-order query
+  ("...Mujhe protection order chahiye.") never retrieved `domviolence.pdf`
+  (the real PWDVA text) in its top 5 evidence chunks, so the response
+  correctly declined to answer the protection-order specifics rather than
+  hallucinate — but also never got the chance to cite PWDVA at all. Root
+  cause verified: `domviolence.pdf`'s best matching chunk actually scores
+  a close 0.8215 similarity (rank #16, vs. the top result's 0.8339) — it's
+  not a bad semantic match. `BNS2023.pdf` (656 chunks, by far the largest
+  ingested source) fills 12 of the top 16 slots with closely-clustered
+  scores, crowding the smaller, more specific source out of `top_k=5`.
+  The identical query in native Devanagari or plain English retrieves
+  `domviolence.pdf` cleanly in the top 5 (confirmed live) — so this is
+  specifically a romanized-script embedding weakness compounding with
+  source-size imbalance, the same family of romanized-script fragility
+  documented elsewhere in this file, not a new class of bug. **Not fixed**:
+  the real fix (e.g. a per-source diversity cap on retrieval ranking)
+  touches the shared ranking logic used by every grounded response in the
+  system — deliberately not attempted this close to the freeze without
+  time to regression-test it against the existing retrieval-confidence
+  gate and citation behavior. Failure mode is safe (no hallucination),
+  just incomplete for this narrow phrasing pattern.
