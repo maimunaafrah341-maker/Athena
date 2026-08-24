@@ -11,14 +11,19 @@ screen; this just gives it real content to render instead of a
 placeholder.
 
 Every claim below is checked against what the code actually does as
-of 2026-08-23, not aspirational policy language:
+of 2026-08-24, not aspirational policy language:
 - /report/voice (app.py) saves the uploaded audio to EVIDENCE_DIR
   ("evidence/") under a random filename, referenced by the case's
   evidence_path -- same mechanism /report/image uses for screenshots.
-- voice_service.py sends that audio (base64-encoded) to Bhashini
-  (dhruva-api.bhashini.gov.in, a Government of India ASR service) for
-  transcription. This is the one real third-party transfer that
-  happens.
+- voice_service.py sends that audio to OpenAI's transcription API
+  (api.openai.com, a US company) for transcription. This is the one
+  real third-party transfer that happens. Swapped from Bhashini
+  2026-08-24 -- Bhashini's government approval never cleared in time
+  for the deadline. This is a real change in the privacy story, not
+  just a vendor swap: Bhashini was a Government of India service
+  (domestic transfer only), OpenAI is a US company (recordings now
+  leave India for transcription) -- stated plainly below rather than
+  glossed over.
 - Nothing in this codebase deletes or expires evidence files -- no
   cron job, no TTL, no cleanup routine exists anywhere in the repo
   (checked directly, not assumed).
@@ -40,10 +45,11 @@ VOICE_RECORDING_POLICY = {
         "Your voice recording is saved as part of your case, so a "
         "counsellor reviewing your report can hear the original audio, "
         "not just a text version of what was said.",
-        "It is sent to Bhashini, a Government of India language service, "
-        "to convert your speech into text so Athena can process your "
-        "report. This transfer happens for every voice report -- it's "
-        "required to transcribe what you said.",
+        "It is sent to OpenAI (a US-based AI company) to convert your "
+        "speech into text so Athena can process your report. This "
+        "transfer happens for every voice report -- it's required to "
+        "transcribe what you said, and it means your recording briefly "
+        "leaves India for processing.",
     ],
     "retention": {
         "how_long_stored": (
@@ -59,14 +65,18 @@ VOICE_RECORDING_POLICY = {
         "sent_to_third_parties": True,
         "third_parties": [
             {
-                "name": "Bhashini (Government of India ASR service)",
+                "name": "OpenAI (transcription API, United States)",
                 "purpose": "Speech-to-text transcription of your report only.",
             }
         ],
         "used_for_training_or_other_purposes": False,
         "note": (
             "Your recording is not currently used for anything beyond "
-            "processing this specific report and transcribing it."
+            "processing this specific report and transcribing it. Per "
+            "OpenAI's API terms, audio submitted through their API is "
+            "not used to train their models -- this is a real "
+            "contractual claim from OpenAI, not something Athena's own "
+            "code enforces or can verify independently."
         ),
     },
     "who_can_access_it": {
@@ -94,7 +104,7 @@ VOICE_RECORDING_POLICY = {
             "of the API contract."
         ),
     },
-    "last_updated": "2026-08-23",
+    "last_updated": "2026-08-24",
 }
 
 
