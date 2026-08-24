@@ -1,716 +1,1120 @@
-/* ==========================================
-   ATHENA FRONTEND
-   Demo UI — backend integration later
-========================================== */
+/* =========================================================
+   ATHENA — SIH26093
+   FRONTEND APPLICATION
+========================================================= */
 
 
-/* ================= PAGE NAVIGATION ================= */
+/* =========================================================
+   CONFIG
+========================================================= */
 
-const pageTitles = {
-    overview: "Campus overview",
-    report: "Report an incident",
-    map: "Campus safety map",
-    routes: "Safe routes",
-    alerts: "Safety alerts",
-    reports: "My reports"
+const API_BASE_URL =
+    "http://localhost:8000";
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+const state = {
+
+    currentPage: "overview",
+
+    selectedLanguage: "en",
+
+    selectedDisclosure: "full",
+
+    recording: false,
+
+    cases: [],
+
+    mediaRecorder: null,
+
+    audioChunks: []
+
 };
 
-function showPage(pageId, clickedButton = null) {
 
-    document.querySelectorAll(".page").forEach(page => {
+/* =========================================================
+   DOM HELPERS
+========================================================= */
+
+function $(selector) {
+    return document.querySelector(selector);
+}
+
+function $$(selector) {
+    return document.querySelectorAll(selector);
+}
+
+
+/* =========================================================
+   PAGE NAVIGATION
+========================================================= */
+
+function showPage(pageName) {
+
+    $$(".page").forEach(page => {
         page.classList.remove("active-page");
     });
 
-    const page = document.getElementById(pageId);
+
+    const page = $(`#page-${pageName}`);
 
     if (page) {
         page.classList.add("active-page");
     }
 
-    document.getElementById("pageTitle").textContent =
-        pageTitles[pageId] || "Athena";
 
-    document.querySelectorAll(".nav-item").forEach(item => {
+    $$(".nav-item").forEach(item => {
+
         item.classList.remove("active");
+
+        if (item.dataset.page === pageName) {
+            item.classList.add("active");
+        }
+
     });
 
-    if (clickedButton) {
-        clickedButton.classList.add("active");
-    } else {
 
-        document.querySelectorAll(".nav-item").forEach(item => {
-
-            const text = item.textContent.toLowerCase();
-
-            if (
-                (pageId === "overview" && text.includes("overview")) ||
-                (pageId === "report" && text.includes("report an")) ||
-                (pageId === "map" && text.includes("safety map")) ||
-                (pageId === "routes" && text.includes("safe routes")) ||
-                (pageId === "alerts" && text.includes("alerts")) ||
-                (pageId === "reports" && text.includes("my reports"))
-            ) {
-                item.classList.add("active");
-            }
-
-        });
-    }
+    state.currentPage = pageName;
 
     window.scrollTo({
         top: 0,
         behavior: "smooth"
     });
+
+
+    if (pageName === "overview") {
+        loadDashboard();
+    }
+
+    if (pageName === "cases") {
+        renderCasesTable();
+    }
+
+    if (pageName === "alerts") {
+        renderAlerts();
+    }
 }
 
 
-/* ================= REPORTING ================= */
+/* =========================================================
+   NAVIGATION EVENTS
+========================================================= */
 
-async function submitReport() {
+$$(".nav-item").forEach(button => {
 
-    const input = document.getElementById("reportInput");
+    button.addEventListener("click", () => {
 
-    const message = input.value.trim();
+        const page = button.dataset.page;
 
-    if (!message) {
-        input.focus();
-        return;
-    }
+        showPage(page);
 
+    });
 
-    addUserMessage(message);
-
-    input.value = "";
-
-    showTyping();
+});
 
 
-        let data;
+$$("[data-page-target]").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+        showPage(button.dataset.pageTarget);
+
+    });
+
+});
+
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+$$(".report-language-btn").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+        $$(".report-language-btn").forEach(btn => {
+            btn.classList.remove("active");
+        });
+
+        button.classList.add("active");
+
+        const text = button.textContent.trim();
+
+        if (text === "हिंदी") {
+            state.selectedLanguage = "hi";
+        }
+
+        else if (text === "తెలుగు") {
+            state.selectedLanguage = "te";
+        }
+
+        else {
+            state.selectedLanguage = "en";
+        }
+
+    });
+
+});
+
+
+/* =========================================================
+   MICROPHONE
+========================================================= */
+
+const micButton = $("#micButton");
+
+if (micButton) {
+
+    micButton.addEventListener("click", async () => {
+
+        if (state.recording) {
+
+            stopRecording();
+
+        } else {
+
+            startRecording();
+
+        }
+
+    });
+
+}
+
+
+/* =========================================================
+   START RECORDING
+========================================================= */
+
+async function startRecording() {
 
     try {
 
-        const response = await fetch("http://localhost:8000/report", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text: message,
-                language: null
-            })
-        });
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
 
-        data = await response.json();
 
-    } catch (error) {
+        state.audioChunks = [];
 
-        console.error("Backend connection error:", error);
+        state.mediaRecorder =
+            new MediaRecorder(stream);
 
-        removeTyping();
 
-        const bubble = document.createElement("div");
+        state.mediaRecorder.ondataavailable =
+            event => {
 
-        bubble.style.cssText = `
-            display:flex;
-            gap:10px;
-            margin-top:25px;
-        `;
+                if (event.data.size > 0) {
 
-        bubble.innerHTML = `
-            <div class="chat-avatar">✦</div>
+                    state.audioChunks.push(
+                        event.data
+                    );
 
-            <div>
-                <span class="message-name">Athena</span>
+                }
 
-                <div class="chat-bubble">
-                    I couldn't connect to the safety intelligence system.
-                    Please try again.
-                </div>
-            </div>
-        `;
+            };
 
-        document.getElementById("chatMessages").appendChild(bubble);
 
-        scrollChat();
+        state.mediaRecorder.onstop =
+            async () => {
+
+                stream
+                    .getTracks()
+                    .forEach(track => track.stop());
+
+
+                const audioBlob =
+                    new Blob(
+                        state.audioChunks,
+                        {
+                            type: "audio/webm"
+                        }
+                    );
+
+
+                await sendVoiceReport(audioBlob);
+
+            };
+
+
+        state.mediaRecorder.start();
+
+        state.recording = true;
+
+        micButton.classList.add("recording");
+
+        $("#micStatus").textContent =
+            "Listening… Tap again when finished";
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+        $("#micStatus").textContent =
+            "Microphone permission is needed";
+
+    }
+
+}
+
+
+/* =========================================================
+   STOP RECORDING
+========================================================= */
+
+function stopRecording() {
+
+    if (
+        state.mediaRecorder &&
+        state.mediaRecorder.state !== "inactive"
+    ) {
+
+        state.mediaRecorder.stop();
+
+    }
+
+
+    state.recording = false;
+
+    micButton.classList.remove("recording");
+
+    $("#micStatus").textContent =
+        "Sending your report…";
+
+}
+
+
+/* =========================================================
+   SEND VOICE
+========================================================= */
+
+async function sendVoiceReport(audioBlob) {
+
+    /*
+        Backend endpoint may be updated by the team.
+
+        Keep this function isolated so only the endpoint
+        needs to change when API_CONTRACT.md is final.
+    */
+
+    try {
+
+        const formData = new FormData();
+
+        formData.append(
+            "audio",
+            audioBlob,
+            "report.webm"
+        );
+
+        formData.append(
+            "language",
+            state.selectedLanguage
+        );
+
+        formData.append(
+            "disclosure_level",
+            state.selectedDisclosure
+        );
+
+
+        const response =
+            await fetch(
+                `${API_BASE_URL}/report`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+        if (!response.ok) {
+            throw new Error(
+                `Server error: ${response.status}`
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "Voice report response:",
+            data
+        );
+
+
+        showConfirmation();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Voice report failed:",
+            error
+        );
+
+        $("#micStatus").textContent =
+            "Something went wrong. Please try again.";
+
+    }
+
+}
+
+
+/* =========================================================
+   TEXT REPORT
+========================================================= */
+
+const reportInput =
+    $("#reportInput");
+
+if (reportInput) {
+
+    reportInput.addEventListener(
+        "input",
+        () => {
+
+            const count =
+                reportInput.value.length;
+
+            $("#characterCount").textContent =
+                `${count} / 3000`;
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SUBMIT TEXT REPORT
+========================================================= */
+
+const submitButton =
+    $("#submitReportButton");
+
+if (submitButton) {
+
+    submitButton.addEventListener(
+        "click",
+        submitTextReport
+    );
+
+}
+
+
+async function submitTextReport() {
+
+    const text =
+        reportInput.value.trim();
+
+
+    if (!text) {
+
+        reportInput.focus();
 
         return;
+
     }
 
-    removeTyping();
 
-    displayAnalysis(data);
-}
+    submitButton.disabled = true;
 
-
-/* ================= USER MESSAGE ================= */
-
-function addUserMessage(message) {
-
-    const container =
-        document.getElementById("chatMessages");
-
-    const messageElement =
-        document.createElement("div");
-
-    messageElement.style.cssText = `
-        display:flex;
-        justify-content:flex-end;
-        margin-top:20px;
-    `;
-
-    messageElement.innerHTML = `
-        <div style="
-            max-width:75%;
-            padding:14px 17px;
-            background:#1E293B;
-            color:white;
-            border-radius:17px 17px 5px 17px;
-            font-size:12px;
-            line-height:1.6;
-        ">
-            ${escapeHTML(message)}
-        </div>
-    `;
-
-    container.appendChild(messageElement);
-
-    scrollChat();
-}
+    submitButton.innerHTML =
+        "Sending…";
 
 
-/* ================= TYPING ================= */
+    try {
 
-function showTyping() {
+        const response =
+            await fetch(
+                `${API_BASE_URL}/report`,
+                {
+                    method: "POST",
 
-    const container =
-        document.getElementById("chatMessages");
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-    const typing =
-        document.createElement("div");
+                    body: JSON.stringify({
 
-    typing.id = "typingIndicator";
+                        text: text,
 
-    typing.style.cssText = `
-        display:flex;
-        gap:10px;
-        margin-top:22px;
-        align-items:center;
-    `;
+                        language:
+                            state.selectedLanguage,
 
-    typing.innerHTML = `
-        <div class="chat-avatar">✦</div>
+                        disclosure_level:
+                            state.selectedDisclosure
 
-        <div style="
-            background:#F5F3FF;
-            padding:13px 17px;
-            border-radius:6px 16px 16px 16px;
-            color:#777;
-            font-size:10px;
-        ">
-            Athena is analysing your report...
-        </div>
-    `;
+                    })
 
-    container.appendChild(typing);
-
-    scrollChat();
-}
+                }
+            );
 
 
-function removeTyping() {
+        if (!response.ok) {
 
-    const typing =
-        document.getElementById("typingIndicator");
+            throw new Error(
+                `Server error: ${response.status}`
+            );
 
-    if (typing) {
-        typing.remove();
+        }
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "Report response:",
+            data
+        );
+
+
+        showConfirmation();
+
     }
+
+    catch (error) {
+
+        console.error(
+            "Report submission failed:",
+            error
+        );
+
+        alert(
+            "Unable to send the report right now. Please try again."
+        );
+
+    }
+
+    finally {
+
+        submitButton.disabled = false;
+
+        submitButton.innerHTML =
+            "Send report <span>→</span>";
+
+    }
+
 }
 
 
-/* ================= ANALYSIS RESULT ================= */
+/* =========================================================
+   CONFIRMATION
+========================================================= */
 
-function displayAnalysis(data) {
+function showConfirmation() {
+
+    showPage("confirmation");
+
+
+    if (reportInput) {
+        reportInput.value = "";
+    }
+
+}
+
+
+/* =========================================================
+   CASES
+========================================================= */
+
+async function loadCases() {
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE_URL}/cases`
+            );
+
+
+        if (!response.ok) {
+            throw new Error("Cases request failed");
+        }
+
+
+        const data =
+            await response.json();
+
+
+        /*
+            Supports either:
+
+            [
+                {...}
+            ]
+
+            OR
+
+            {
+                cases: [...]
+            }
+        */
+
+        state.cases =
+            Array.isArray(data)
+                ? data
+                : data.cases || [];
+
+
+        renderCasesTable();
+
+        renderOverviewCases();
+
+        updateDashboardStats();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Could not load cases:",
+            error
+        );
+
+        state.cases = [];
+
+        renderCasesTable();
+
+        renderOverviewCases();
+
+        updateDashboardStats();
+
+    }
+
+}
+
+
+/* =========================================================
+   CASE NORMALIZER
+========================================================= */
+
+function normalizeCase(item) {
+
+    return {
+
+        id:
+            item.case_id ||
+            item.id ||
+            "—",
+
+        incident:
+            item.incident_type ||
+            item.incident ||
+            "General report",
+
+        district:
+            item.district ||
+            item.location ||
+            "—",
+
+        risk:
+            item.risk_tier ||
+            item.risk?.risk_tier ||
+            "Low",
+
+        status:
+            item.status ||
+            (item.escalate
+                ? "Escalated"
+                : "Pending"),
+
+        time:
+            item.created_at ||
+            item.timestamp ||
+            "Recent"
+
+    };
+
+}
+
+
+/* =========================================================
+   CASE TABLE
+========================================================= */
+
+function renderCasesTable() {
+
+    const body =
+        $("#casesTableBody");
+
+    if (!body) return;
+
+
+    const search =
+        ($("#caseSearch")?.value || "")
+            .toLowerCase();
+
+
+    const filter =
+        $("#riskFilter")?.value ||
+        "all";
+
+
+    const cases =
+        state.cases
+            .map(normalizeCase)
+            .filter(item => {
+
+                const matchesSearch =
+                    !search ||
+
+                    item.id
+                        .toLowerCase()
+                        .includes(search) ||
+
+                    item.incident
+                        .toLowerCase()
+                        .includes(search) ||
+
+                    item.district
+                        .toLowerCase()
+                        .includes(search);
+
+
+                const matchesRisk =
+                    filter === "all" ||
+                    item.risk === filter;
+
+
+                return matchesSearch &&
+                    matchesRisk;
+
+            });
+
+
+    if (!cases.length) {
+
+        body.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="empty-state">
+                        No cases available.
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        return;
+
+    }
+
+
+    body.innerHTML =
+        cases.map(item => {
+
+            const riskClass =
+                item.risk
+                    .toLowerCase()
+                    .replace(" ", "-");
+
+
+            return `
+                <tr>
+
+                    <td>
+                        ${escapeHTML(item.id)}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(item.incident)}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(item.district)}
+                    </td>
+
+                    <td>
+                        <span class="risk-tag ${riskClass}">
+                            ${escapeHTML(item.risk)}
+                        </span>
+                    </td>
+
+                    <td>
+                        ${escapeHTML(item.status)}
+                    </td>
+
+                    <td>
+                        ${formatTime(item.time)}
+                    </td>
+
+                </tr>
+            `;
+
+        }).join("");
+
+}
+
+
+/* =========================================================
+   OVERVIEW CASES
+========================================================= */
+
+function renderOverviewCases() {
 
     const container =
-        document.getElementById("chatMessages");
+        $("#overviewCases");
+
+    if (!container) return;
 
 
-    const response =
-        document.createElement("div");
-
-    response.style.cssText = `
-        display:flex;
-        gap:10px;
-        margin-top:25px;
-    `;
+    const cases =
+        state.cases
+            .map(normalizeCase)
+            .slice(0, 5);
 
 
-    let citations = "";
+    if (!cases.length) {
 
-    if (data.citations && data.citations.length) {
-
-        citations = data.citations.map(citation => `
-            <div style="
-                padding:8px 10px;
-                background:#F5F3FF;
-                border-radius:8px;
-                color:#6D45D8;
-                font-size:8px;
-                display:inline-block;
-                margin:4px 4px 0 0;
-            ">
-                📄 ${escapeHTML(citation.source)}
-				· page ${citation.page}
+        container.innerHTML = `
+            <div class="empty-state">
+                No recent cases.
             </div>
-        `).join("");
+        `;
+
+        return;
+
     }
 
 
-    let escalation = "";
+    container.innerHTML =
+        cases.map(item => {
 
-    if (data.escalate === true) {
+            const riskClass =
+                item.risk
+                    .toLowerCase()
+                    .replace(" ", "-");
 
-        escalation = `
-            <div style="
-                margin-top:12px;
-                padding:17px;
-                background:#FFF1F3;
-                border:1px solid #FECDD3;
-                border-radius:15px;
-            ">
 
-                <div style="
-                    display:flex;
-                    gap:10px;
-                    align-items:center;
-                ">
+            return `
+                <div class="overview-case">
 
-                    <div style="
-                        width:38px;
-                        height:38px;
-                        display:grid;
-                        place-items:center;
-                        border-radius:11px;
-                        background:#FFE4E6;
-                        color:#E11D48;
-                    ">
+                    <strong>
+                        ${escapeHTML(item.id)}
+                    </strong>
+
+                    <span>
+                        ${escapeHTML(item.incident)}
+                    </span>
+
+                    <span>
+                        ${escapeHTML(item.district)}
+                    </span>
+
+                    <span>
+                        <span class="risk-tag ${riskClass}">
+                            ${escapeHTML(item.risk)}
+                        </span>
+                    </span>
+
+                </div>
+            `;
+
+        }).join("");
+
+}
+
+
+/* =========================================================
+   DASHBOARD STATS
+========================================================= */
+
+function updateDashboardStats() {
+
+    const cases =
+        state.cases.map(normalizeCase);
+
+
+    const total =
+        cases.length;
+
+
+    const critical =
+        cases.filter(
+            item => item.risk === "Critical"
+        ).length;
+
+
+    const high =
+        cases.filter(
+            item => item.risk === "High"
+        ).length;
+
+
+    const pending =
+        cases.filter(
+            item =>
+                item.status === "Pending"
+        ).length;
+
+
+    setText(
+        "#totalCases",
+        total
+    );
+
+    setText(
+        "#criticalCases",
+        critical
+    );
+
+    setText(
+        "#highCases",
+        high
+    );
+
+    setText(
+        "#pendingCases",
+        pending
+    );
+
+
+    setText(
+        "#riskTotal",
+        total
+    );
+
+
+    const low =
+        cases.filter(
+            item => item.risk === "Low"
+        ).length;
+
+
+    const moderate =
+        cases.filter(
+            item => item.risk === "Moderate"
+        ).length;
+
+
+    setText(
+        "#lowPercent",
+        percentage(low, total)
+    );
+
+    setText(
+        "#moderatePercent",
+        percentage(moderate, total)
+    );
+
+    setText(
+        "#highPercent",
+        percentage(high, total)
+    );
+
+    setText(
+        "#criticalPercent",
+        percentage(critical, total)
+    );
+
+
+    setText(
+        "#alertCount",
+        critical + high
+    );
+
+}
+
+
+/* =========================================================
+   LOAD DASHBOARD
+========================================================= */
+
+async function loadDashboard() {
+
+    await loadCases();
+
+}
+
+
+/* =========================================================
+   ALERTS
+========================================================= */
+
+function renderAlerts() {
+
+    const container =
+        $("#alertsContainer");
+
+    if (!container) return;
+
+
+    const alerts =
+        state.cases
+            .map(normalizeCase)
+            .filter(
+                item =>
+                    item.risk === "Critical" ||
+                    item.risk === "High"
+            );
+
+
+    if (!alerts.length) {
+
+        container.innerHTML = `
+            <div class="empty-alert">
+                No priority alerts right now.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        alerts.map(item => {
+
+            return `
+                <div class="alert-card">
+
+                    <div class="alert-icon">
                         !
                     </div>
 
                     <div>
-                        <strong style="
-                            display:block;
-                            color:#9F1239;
-                            font-size:12px;
-                        ">
-                            Human assistance recommended
+
+                        <strong>
+                            ${escapeHTML(item.risk)} priority case
                         </strong>
 
-                        <span style="
-                            display:block;
-                            margin-top:3px;
-                            color:#7F1D3D;
-                            font-size:9px;
-                        ">
-                            This situation may need additional support.
-                        </span>
+                        <p>
+                            ${escapeHTML(item.id)}
+                            ·
+                            ${escapeHTML(item.district)}
+                            ·
+                            ${escapeHTML(item.incident)}
+                        </p>
+
                     </div>
 
                 </div>
+            `;
 
-                <button
-                    onclick="connectHuman()"
-                    style="
-                        width:100%;
-                        margin-top:13px;
-                        padding:11px;
-                        border-radius:9px;
-                        background:#E11D48;
-                        color:white;
-                        font-size:9px;
-                        font-weight:700;
-                    "
-                >
-                    CONNECT TO A HUMAN
-                </button>
+        }).join("");
 
-            </div>
-        `;
+}
+
+
+/* =========================================================
+   SEARCH / FILTER
+========================================================= */
+
+$("#caseSearch")?.addEventListener(
+    "input",
+    renderCasesTable
+);
+
+
+$("#riskFilter")?.addEventListener(
+    "change",
+    renderCasesTable
+);
+
+
+$("#refreshCasesButton")?.addEventListener(
+    "click",
+    loadCases
+);
+
+
+/* =========================================================
+   UTILITIES
+========================================================= */
+
+function setText(
+    selector,
+    value
+) {
+
+    const element =
+        $(selector);
+
+    if (element) {
+        element.textContent = value;
+    }
+
+}
+
+
+function percentage(
+    value,
+    total
+) {
+
+    if (!total) return "0%";
+
+    return `${Math.round(
+        (value / total) * 100
+    )}%`;
+
+}
+
+
+function formatTime(value) {
+
+    if (!value || value === "Recent") {
+        return "Recent";
     }
 
 
-    response.innerHTML = `
-
-        <div class="chat-avatar">✦</div>
-
-        <div style="max-width:620px; width:100%;">
-
-            <span style="
-                font-size:8px;
-                color:#8B5CF6;
-                font-weight:800;
-                letter-spacing:1px;
-            ">
-                ATHENA
-            </span>
+    const date =
+        new Date(value);
 
 
-            <div style="
-                margin-top:5px;
-                padding:16px 18px;
-                background:white;
-                border:1px solid #E6E3EE;
-                border-radius:6px 16px 16px 16px;
-                box-shadow:0 8px 25px rgba(30,23,60,.05);
-                font-size:11px;
-                line-height:1.7;
-            ">
-               ${escapeHTML(
-					data.response ??
-					"This situation needs human review — no automated response was generated."
-				)}
-            </div>
-
-
-            <!-- UNDERSTANDING -->
-
-            <div style="
-                margin-top:10px;
-                background:white;
-                border:1px solid #E6E3EE;
-                border-radius:15px;
-                overflow:hidden;
-            ">
-
-                <div style="
-                    padding:12px 15px;
-                    background:#F5F3FF;
-                    display:flex;
-                    justify-content:space-between;
-                ">
-
-                    <strong style="
-                        color:#7565A5;
-                        font-size:8px;
-                        letter-spacing:1px;
-                    ">
-                        WHAT ATHENA UNDERSTOOD
-                    </strong>
-
-                    <span style="
-                        color:#737B8C;
-                        font-size:8px;
-                    ">
-                        ${data.incident.confidence}% confidence
-                    </span>
-
-                </div>
-
-
-                <div style="
-                    padding:14px;
-                    display:grid;
-                    grid-template-columns:1fr 1fr;
-                    gap:8px;
-                ">
-
-                    <div class="result-info">
-                        <small>INCIDENT</small>
-                        <strong>
-                            ${escapeHTML(data.incident.incident_type)}
-                        </strong>
-                    </div>
-
-                    <div class="result-info">
-                        <small>LOCATION</small>
-                        <strong>
-                            ${data.incident.location
-								? escapeHTML(data.incident.location)
-								: "Not identified"}
-                        </strong>
-                    </div>
-
-                    <div class="result-info">
-                        <small>IMMEDIATE DANGER</small>
-                        <strong>
-                            ${data.incident.immediate_danger
-								? "Yes — attention needed"
-								: "No immediate danger detected"}
-                        </strong>
-                    </div>
-
-                    <div class="result-info">
-                        <small>CONFIDENCE</small>
-                        <strong>
-                            ${data.incident.confidence}%
-                        </strong>
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- RISK -->
-
-            <div style="
-                margin-top:10px;
-                padding:16px;
-                background:${getRiskBackground(data.risk.risk_tier)};
-                border:1px solid ${getRiskBorder(data.risk.risk_tier)};
-                border-radius:15px;
-            ">
-
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                ">
-
-                    <strong style="
-                        color:${getRiskColor(data.risk.risk_tier)};
-                        font-size:10px;
-                        letter-spacing:1px;
-                    ">
-                        ${data.risk.risk_tier.toUpperCase()} RISK
-                    </strong>
-
-                    <span style="
-                        font-size:8px;
-                        color:#737B8C;
-                    ">
-                        AI assessment
-                    </span>
-
-                </div>
-
-                <p style="
-                    margin-top:7px;
-                    color:#626978;
-                    font-size:9px;
-                    line-height:1.6;
-                ">
-                    ${escapeHTML(data.reason)}
-                </p>
-
-            </div>
-
-
-            <!-- EVIDENCE -->
-
-            <div style="margin-top:10px;">
-
-                <div style="
-                    font-size:8px;
-                    font-weight:800;
-                    color:#8B5CF6;
-                    letter-spacing:1px;
-                ">
-                    VERIFIED EVIDENCE
-                </div>
-
-                <div style="margin-top:3px;">
-                    ${citations}
-                </div>
-
-            </div>
-
-
-            ${escalation}
-
-        </div>
-    `;
-
-
-    container.appendChild(response);
-
-    scrollChat();
-}
-
-
-/* ================= RISK HELPERS ================= */
-
-function getRiskColor(risk) {
-
-    switch (risk) {
-
-        case "Critical":
-        case "High":
-            return "#E11D48";
-
-        case "Medium":
-            return "#B45309";
-
-        case "Low":
-            return "#047857";
-
-        default:
-            return "#8B5CF6";
+    if (Number.isNaN(date.getTime())) {
+        return value;
     }
+
+
+    return date.toLocaleString(
+        [],
+        {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit"
+        }
+    );
+
 }
 
 
-function getRiskBackground(risk) {
+function escapeHTML(value) {
 
-    switch (risk) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 
-        case "Critical":
-        case "High":
-            return "#FFF1F3";
+}
 
-        case "Medium":
-            return "#FFFBEB";
 
-        case "Low":
-            return "#ECFDF5";
+/* =========================================================
+   START
+========================================================= */
 
-        default:
-            return "#F5F3FF";
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        showPage("overview");
+
+        loadDashboard();
+
     }
-}
-
-
-function getRiskBorder(risk) {
-
-    switch (risk) {
-
-        case "Critical":
-        case "High":
-            return "#FECDD3";
-
-        case "Medium":
-            return "#FDE68A";
-
-        case "Low":
-            return "#A7F3D0";
-
-        default:
-            return "#DDD6FE";
-    }
-}
-
-
-/* ================= ROUTES ================= */
-
-function calculateRoute() {
-
-    const results =
-        document.getElementById("routeResults");
-
-    results.innerHTML = `
-        <div style="
-            padding:20px;
-            background:white;
-            border:1px solid #E6E3EE;
-            border-radius:16px;
-            text-align:center;
-            color:#737B8C;
-            font-size:11px;
-        ">
-            ✦ Athena is analysing reported safety patterns...
-        </div>
-    `;
-
-    setTimeout(() => {
-
-        results.innerHTML = `
-            <div class="route-card">
-
-                <div class="route-icon safe-route">✓</div>
-
-                <div class="route-main">
-
-                    <div class="route-title">
-                        <strong>Safer route</strong>
-                        <span class="recommended">RECOMMENDED</span>
-                    </div>
-
-                    <p>
-                        Avoids the current high-risk zone.
-                    </p>
-
-                    <div class="route-meta">
-                        <span>⌁ 12 min</span>
-                        <span>↓ Lower reported risk</span>
-                    </div>
-
-                </div>
-
-                <button>
-                    Start route →
-                </button>
-
-            </div>
-        `;
-
-    }, 1000);
-}
-
-
-/* ================= HUMAN HELP ================= */
-
-function connectHuman() {
-
-    alert(
-        "Human assistance would open here. " +
-        "Your backend/team can later connect this to the escalation system."
-    );
-}
-
-
-function emergencyHelp() {
-
-    alert(
-        "Emergency assistance workflow will be connected here."
-    );
-}
-
-
-/* ================= VOICE / LOCATION ================= */
-
-function voiceComingSoon() {
-
-    alert(
-        "Voice reporting will be connected through the multilingual/voice module."
-    );
-}
-
-
-function locationComingSoon() {
-
-    alert(
-        "Location sharing will be connected to the campus safety map."
-    );
-}
-
-
-/* ================= UTILITIES ================= */
-
-function delay(ms) {
-
-    return new Promise(resolve => {
-        setTimeout(resolve, ms);
-    });
-}
-
-
-function scrollChat() {
-
-    const chat =
-        document.getElementById("chatMessages");
-
-    chat.scrollTo({
-        top: chat.scrollHeight,
-        behavior: "smooth"
-    });
-}
-
-
-function escapeHTML(text) {
-
-    const div =
-        document.createElement("div");
-
-    div.textContent = text ?? "";
-
-    return div.innerHTML;
-}
+);

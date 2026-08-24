@@ -1,810 +1,1084 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Athena — Safety Intelligence</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <title>Athena — National Helpline Support</title>
 
     <link rel="stylesheet" href="athena.css">
 </head>
 
 <body>
 
-<div class="app">
+<div id="app">
 
-    <!-- ================= SIDEBAR ================= -->
+    <!-- =====================================================
+         APPLICATION
+    ====================================================== -->
 
-    <aside class="sidebar">
-
-        <div class="brand">
-            <div class="brand-logo">
-                <img src="athena-logo.png" alt="Athena logo">
-            </div>
-
-            <div>
-                <h1>Athena</h1>
-                <p> Community Safety Intelligence</p>
-            </div>
-        </div>
-
-        <div class="campus-pill">
-            <span class="online-dot"></span>
-            Monitoring active
-        </div>
-
-        <nav class="navigation">
-
-            <button class="nav-item active" onclick="showPage('overview', this)">
-                <span>⌂</span>
-                Overview
-            </button>
-
-            <button class="nav-item" onclick="showPage('report', this)">
-                <span>＋</span>
-                Report an incident
-            </button>
-
-            <button class="nav-item" onclick="showPage('map', this)">
-                <span>◉</span>
-                Safety map
-            </button>
-
-            <button class="nav-item" onclick="showPage('routes', this)">
-                <span>⌁</span>
-                Safe routes
-            </button>
-
-            <button class="nav-item" onclick="showPage('alerts', this)">
-                <span>♢</span>
-                Alerts
-                <span class="nav-count">3</span>
-            </button>
-
-            <button class="nav-item" onclick="showPage('reports', this)">
-                <span>▤</span>
-                My reports
-            </button>
-
-        </nav>
-
-        <div class="sidebar-help">
-            <div class="help-icon">?</div>
-
-            <div>
-                <strong>Need immediate help?</strong>
-                <p>Contact security or emergency services.</p>
-            </div>
-
-            <button onclick="emergencyHelp()">Get help</button>
-        </div>
-
-        <div class="sidebar-footer">
-            <span class="online-dot"></span>
-            Athena systems operational
-        </div>
-
-    </aside>
+    <div class="app-shell">
 
 
-    <!-- ================= MAIN ================= -->
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
 
-    <main class="main">
+        <aside class="sidebar">
 
-        <!-- TOP BAR -->
+            <div class="sidebar-brand">
 
-        <header class="topbar">
-
-            <div>
-                <span class="page-label">ATHENA • SAFETY INTELLIGENCE</span>
-                <h2 id="pageTitle">Campus overview</h2>
-            </div>
-
-            <div class="top-actions">
-
-                <button class="icon-button" onclick="showPage('alerts')">
-                    ♢
-                    <span class="notification-dot"></span>
-                </button>
-
-                <button class="profile-button">
-                    <div class="profile-avatar">S</div>
-
-                    <div class="profile-info">
-                        <strong>Student</strong>
-                        <span>Campus member</span>
-                    </div>
-
-                    <span>⌄</span>
-                </button>
-
-            </div>
-
-        </header>
-
-
-        <!-- ================= OVERVIEW ================= -->
-
-        <section id="overview" class="page active-page">
-
-            <div class="hero">
-
-                <div>
-                    <span class="hero-eyebrow">YOUR SURROUNDING, UNDERSTOOD</span>
-
-                    <h3>
-                        Stay informed.<br>
-                        <span>Move safer.</span>
-                    </h3>
-
-                    <p>
-                        Athena combines community reports, location and
-                        time-based patterns to help make your surrounding safer.
-                    </p>
+                <div class="brand-symbol">
+                    A
                 </div>
 
-                <div class="hero-orbit">
-                    <div class="hero-ring ring-one"></div>
-                    <div class="hero-ring ring-two"></div>
-                    <div class="hero-core">✦</div>
+                <div class="brand-text">
+                    <strong>Athena</strong>
+                    <span>14566 Support</span>
                 </div>
 
             </div>
 
 
-            <!-- QUICK ACTIONS -->
-
-            <div class="quick-actions">
-
-                <button onclick="showPage('report')">
-                    <div class="action-icon report-icon">＋</div>
-                    <div>
-                        <strong>Report something</strong>
-                        <span>Tell Athena what happened</span>
-                    </div>
-                    <b>→</b>
-                </button>
-
-                <button onclick="showPage('routes')">
-                    <div class="action-icon route-icon">⌁</div>
-                    <div>
-                        <strong>Find a safer route</strong>
-                        <span>Consider safety, not just distance</span>
-                    </div>
-                    <b>→</b>
-                </button>
-
-                <button onclick="showPage('map')">
-                    <div class="action-icon map-icon">◉</div>
-                    <div>
-                        <strong>Explore safety map</strong>
-                        <span>See reported risk patterns</span>
-                    </div>
-                    <b>→</b>
-                </button>
-
-            </div>
-
-
-            <!-- STAT CARDS -->
-
-            <div class="section-heading">
-                <div>
-                    <span>LIVE OVERVIEW</span>
-                    <h3>Campus safety today</h3>
-                </div>
-
-                <small>Updated just now</small>
-            </div>
-
-            <div class="stats-grid">
-
-                <div class="stat-card safe-stat">
-                    <div class="stat-top">
-                        <span>OVERALL STATUS</span>
-                        <span class="status-icon">✓</span>
-                    </div>
-
-                    <div class="stat-number">SAFE</div>
-
-                    <p>Current conditions are within normal range.</p>
-
-                    <div class="stat-line">
-                        <div style="width:72%"></div>
-                    </div>
-
-                    <small>72% low-risk areas</small>
-                </div>
-
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>COMMUNITY REPORTS</span>
-                        <span class="small-icon">◌</span>
-                    </div>
-
-                    <div class="stat-number">12</div>
-
-                    <p>Reports submitted in the last 7 days.</p>
-
-                    <div class="stat-change positive">↑ 8% this week</div>
-                </div>
-
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>ACTIVE ALERTS</span>
-                        <span class="small-icon amber">!</span>
-                    </div>
-
-                    <div class="stat-number">3</div>
-
-                    <p>Areas currently requiring attention.</p>
-
-                    <div class="stat-change warning">2 moderate · 1 high</div>
-                </div>
-
-
-                <div class="stat-card">
-                    <div class="stat-top">
-                        <span>RISK PATTERNS</span>
-                        <span class="small-icon purple">✦</span>
-                    </div>
-
-                    <div class="stat-number">5</div>
-
-                    <p>Spatial or time-based patterns detected.</p>
-
-                    <div class="stat-change purple-text">AI monitored</div>
-                </div>
-
-            </div>
-
-
-            <!-- MAP + ALERT -->
-
-            <div class="dashboard-grid">
-
-                <div class="panel map-panel">
-
-                    <div class="panel-header">
-                        <div>
-                            <span>SPATIAL INTELLIGENCE</span>
-                            <h3>Safety map</h3>
-                        </div>
-
-                        <button onclick="showPage('map')">
-                            Open map →
-                        </button>
-                    </div>
-
-                    <div class="campus-map">
-
-                        <div class="map-label library">Library</div>
-                        <div class="map-label hostel">Hostel</div>
-                        <div class="map-label gate">North Gate</div>
-                        <div class="map-label block">Engineering Block</div>
-
-                        <div class="road road-one"></div>
-                        <div class="road road-two"></div>
-                        <div class="road road-three"></div>
-
-                        <div class="risk-zone green-zone"></div>
-                        <div class="risk-zone yellow-zone"></div>
-                        <div class="risk-zone red-zone"></div>
-
-                        <div class="map-pin pin-one">●</div>
-                        <div class="map-pin pin-two">●</div>
-                        <div class="map-pin pin-three">●</div>
-
-                    </div>
-
-                    <div class="map-legend">
-                        <span><i class="green"></i> Low</span>
-                        <span><i class="yellow"></i> Moderate</span>
-                        <span><i class="red"></i> High</span>
-                    </div>
-
-                </div>
-
-
-                <div class="panel emerging-panel">
-
-                    <div class="panel-header">
-                        <div>
-                            <span>AI DETECTION</span>
-                            <h3>Emerging risk</h3>
-                        </div>
-
-                        <span class="live-badge">LIVE</span>
-                    </div>
-
-                    <div class="risk-alert">
-
-                        <div class="risk-alert-icon">!</div>
-
-                        <div>
-                            <strong>North Gate → Hostel Road</strong>
-                            <span>Elevated reported risk</span>
-                        </div>
-
-                    </div>
-
-                    <div class="risk-details">
-
-                        <div>
-                            <span>PEAK PERIOD</span>
-                            <strong>8:00 – 10:00 PM</strong>
-                        </div>
-
-                        <div>
-                            <span>REPORTS</span>
-                            <strong>14 / 30 days</strong>
-                        </div>
-
-                        <div>
-                            <span>TREND</span>
-                            <strong class="trend-up">↑ 23%</strong>
-                        </div>
-
-                    </div>
-
-                    <div class="recommendation">
-                        <span>RECOMMENDED</span>
-                        <p>
-                            Increase patrol presence and review lighting
-                            around Hostel Road during peak hours.
-                        </p>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- ================= REPORT ================= -->
-
-        <section id="report" class="page">
-
-            <div class="report-header">
-                <div>
-                    <span class="hero-eyebrow">PRIVATE REPORTING</span>
-                    <h3>Tell Athena what happened.</h3>
-                    <p>
-                        Describe the situation in your own words.
-                        You can report anonymously.
-                    </p>
-                </div>
-
-                <div class="anonymous-toggle">
-                    <span>Anonymous report</span>
-                    <label class="switch">
-                        <input type="checkbox" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </div>
-
-
-            <div class="report-layout">
-
-                <div class="chat-card">
-
-                    <div class="chat-top">
-                        <div class="athena-mini">
-                            ✦
-                        </div>
-
-                        <div>
-                            <strong>Athena</strong>
-                            <span>Safety intelligence assistant</span>
-                        </div>
-
-                        <span class="ready-label">
-                            ● Ready
+            <div class="sidebar-section">
+
+                <span class="sidebar-label">
+                    WORKSPACE
+                </span>
+
+                <nav class="sidebar-nav">
+
+                    <button
+                        class="nav-item active"
+                        data-page="overview"
+                    >
+                        <span class="nav-icon">⌂</span>
+                        <span>Overview</span>
+                    </button>
+
+
+                    <button
+                        class="nav-item"
+                        data-page="new-report"
+                    >
+                        <span class="nav-icon">＋</span>
+                        <span>New Report</span>
+                    </button>
+
+
+                    <button
+                        class="nav-item"
+                        data-page="cases"
+                    >
+                        <span class="nav-icon">▤</span>
+                        <span>Cases</span>
+                    </button>
+
+
+                    <button
+                        class="nav-item"
+                        data-page="risk-map"
+                    >
+                        <span class="nav-icon">⌖</span>
+                        <span>Risk Map</span>
+                    </button>
+
+
+                    <button
+                        class="nav-item"
+                        data-page="guidance"
+                    >
+                        <span class="nav-icon">◇</span>
+                        <span>Guidance</span>
+                    </button>
+
+
+                    <button
+                        class="nav-item"
+                        data-page="alerts"
+                    >
+                        <span class="nav-icon">!</span>
+                        <span>Alerts</span>
+
+                        <span
+                            id="alertCount"
+                            class="nav-badge"
+                        >
+                            0
                         </span>
+
+                    </button>
+
+                </nav>
+
+            </div>
+
+
+            <div class="sidebar-bottom">
+
+                <div class="helpline-card">
+
+                    <span class="helpline-icon">
+                        ♡
+                    </span>
+
+                    <div>
+                        <strong>National Helpline</strong>
+                        <span>Support line · 14566</span>
+                    </div>
+
+                </div>
+
+
+                <button
+                    id="sidebarExit"
+                    class="sidebar-exit"
+                >
+                    <span>↪</span>
+                    Exit dashboard
+                </button>
+
+            </div>
+
+        </aside>
+
+
+
+        <!-- =================================================
+             MAIN AREA
+        ================================================== -->
+
+        <main class="main-area">
+
+
+            <!-- TOP BAR -->
+
+            <header class="topbar">
+
+                <div class="mobile-brand">
+
+                    <div class="brand-symbol small">
+                        A
+                    </div>
+
+                    <strong>Athena</strong>
+
+                </div>
+
+
+                <div class="topbar-right">
+
+                    <div class="language-pill">
+                        English
+                    </div>
+
+                    <div class="operator">
+
+                        <div class="operator-avatar">
+                            C
+                        </div>
+
+                        <div class="operator-info">
+                            <strong>Counsellor</strong>
+                            <span>Support desk</span>
+                        </div>
+
+                    </div>
+
+                    <span class="online-indicator"></span>
+
+                </div>
+
+            </header>
+
+
+
+            <!-- =================================================
+                 PAGE CONTAINER
+            ================================================== -->
+
+            <div class="page-container">
+
+
+                <!-- =================================================
+                     OVERVIEW
+                ================================================== -->
+
+                <section
+                    id="page-overview"
+                    class="page active-page"
+                >
+
+                    <div class="page-heading">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                ATHENA · OVERVIEW
+                            </span>
+
+                            <h1>
+                                Overview
+                            </h1>
+
+                            <p>
+                                Real-time helpline monitoring and case support.
+                            </p>
+
+                        </div>
+
+
+                        <button
+                            class="primary-button"
+                            data-page-target="new-report"
+                        >
+                            <span>＋</span>
+                            New report
+                        </button>
+
                     </div>
 
 
-                    <div id="chatMessages" class="chat-messages">
+                    <!-- STATS -->
 
-                        <div class="athena-message">
-                            <div class="chat-avatar">✦</div>
+                    <div class="stats-grid">
+
+                        <div class="stat-card">
+
+                            <div class="stat-top">
+                                <span>Total cases</span>
+                                <span class="stat-icon">▤</span>
+                            </div>
+
+                            <strong id="totalCases">—</strong>
+
+                            <small>
+                                All received cases
+                            </small>
+
+                        </div>
+
+
+                        <div class="stat-card critical-stat">
+
+                            <div class="stat-top">
+                                <span>Critical</span>
+                                <span class="stat-icon">!</span>
+                            </div>
+
+                            <strong id="criticalCases">—</strong>
+
+                            <small>
+                                Immediate attention
+                            </small>
+
+                        </div>
+
+
+                        <div class="stat-card high-stat">
+
+                            <div class="stat-top">
+                                <span>High</span>
+                                <span class="stat-icon">↑</span>
+                            </div>
+
+                            <strong id="highCases">—</strong>
+
+                            <small>
+                                Priority review
+                            </small>
+
+                        </div>
+
+
+                        <div class="stat-card pending-stat">
+
+                            <div class="stat-top">
+                                <span>Pending</span>
+                                <span class="stat-icon">◷</span>
+                            </div>
+
+                            <strong id="pendingCases">—</strong>
+
+                            <small>
+                                Awaiting review
+                            </small>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- ANALYTICS -->
+
+                    <div class="overview-grid">
+
+
+                        <!-- RISK DISTRIBUTION -->
+
+                        <div class="dashboard-card">
+
+                            <div class="card-heading">
+
+                                <div>
+                                    <span class="eyebrow">
+                                        RISK MONITORING
+                                    </span>
+
+                                    <h2>
+                                        Risk distribution
+                                    </h2>
+                                </div>
+
+                                <span class="card-period">
+                                    Current
+                                </span>
+
+                            </div>
+
+
+                            <div class="risk-chart">
+
+                                <div class="donut-chart">
+
+                                    <div class="donut-center">
+
+                                        <strong id="riskTotal">
+                                            —
+                                        </strong>
+
+                                        <span>
+                                            cases
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+
+                                <div class="risk-legend">
+
+                                    <div class="risk-legend-item">
+                                        <span class="legend-color low"></span>
+                                        <span>Low</span>
+                                        <strong id="lowPercent">—</strong>
+                                    </div>
+
+                                    <div class="risk-legend-item">
+                                        <span class="legend-color moderate"></span>
+                                        <span>Moderate</span>
+                                        <strong id="moderatePercent">—</strong>
+                                    </div>
+
+                                    <div class="risk-legend-item">
+                                        <span class="legend-color high"></span>
+                                        <span>High</span>
+                                        <strong id="highPercent">—</strong>
+                                    </div>
+
+                                    <div class="risk-legend-item">
+                                        <span class="legend-color critical"></span>
+                                        <span>Critical</span>
+                                        <strong id="criticalPercent">—</strong>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- DISTRICT -->
+
+                        <div class="dashboard-card">
+
+                            <div class="card-heading">
+
+                                <div>
+                                    <span class="eyebrow">
+                                        NATIONAL COVERAGE
+                                    </span>
+
+                                    <h2>
+                                        District risk
+                                    </h2>
+                                </div>
+
+                                <button
+                                    class="text-button"
+                                    data-page-target="risk-map"
+                                >
+                                    View map →
+                                </button>
+
+                            </div>
+
+
+                            <div
+                                id="miniDistrictMap"
+                                class="mini-map"
+                            >
+
+                                <div class="map-shape">
+                                    INDIA
+                                </div>
+
+                                <div class="map-point point-1"></div>
+                                <div class="map-point point-2"></div>
+                                <div class="map-point point-3"></div>
+                                <div class="map-point point-4"></div>
+
+                                <span class="map-label">
+                                    National district coverage
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- RECENT CASES -->
+
+                    <div class="dashboard-card recent-card">
+
+                        <div class="card-heading">
 
                             <div>
-                                <span class="message-name">Athena</span>
+                                <span class="eyebrow">
+                                    CASE MANAGEMENT
+                                </span>
 
-                                <div class="chat-bubble">
-                                    Tell me what happened. You don't
-                                    need to choose a category — I'll
-                                    help understand your report.
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-
-                    <div class="chat-input-area">
-
-                        <textarea
-                            id="reportInput"
-                            placeholder="Describe what happened..."
-                        ></textarea>
-
-                        <div class="input-bottom">
-
-                            <div class="input-tools">
-                                <button class="voice-button" onclick="startVoice()">
-                                     🎙 Speak
-                                </button>
-
-                                <button onclick="locationComingSoon()">
-                                      ⌖ Location
-                                </button>
-
-                                <button>
-                                     ＋ Evidence
-                                 </button>
+                                <h2>
+                                    Recent cases
+                                </h2>
                             </div>
 
                             <button
-                                class="submit-report"
-                                onclick="submitReport()">
-                                Send report →
+                                class="text-button"
+                                data-page-target="cases"
+                            >
+                                View all →
                             </button>
 
                         </div>
 
-                    </div>
 
-                </div>
+                        <div
+                            id="overviewCases"
+                            class="overview-case-list"
+                        >
 
+                            <div class="loading-state">
+                                Loading cases...
+                            </div>
 
-                <div class="report-info">
-
-                    <div class="info-card">
-                        <div class="info-card-icon">⌁</div>
-
-                        <h4>Your privacy matters</h4>
-
-                        <p>
-                            You can submit anonymously. Your identity is
-                            not required to report a safety concern.
-                        </p>
-                    </div>
-
-
-                    <div class="info-card">
-                        <div class="info-card-icon purple-bg">✦</div>
-
-                        <h4>What Athena looks for</h4>
-
-                        <ul>
-                            <li>Incident type</li>
-                            <li>Location</li>
-                            <li>Time and context</li>
-                            <li>Immediate danger</li>
-                            <li>Relevant safety patterns</li>
-                        </ul>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- ================= MAP ================= -->
-
-        <section id="map" class="page">
-
-            <div class="page-intro">
-                <div>
-                    <span class="hero-eyebrow">SPATIAL INTELLIGENCE</span>
-                    <h3>Campus safety map</h3>
-                    <p>
-                        Explore community-reported patterns across campus.
-                    </p>
-                </div>
-
-                <div class="map-filters">
-                    <button class="filter-active">All</button>
-                    <button>Today</button>
-                    <button>7 days</button>
-                    <button>30 days</button>
-                </div>
-            </div>
-
-
-            <div class="large-map">
-
-                <div class="map-grid-lines"></div>
-
-                <div class="large-road r1"></div>
-                <div class="large-road r2"></div>
-                <div class="large-road r3"></div>
-                <div class="large-road r4"></div>
-
-                <div class="building b1">LIBRARY</div>
-                <div class="building b2">ENGINEERING<br>BLOCK</div>
-                <div class="building b3">HOSTELS</div>
-                <div class="building b4">STUDENT<br>CENTER</div>
-
-                <div class="big-zone zone-green"></div>
-                <div class="big-zone zone-yellow"></div>
-                <div class="big-zone zone-red"></div>
-
-                <div class="map-tooltip">
-                    <span>HIGH RISK ZONE</span>
-                    <strong>North Gate → Hostel Road</strong>
-                    <small>14 reports · Peak 8–10 PM</small>
-                </div>
-
-            </div>
-
-
-            <div class="map-insight">
-
-                <div>
-                    <span>ATHENA INSIGHT</span>
-                    <h3>Risk is concentrated around Hostel Road after 8 PM.</h3>
-                    <p>
-                        The pattern is based on community reports and
-                        time-based clustering — not prediction of individual crimes.
-                    </p>
-                </div>
-
-                <button onclick="showPage('routes')">
-                    Find a safer route →
-                </button>
-
-            </div>
-
-        </section>
-
-
-        <!-- ================= ROUTES ================= -->
-
-        <section id="routes" class="page">
-
-            <div class="page-intro">
-                <div>
-                    <span class="hero-eyebrow">SAFETY COMPANION</span>
-                    <h3>Find a safer route</h3>
-                    <p>
-                        Athena considers reported safety patterns alongside distance.
-                    </p>
-                </div>
-            </div>
-
-
-            <div class="route-search">
-
-                <div class="location-field">
-                    <span>●</span>
-                    <div>
-                        <label>FROM</label>
-                        <input value="Library">
-                    </div>
-                </div>
-
-                <div class="route-line"></div>
-
-                <div class="location-field">
-                    <span>●</span>
-                    <div>
-                        <label>TO</label>
-                        <input value="Hostel">
-                    </div>
-                </div>
-
-                <button onclick="calculateRoute()">
-                    Find routes
-                </button>
-
-            </div>
-
-
-            <div id="routeResults" class="route-results">
-
-                <div class="route-card">
-
-                    <div class="route-icon safe-route">✓</div>
-
-                    <div class="route-main">
-                        <div class="route-title">
-                            <strong>Safer route</strong>
-                            <span class="recommended">RECOMMENDED</span>
                         </div>
 
-                        <p>
-                            Avoids the current high-risk zone.
-                        </p>
+                    </div>
 
-                        <div class="route-meta">
-                            <span>⌁ 12 min</span>
-                            <span>↓ Lower reported risk</span>
+                </section>
+
+
+
+                <!-- =================================================
+                     NEW REPORT
+                ================================================== -->
+
+                <section
+                    id="page-new-report"
+                    class="page"
+                >
+
+                    <div class="page-heading">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                NATIONAL HELPLINE · 14566
+                            </span>
+
+                            <h1>
+                                Share what happened
+                            </h1>
+
+                            <p>
+                                Speak in your own words. We are here to listen.
+                            </p>
+
                         </div>
+
                     </div>
 
-                    <button>Start route →</button>
 
-                </div>
+                    <div class="report-layout">
 
 
-                <div class="route-card risky-route">
+                        <div class="report-card">
 
-                    <div class="route-icon risky">!</div>
 
-                    <div class="route-main">
-                        <div class="route-title">
-                            <strong>Fastest route</strong>
-                            <span class="warning-tag">CAUTION</span>
+                            <!-- LANGUAGE -->
+
+                            <div class="report-language">
+
+                                <span>
+                                    Choose your language
+                                </span>
+
+                                <div class="language-options">
+
+                                    <button class="report-language-btn active">
+                                        English
+                                    </button>
+
+                                    <button class="report-language-btn">
+                                        हिंदी
+                                    </button>
+
+                                    <button class="report-language-btn">
+                                        తెలుగు
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- VOICE -->
+
+                            <div class="voice-area">
+
+                                <span class="voice-label">
+                                    VOICE FIRST
+                                </span>
+
+                                <h2>
+                                    Tell us in your own words
+                                </h2>
+
+                                <p>
+                                    You don't need to explain everything perfectly.
+                                    Just tell us what happened.
+                                </p>
+
+
+                                <button
+                                    id="micButton"
+                                    class="large-mic"
+                                >
+
+                                    <span class="mic-symbol">
+                                        🎙
+                                    </span>
+
+                                </button>
+
+
+                                <strong
+                                    id="micStatus"
+                                    class="mic-status"
+                                >
+                                    Tap to speak
+                                </strong>
+
+
+                                <span class="voice-support">
+                                    English · हिंदी · తెలుగు
+                                </span>
+
+                            </div>
+
+
+                            <!-- TEXT -->
+
+                            <div class="text-divider">
+                                <span>OR TYPE BELOW</span>
+                            </div>
+
+
+                            <textarea
+                                id="reportInput"
+                                placeholder="Tell us what happened..."
+                                maxlength="3000"
+                            ></textarea>
+
+
+                            <div class="report-bottom">
+
+                                <span id="characterCount">
+                                    0 / 3000
+                                </span>
+
+                                <button
+                                    id="submitReportButton"
+                                    class="primary-button"
+                                >
+                                    Send report
+                                    <span>→</span>
+                                </button>
+
+                            </div>
+
                         </div>
 
-                        <p>
-                            Passes through North Gate → Hostel Road.
-                        </p>
 
-                        <div class="route-meta">
-                            <span>⌁ 9 min</span>
-                            <span>↑ Higher reported risk after 8 PM</span>
+                        <!-- SUPPORT SIDE -->
+
+                        <aside class="support-card">
+
+                            <div class="support-icon">
+                                ♡
+                            </div>
+
+                            <h3>
+                                You are being heard.
+                            </h3>
+
+                            <p>
+                                Your information helps trained support staff
+                                understand your situation and provide the right
+                                assistance.
+                            </p>
+
+
+                            <div class="support-divider"></div>
+
+
+                            <div class="support-point">
+                                <span>01</span>
+                                <p>Your information is handled carefully.</p>
+                            </div>
+
+                            <div class="support-point">
+                                <span>02</span>
+                                <p>Trained staff can review cases when needed.</p>
+                            </div>
+
+                            <div class="support-point">
+                                <span>03</span>
+                                <p>Urgent situations can be prioritised.</p>
+                            </div>
+
+                        </aside>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     CONFIRMATION
+                ================================================== -->
+
+                <section
+                    id="page-confirmation"
+                    class="page"
+                >
+
+                    <div class="confirmation-card">
+
+                        <div class="confirmation-check">
+                            ✓
                         </div>
-                    </div>
 
-                    <button>View route →</button>
+                        <span class="eyebrow">
+                            REPORT RECEIVED
+                        </span>
 
-                </div>
+                        <h1>
+                            We hear you.
+                        </h1>
 
-            </div>
-
-        </section>
-
-
-        <!-- ================= ALERTS ================= -->
-
-        <section id="alerts" class="page">
-
-            <div class="page-intro">
-                <div>
-                    <span class="hero-eyebrow">CAMPUS AWARENESS</span>
-                    <h3>Safety alerts</h3>
-                    <p>Recent signals and active campus advisories.</p>
-                </div>
-            </div>
-
-            <div class="alerts-list">
-
-                <div class="alert-card high-alert">
-                    <div class="alert-symbol">!</div>
-
-                    <div>
-                        <span>HIGH PRIORITY · TODAY</span>
-                        <h4>Elevated reports around Hostel Road</h4>
                         <p>
-                            Multiple community reports have been recorded
-                            between 8:00 and 10:00 PM.
+                            We've received what you shared.
                         </p>
+
+                        <div class="help-box">
+                            <span>♡</span>
+                            <strong>
+                                Help is on the way.
+                            </strong>
+                        </div>
+
+                        <p class="confirmation-small">
+                            Your information has been sent to the support team.
+                            A trained person can help if your situation needs
+                            further attention.
+                        </p>
+
+                        <button
+                            class="primary-button"
+                            data-page-target="new-report"
+                        >
+                            Share more
+                            <span>→</span>
+                        </button>
+
+                        <a
+                            class="call-link"
+                            href="tel:14566"
+                        >
+                            Need direct support? Call 14566
+                        </a>
+
                     </div>
 
-                    <button>View area →</button>
-                </div>
+                </section>
 
 
-                <div class="alert-card medium-alert">
-                    <div class="alert-symbol">⌁</div>
 
-                    <div>
-                        <span>MODERATE · TODAY</span>
-                        <h4>Lighting concern near Engineering Block</h4>
-                        <p>
-                            Repeated reports mention poor visibility after sunset.
-                        </p>
+                <!-- =================================================
+                     CASES
+                ================================================== -->
+
+                <section
+                    id="page-cases"
+                    class="page"
+                >
+
+                    <div class="page-heading">
+
+                        <div>
+                            <span class="eyebrow">
+                                CASE MANAGEMENT
+                            </span>
+
+                            <h1>
+                                Cases
+                            </h1>
+
+                            <p>
+                                Review incoming reports and prioritise support.
+                            </p>
+                        </div>
+
+                        <button
+                            id="refreshCasesButton"
+                            class="secondary-button"
+                        >
+                            ↻ Refresh
+                        </button>
+
                     </div>
 
-                    <button>View area →</button>
-                </div>
+
+                    <div class="dashboard-card cases-card">
+
+                        <div class="table-toolbar">
+
+                            <div class="case-search">
+                                <span>⌕</span>
+                                <input
+                                    id="caseSearch"
+                                    type="text"
+                                    placeholder="Search cases..."
+                                >
+                            </div>
+
+                            <select id="riskFilter">
+                                <option value="all">All risk levels</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Moderate">Moderate</option>
+                                <option value="Low">Low</option>
+                            </select>
+
+                        </div>
 
 
-                <div class="alert-card low-alert">
-                    <div class="alert-symbol">✓</div>
+                        <div class="table-wrapper">
 
-                    <div>
-                        <span>RESOLVED · YESTERDAY</span>
-                        <h4>Security patrol increased near North Gate</h4>
-                        <p>
-                            Campus administration has acknowledged the recurring reports.
-                        </p>
+                            <table>
+
+                                <thead>
+                                    <tr>
+                                        <th>Case</th>
+                                        <th>Incident</th>
+                                        <th>District</th>
+                                        <th>Risk</th>
+                                        <th>Status</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="casesTableBody">
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
                     </div>
 
-                    <button>View details →</button>
-                </div>
+                </section>
+
+
+
+                <!-- =================================================
+                     RISK MAP
+                ================================================== -->
+
+                <section
+                    id="page-risk-map"
+                    class="page"
+                >
+
+                    <div class="page-heading">
+
+                        <div>
+                            <span class="eyebrow">
+                                NATIONAL COVERAGE
+                            </span>
+
+                            <h1>
+                                Risk map
+                            </h1>
+
+                            <p>
+                                Monitor case concentration across districts.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="map-dashboard-card">
+
+                        <div class="map-header">
+
+                            <div>
+                                <h2>India · District risk</h2>
+                                <p>
+                                    Risk levels across reported cases.
+                                </p>
+                            </div>
+
+
+                            <div class="map-legend">
+
+                                <span>
+                                    <i class="low"></i>
+                                    Low
+                                </span>
+
+                                <span>
+                                    <i class="moderate"></i>
+                                    Moderate
+                                </span>
+
+                                <span>
+                                    <i class="high"></i>
+                                    High
+                                </span>
+
+                                <span>
+                                    <i class="critical"></i>
+                                    Critical
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            id="districtMap"
+                            class="large-map"
+                        >
+
+                            <div class="large-india">
+                                INDIA
+                            </div>
+
+                            <div class="map-point large p1"></div>
+                            <div class="map-point large p2"></div>
+                            <div class="map-point large p3"></div>
+                            <div class="map-point large p4"></div>
+                            <div class="map-point large p5"></div>
+
+                            <span class="map-coming">
+                                District-level risk visualisation
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     GUIDANCE
+                ================================================== -->
+
+                <section
+                    id="page-guidance"
+                    class="page"
+                >
+
+                    <div class="page-heading">
+
+                        <div>
+                            <span class="eyebrow">
+                                STAFF SUPPORT
+                            </span>
+
+                            <h1>
+                                Guidance
+                            </h1>
+
+                            <p>
+                                Plain-language support guidance for counsellors.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="guidance-grid">
+
+                        <div class="guidance-card">
+
+                            <span class="guidance-number">
+                                01
+                            </span>
+
+                            <h3>
+                                Listen first
+                            </h3>
+
+                            <p>
+                                Allow the complainant to explain their
+                                situation in their own words without
+                                interrupting unnecessarily.
+                            </p>
+
+                        </div>
+
+
+                        <div class="guidance-card">
+
+                            <span class="guidance-number">
+                                02
+                            </span>
+
+                            <h3>
+                                Check immediate safety
+                            </h3>
+
+                            <p>
+                                If the case indicates immediate danger,
+                                prioritise connecting the person with
+                                appropriate human support.
+                            </p>
+
+                        </div>
+
+
+                        <div class="guidance-card">
+
+                            <span class="guidance-number">
+                                03
+                            </span>
+
+                            <h3>
+                                Protect information
+                            </h3>
+
+                            <p>
+                                Handle personal information carefully
+                                and only access information needed for
+                                the support process.
+                            </p>
+
+                        </div>
+
+
+                        <div class="guidance-card">
+
+                            <span class="guidance-number">
+                                04
+                            </span>
+
+                            <h3>
+                                Escalate when necessary
+                            </h3>
+
+                            <p>
+                                High-priority situations should be
+                                reviewed promptly by trained personnel.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     ALERTS
+                ================================================== -->
+
+                <section
+                    id="page-alerts"
+                    class="page"
+                >
+
+                    <div class="page-heading">
+
+                        <div>
+                            <span class="eyebrow">
+                                PRIORITY MONITORING
+                            </span>
+
+                            <h1>
+                                Alerts
+                            </h1>
+
+                            <p>
+                                Cases requiring closer attention.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="alertsContainer"
+                        class="alerts-container"
+                    >
+
+                        <div class="empty-alert">
+                            No priority alerts right now.
+                        </div>
+
+                    </div>
+
+                </section>
+
 
             </div>
 
-        </section>
+        </main>
 
-
-        <!-- ================= REPORTS ================= -->
-
-        <section id="reports" class="page">
-
-            <div class="page-intro">
-                <div>
-                    <span class="hero-eyebrow">YOUR ACTIVITY</span>
-                    <h3>My reports</h3>
-                    <p>Track reports you've submitted to Athena.</p>
-                </div>
-
-                <button class="primary-button" onclick="showPage('report')">
-                    + New report
-                </button>
-            </div>
-
-
-            <div class="reports-table">
-
-                <div class="table-head">
-                    <span>REPORT</span>
-                    <span>TYPE</span>
-                    <span>RISK</span>
-                    <span>STATUS</span>
-                    <span>DATE</span>
-                </div>
-
-
-                <div class="table-row">
-                    <span>#ATH-1042</span>
-                    <span>Harassment</span>
-                    <span><b class="risk-text-high">HIGH</b></span>
-                    <span><b class="status-progress">Under review</b></span>
-                    <span>Today</span>
-                </div>
-
-
-                <div class="table-row">
-                    <span>#ATH-1027</span>
-                    <span>Unsafe area</span>
-                    <span><b class="risk-text-medium">MEDIUM</b></span>
-                    <span><b class="status-resolved">Resolved</b></span>
-                    <span>Aug 15</span>
-                </div>
-
-
-                <div class="table-row">
-                    <span>#ATH-0998</span>
-                    <span>Lighting</span>
-                    <span><b class="risk-text-low">LOW</b></span>
-                    <span><b class="status-resolved">Resolved</b></span>
-                    <span>Aug 10</span>
-                </div>
-
-            </div>
-
-        </section>
-
-    </main>
+    </div>
 
 </div>
 
 
 <script src="athena.js"></script>
-<a
-  href="tel:112"
-  class="emergency-call-btn"
-  aria-label="Call emergency number 112 now"
->
-  <span class="emergency-icon">☎</span>
-  <span class="emergency-label">Call 112</span>
-</a>
 
 </body>
+
 </html>
