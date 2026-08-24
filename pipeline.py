@@ -140,6 +140,7 @@ def _finalize(
     disclosure_level="full",
     reporter_name=None,
     reporter_contact=None,
+    district=None,
 ):
     """
     Persist every processed report as a case (see cases.py) and
@@ -151,11 +152,11 @@ def _finalize(
     privacy-rounded by the caller (app.py) -- this function and
     cases.create_case() just persist whatever they're handed.
 
-    disclosure_level/reporter_name/reporter_contact are passed
-    straight through to create_case(), which is the actual
-    enforcement point for what "partial"/"anonymous" redacts -- see
-    its docstring. Not re-validated or re-redacted here, to keep a
-    single source of truth for that logic.
+    disclosure_level/reporter_name/reporter_contact/district are
+    passed straight through to create_case(), which is the actual
+    enforcement point for what "partial"/"anonymous" redacts (not
+    district -- see create_case()'s docstring) -- not re-validated or
+    re-redacted here, to keep a single source of truth for that logic.
     """
 
     if is_sos:
@@ -171,6 +172,7 @@ def _finalize(
         disclosure_level=disclosure_level,
         reporter_name=reporter_name,
         reporter_contact=reporter_contact,
+        district=district,
     )
 
     result["case_id"] = case_id
@@ -320,7 +322,8 @@ def run_pipeline(
             "response": None,
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
            is_sos=is_sos, disclosure_level=disclosure_level,
-           reporter_name=reporter_name, reporter_contact=reporter_contact)
+           reporter_name=reporter_name, reporter_contact=reporter_contact,
+           district=district)
 
     # --------------------------------------------------------
     # 5. Generate grounded response
@@ -350,7 +353,8 @@ def run_pipeline(
             "response": None,
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
            is_sos=is_sos, disclosure_level=disclosure_level,
-           reporter_name=reporter_name, reporter_contact=reporter_contact)
+           reporter_name=reporter_name, reporter_contact=reporter_contact,
+           district=district)
 
     # Critical/High-risk incidents, a Critical stress/trauma reading,
     # OR low understanding confidence should each independently be
@@ -409,7 +413,8 @@ def run_pipeline(
         "response": result["response"],
     }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
        is_sos=is_sos, disclosure_level=disclosure_level,
-       reporter_name=reporter_name, reporter_contact=reporter_contact)
+       reporter_name=reporter_name, reporter_contact=reporter_contact,
+       district=district)
 
 
 # ============================================================
@@ -417,6 +422,11 @@ def run_pipeline(
 # ============================================================
 
 if __name__ == "__main__":
+    import sys
+
+    # Windows' default console codec can't print Hindi/Telugu text
+    # and crashes instead -- force UTF-8 for this script's stdout.
+    sys.stdout.reconfigure(encoding="utf-8")
 
     test_reports = [
         "My husband is threatening me and physically hurting me.",

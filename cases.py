@@ -20,6 +20,8 @@ import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
+from district_contacts import DISTRICT_CONTACTS
+
 DB_PATH = "cases.db"
 
 VALID_STATUSES = (
@@ -63,6 +65,14 @@ _NEW_COLUMNS = {
     "disclosure_level": "TEXT NOT NULL DEFAULT 'full'",
     "reporter_name": "TEXT",
     "reporter_contact": "TEXT",
+    # Normalized (.strip().lower()) reporter-supplied district, the
+    # same string _resolve_escalation_contact() in kg.py matches
+    # against DISTRICT_CONTACTS -- stored here too so district-level
+    # pattern detection (get_flagged_districts) can aggregate case
+    # counts without re-deriving the lookup key. Not an identifier
+    # (see create_case()'s docstring), so it's kept regardless of
+    # disclosure_level. Nullable: most reports won't include one.
+    "district": "TEXT",
 }
 
 
@@ -141,6 +151,7 @@ def create_case(
     disclosure_level="full",
     reporter_name=None,
     reporter_contact=None,
+    district=None,
 ):
     """
     Persist one pipeline result as a case row.
@@ -168,6 +179,13 @@ def create_case(
     tradeoff of partial/anonymous reporting: case follow-up is
     genuinely limited for these cases, not just hidden from a view --
     documented in API_CONTRACT.md rather than solved further.
+
+    district is stored normalized (.strip().lower()) so "Hyderabad"
+    and "hyderabad" aggregate as the same district for
+    get_flagged_districts() -- the same normalization kg.py's
+    _resolve_escalation_contact() already applies for lookup, kept in
+    sync here rather than reimplemented. Never redacted by
+    disclosure_level (see the _NEW_COLUMNS comment on "district").
     """
 
     if disclosure_level not in VALID_DISCLOSURE_LEVELS:
@@ -192,6 +210,8 @@ def create_case(
     if disclosure_level == "anonymous":
         reporter_contact = None
 
+    district = district.strip().lower() if district else None
+
     incident = pipeline_result.get("incident") or {}
     risk = pipeline_result.get("risk") or {}
     stress_assessment = pipeline_result.get("stress_assessment")
@@ -211,9 +231,9 @@ def create_case(
                 escalate, reason, response, citations_json,
                 evidence_path, location, latitude, longitude, is_sos,
                 stress_assessment_json, legal_guidance_json,
-                disclosure_level, reporter_name, reporter_contact
+                disclosure_level, reporter_name, reporter_contact, district
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -238,6 +258,7 @@ def create_case(
                 disclosure_level,
                 reporter_name,
                 reporter_contact,
+                district,
             ),
         )
 
@@ -290,6 +311,15 @@ def _row_to_case(row):
         ),
         "reporter_name": row["reporter_name"] if "reporter_name" in row_keys else None,
         "reporter_contact": row["reporter_contact"] if "reporter_contact" in row_keys else None,
+        # Display-resolved (see _district_display_name), not the raw
+        # lowercase storage value -- so /cases, /cases/{id}, and the
+        # brief all show the same "Hyderabad" a reviewer expects,
+        # instead of this endpoint alone leaking the internal
+        # normalization used for pattern-detection aggregation.
+        "district": (
+            _district_display_name(row["district"])
+            if "district" in row_keys else None
+        ),
     }
 
 
@@ -479,6 +509,133 @@ def get_trend(days=7):
 
 
 # ============================================================
+# DISTRICT PATTERN DETECTION
+# ============================================================
+#
+# Flags districts with a week-over-week case-count rise -- an
+# explainable "something's changing here" signal for an admin
+# dashboard panel, not a forecasting model. Two conditions both have
+# to hold before a district is flagged, so one stray case in an
+# otherwise-quiet district doesn't read as a "spike": an absolute
+# floor on the current-window count, and a minimum rise ratio against
+# the previous window. Same "heuristic starting point, tune from real
+# data if there's time" caveat already used throughout this codebase
+# (see risk.py/svi.py's threshold comments).
+MIN_CASES_TO_FLAG = 3
+RISING_THRESHOLD_RATIO = 1.5
+
+
+def _district_display_name(district):
+    """
+    Resolve a normalized (.strip().lower()) stored district back to a
+    real display name via DISTRICT_CONTACTS' own "district" field
+    (proper casing, e.g. "Hyderabad") when it's a known one, falling
+    back to .title() for a district someone typed that doesn't match
+    any known contact entry -- shared by get_flagged_districts and
+    build_escalation_brief so the two never show different casing for
+    the same district.
+    """
+
+    if not district:
+        return None
+
+    contact = DISTRICT_CONTACTS.get(district)
+
+    return contact["district"] if contact else district.title()
+
+
+def get_flagged_districts(days=7):
+    """
+    Districts whose case count rose meaningfully in the last `days`
+    days vs the `days` before that, each with an incident-type
+    breakdown for the current window -- so the dashboard panel can
+    show not just "Hyderabad is up" but "Hyderabad is up, mostly
+    stalking reports," surfacing a repeat-type pattern rather than a
+    generic count. Real SQL aggregation over the `district` column
+    (see create_case()) -- a district nobody supplied, or with no
+    cases at all, never appears here, it isn't guessed at.
+
+    A district with zero cases in the previous window has no ratio to
+    compute (division by zero) -- it's flagged outright once it clears
+    MIN_CASES_TO_FLAG instead, since any real activity where there was
+    none before is itself the pattern worth surfacing. change_ratio is
+    None in that case so the frontend can render "new" instead of a
+    misleading number.
+    """
+
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=days)
+    previous_window_start = now - timedelta(days=days * 2)
+
+    with _connect() as connection:
+
+        current_rows = connection.execute(
+            "SELECT district, COUNT(*) FROM cases "
+            "WHERE district IS NOT NULL AND created_at >= ? "
+            "GROUP BY district",
+            (window_start.isoformat(),),
+        ).fetchall()
+
+        previous_rows = connection.execute(
+            "SELECT district, COUNT(*) FROM cases "
+            "WHERE district IS NOT NULL AND created_at >= ? AND created_at < ?"
+            " GROUP BY district",
+            (previous_window_start.isoformat(), window_start.isoformat()),
+        ).fetchall()
+
+        previous_counts = {row[0]: row[1] for row in previous_rows}
+
+        flagged = []
+
+        for district, current_count in current_rows:
+
+            if current_count < MIN_CASES_TO_FLAG:
+                continue
+
+            previous_count = previous_counts.get(district, 0)
+
+            if previous_count > 0:
+                change_ratio = current_count / previous_count
+                if change_ratio < RISING_THRESHOLD_RATIO:
+                    continue
+            else:
+                change_ratio = None
+
+            type_rows = connection.execute(
+                "SELECT incident_type, COUNT(*) FROM cases "
+                "WHERE district = ? AND created_at >= ? "
+                "AND incident_type IS NOT NULL "
+                "GROUP BY incident_type ORDER BY COUNT(*) DESC",
+                (district, window_start.isoformat()),
+            ).fetchall()
+
+            flagged.append({
+                "district": _district_display_name(district),
+                "current_window_count": current_count,
+                "previous_window_count": previous_count,
+                "change_ratio": round(change_ratio, 2) if change_ratio is not None else None,
+                "incident_type_breakdown": {
+                    row[0]: row[1] for row in type_rows
+                },
+            })
+
+        flagged.sort(
+            key=lambda d: (
+                d["change_ratio"] if d["change_ratio"] is not None
+                else float("inf")
+            ),
+            reverse=True,
+        )
+
+        return {
+            "window_days": days,
+            "min_cases_to_flag": MIN_CASES_TO_FLAG,
+            "rising_threshold_ratio": RISING_THRESHOLD_RATIO,
+            "flagged": flagged,
+        }
+
+
+# ============================================================
 # UPDATE
 # ============================================================
 
@@ -589,6 +746,9 @@ def build_escalation_brief(case_id):
         "confidence": case["confidence"],
         "incident_type": case["incident_type"],
         "location": case["location"],
+        # Already display-resolved by _row_to_case() (via get_case()
+        # above) -- not re-resolved here.
+        "district": case["district"],
         "language": case["language"],
         "is_sos": case["is_sos"],
         "summary": case["original_text"],

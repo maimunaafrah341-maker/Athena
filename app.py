@@ -34,6 +34,7 @@ from cases import (
     update_status,
     get_stats,
     get_trend,
+    get_flagged_districts,
     get_related_cases,
     build_escalation_brief,
     VALID_STATUSES,
@@ -488,6 +489,22 @@ def get_case_trend(days: int = 7):
     """
 
     return get_trend(days=days)
+
+
+@app.get("/stats/districts", dependencies=[Depends(require_admin_key)])
+def get_case_flagged_districts(days: int = 7):
+    """
+    Districts with a week-over-week case-count rise, each with an
+    incident-type breakdown for the current window -- the "flagged
+    districts" panel data for the admin dashboard. Real aggregation
+    over the district reporters supplied at report time (see
+    cases.create_case()), not a prediction -- a quiet district or one
+    nobody named simply doesn't appear. ?days= changes the window
+    (default 7, matching /stats/trend). See get_flagged_districts()'s
+    docstring for exactly what "flagged" requires.
+    """
+
+    return get_flagged_districts(days=days)
 
 
 @app.get("/cases", dependencies=[Depends(require_admin_key)])
