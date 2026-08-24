@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Athena — WhatsApp Demo</title>
+
+<!--
+  ATHENA — WHATSAPP-STYLE DEMO CHANNEL
+  ============================================================
+  A concept demo, not a WhatsApp Business API integration. This page
+  calls the exact same POST /report endpoint athena.js does (same
+  {text, language} body, same response contract) -- no separate
+  pipeline, no separate backend route. It exists to show "the same
+  Athena brain works inside a familiar chat interface a rural/first-
+  time user might already trust," nothing more. Deliberately not
+  wired to real WhatsApp infrastructure (no Business API, no webhook,
+  no phone number) -- out of scope for the time this project has.
+
+  Standalone, no build step, same convention as athena.html/js/css --
+  open this file directly in a browser (or serve it statically) with
+  the FastAPI server running on localhost:8000. CORS on the backend
+  is wide open (allow_origins=["*"]), same as the main app relies on.
+-->
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #0b141a;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  /* Phone frame -- keeps the illusion contained to a device-shaped
+     card instead of stretching WhatsApp's mobile UI across a full
+     desktop viewport. */
+  .phone {
+    width: 420px;
+    max-width: 100%;
+    height: 780px;
+    max-height: 92vh;
+    background: #e5ddd5;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ================= HEADER ================= */
+
+  .header {
+    background: #075e54;
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .header .back {
+    font-size: 22px;
+    opacity: 0.9;
+  }
+
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #fff;
+    color: #075e54;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .header-info { flex: 1; min-width: 0; }
+
+  .header-name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .header-status {
+    font-size: 12.5px;
+    opacity: 0.85;
+    height: 16px;
+  }
+
+  .header-icons {
+    display: flex;
+    gap: 18px;
+    font-size: 18px;
+    opacity: 0.9;
+  }
+
+  /* ================= CHAT AREA ================= */
+
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background-image:
+      linear-gradient(rgba(229, 221, 213, 0.97), rgba(229, 221, 213, 0.97)),
+      repeating-linear-gradient(45deg, #d9d0c4 0, #d9d0c4 1px, transparent 1px, transparent 16px);
+  }
+
+  .row {
+    display: flex;
+    margin: 5px 4px;
+  }
+
+  .row.out { justify-content: flex-end; }
+  .row.in { justify-content: flex-start; }
+  .row.sys { justify-content: center; margin: 10px 4px; }
+
+  .bubble {
+    max-width: 78%;
+    padding: 7px 9px 8px 10px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #111;
+    position: relative;
+    box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+  }
+
+  .bubble.out {
+    background: #dcf8c6;
+    border-radius: 8px 8px 0 8px;
+  }
+
+  .bubble.in {
+    background: #ffffff;
+    border-radius: 8px 8px 8px 0;
+  }
+
+  .bubble .text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 3px;
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: #667781;
+  }
+
+  .meta .tick { color: #53bdeb; font-size: 13px; }
+
+  .sys-pill {
+    background: #e1f2fb;
+    color: #4a5b64;
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 85%;
+  }
+
+  .tag {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .tag.Critical { background: #fde2e1; color: #c62828; }
+  .tag.High     { background: #ffe8cc; color: #b5560c; }
+  .tag.Medium   { background: #fff6cc; color: #8a6d00; }
+  .tag.Low      { background: #dff5df; color: #2e7d32; }
+
+  .typing-row { padding-left: 4px; }
+
+  .typing-bubble {
+    background: #fff;
+    border-radius: 8px 8px 8px 0;
+    padding: 10px 14px;
+    display: inline-flex;
+    gap: 4px;
+    box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+  }
+
+  .typing-bubble span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9aa5aa;
+    animation: bounce 1.2s infinite;
+  }
+
+  .typing-bubble span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-bubble span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* ================= COMPOSER ================= */
+
+  .composer {
+    flex-shrink: 0;
+    background: #f0f0f0;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .composer .icon {
+    font-size: 21px;
+    color: #54656f;
+    flex-shrink: 0;
+  }
+
+  .composer input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: #fff;
+    border-radius: 22px;
+    padding: 11px 16px;
+    font-size: 14.5px;
+    font-family: inherit;
+  }
+
+  .send-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #075e54;
+    color: #fff;
+    border: none;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .send-btn:active { transform: scale(0.95); }
+
+  .disclaimer {
+    text-align: center;
+    font-size: 10px;
+    color: #6b7c85;
+    padding: 4px 30px 2px;
+    background: #e5ddd5;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <div class="header">
+    <span class="back">‹</span>
+    <div class="avatar">✦</div>
+    <div class="header-info">
+      <div class="header-name">Athena Helpline</div>
+      <div class="header-status" id="headerStatus">online</div>
+    </div>
+    <div class="header-icons">
+      <span>📹</span>
+      <span>📞</span>
+      <span>⋮</span>
+    </div>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="row sys">
+      <div class="sys-pill">
+        🔒 This is a concept demo. Messages are sent to Athena's safety
+        pipeline — the same one the main app uses — not a real WhatsApp
+        number.
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer" id="disclaimer" style="display:none;"></div>
+
+  <div class="composer">
+    <span class="icon">😊</span>
+    <span class="icon">📎</span>
+    <input
+      id="msgInput"
+      type="text"
+      placeholder="Type a message"
+      onkeydown="if(event.key==='Enter') sendMessage();"
+    />
+    <button class="send-btn" onclick="sendMessage()" id="sendBtn">➤</button>
+  </div>
+
+</div>
+
+<script>
+
+  // Same endpoint, same request shape as athena.js's submitReport() --
+  // this is deliberately not a separate integration.
+  const REPORT_ENDPOINT = "http://localhost:8000/report";
+
+  const chat = document.getElementById("chat");
+  const input = document.getElementById("msgInput");
+  const headerStatus = document.getElementById("headerStatus");
+
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function nowTime() {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function scrollChat() {
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function addOutgoing(text) {
+    const row = document.createElement("div");
+    row.className = "row out";
+    row.innerHTML = `
+      <div class="bubble out">
+        <div class="text">${escapeHTML(text)}</div>
+        <div class="meta">${nowTime()} <span class="tick">✓✓</span></div>
+      </div>
+    `;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  function addIncoming(text, riskTier, escalateNote) {
+    const row = document.createElement("div");
+    row.className = "row in";
+
+    const tag = riskTier
+      ? `<div class="tag ${riskTier}">${riskTier} risk</div>`
+      : "";
+
+    const note = escalateNote
+      ? `<div style="margin-top:6px;font-size:11px;color:#54656f;">${escapeHTML(escalateNote)}</div>`
+      : "";
+
+    row.innerHTML = `
+      <div class="bubble in">
+        <div class="text">${escapeHTML(text || "(no response)")}</div>
+        ${tag}
+        ${note}
+        <div class="meta">${nowTime()}</div>
+      </div>
+    `;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  function addSystemPill(text) {
+    const row = document.createElement("div");
+    row.className = "row sys";
+    row.innerHTML = `<div class="sys-pill">${escapeHTML(text)}</div>`;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  function showTyping() {
+    const row = document.createElement("div");
+    row.className = "row in typing-row";
+    row.id = "typingRow";
+    row.innerHTML = `
+      <div class="typing-bubble">
+        <span></span><span></span><span></span>
+      </div>
+    `;
+    chat.appendChild(row);
+    headerStatus.textContent = "typing…";
+    scrollChat();
+  }
+
+  function removeTyping() {
+    const row = document.getElementById("typingRow");
+    if (row) row.remove();
+    headerStatus.textContent = "online";
+  }
+
+  async function sendMessage() {
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = "";
+    addOutgoing(text);
+    showTyping();
+
+    let data;
+
+    try {
+
+      const response = await fetch(REPORT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text, language: null }),
+      });
+
+      data = await response.json();
+
+    } catch (error) {
+
+      console.error("Backend connection error:", error);
+      removeTyping();
+      addIncoming(
+        "I couldn't connect to the safety intelligence system. " +
+        "Make sure the Athena backend is running on localhost:8000, then try again."
+      );
+      return;
+    }
+
+    removeTyping();
+
+    const riskTier = data.risk ? data.risk.risk_tier : null;
+
+    addIncoming(data.response, riskTier);
+
+    if (data.case_id) {
+      addSystemPill(
+        `Case #${data.case_id} logged — ${data.case_status}` +
+        (data.escalate ? " · flagged for human review" : "")
+      );
+    } else if (data.reason) {
+      addSystemPill(data.reason);
+    }
+  }
+
+</script>
+
+</body>
+</html>
