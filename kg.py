@@ -153,6 +153,40 @@ _add_provision(
     "magistrate approval.",
 )
 
+# Section 3(2) -- aggravated offences committed by a non-SC/ST person
+# against an SC/ST person/property. Transcribed verbatim from the same
+# ingested bare-act text as the 3(1) provisions above. NOTE: Samreen's
+# 2026-08-24 handoff also included 3(1)(r)/(s)/(w) and 3(2)(va) --
+# those are real provisions, but from the Act's 2016 amendment, whose
+# text is NOT among the ingested sources (only the original 1989 Act,
+# data/sources/SCSTpoaact1989.pdf, has been ingested -- confirmed by
+# direct-text search, no "(r)"/"(s)"/"(w)" lettering or "Schedule"
+# language exists anywhere in that PDF). Citing them here would give
+# the RAG a section number it cannot ground against anything it
+# actually retrieved. Left out until the amendment text is ingested as
+# its own source; (iii)/(iv)/(v) below are the subset of what Samreen
+# sent that already checks out against the current source PDF.
+_add_provision(
+    "scst_3_2_iii", SCST_ACT, "Section 3(2)(iii)",
+    "Commits mischief by fire or any explosive substance, intending "
+    "or knowing it likely to cause damage to property belonging to a "
+    "member of a Scheduled Caste or Scheduled Tribe.",
+)
+_add_provision(
+    "scst_3_2_iv", SCST_ACT, "Section 3(2)(iv)",
+    "Commits mischief by fire or any explosive substance, intending "
+    "or knowing it likely to cause destruction of a building ordinarily "
+    "used as a place of worship, human dwelling, or property custody "
+    "by a member of a Scheduled Caste or Scheduled Tribe.",
+)
+_add_provision(
+    "scst_3_2_v", SCST_ACT, "Section 3(2)(v)",
+    "Commits any offence under the Indian Penal Code punishable with "
+    "imprisonment of ten years or more, against a person or property, "
+    "knowing the person is a member of a Scheduled Caste or Scheduled "
+    "Tribe or the property belongs to such a member.",
+)
+
 
 # --------------------------------------------------------
 # Procedural steps
@@ -202,6 +236,7 @@ SCST_STEPS = (
 for provision_id in (
     "scst_3_1_x", "scst_3_1_xi", "scst_3_1_xii",
     "scst_3_1_xv", "scst_3_1_ii", "scst_3_1_vi",
+    "scst_3_2_iii", "scst_3_2_iv", "scst_3_2_v",
 ):
     for step_id in SCST_STEPS:
         graph.add_edge(provision_id, step_id)
@@ -331,11 +366,21 @@ def get_legal_guidance(incident, district=None):
     section's elements, is a legal judgment this system cannot and
     should not make on its own.
 
-    missing_person is deliberately not mapped to any provision here.
-    A caste-motivated abduction could plausibly engage the SC/ST Act
-    (e.g. via Section 3(2)(v), serious IPC/BNS offences against an
-    SC/ST person), but that mapping needs a clearer basis than what's
-    been transcribed so far -- left out rather than guessed at.
+    missing_person has no incident_type-level provision mapped (a
+    caste-motivated abduction alone isn't enough basis to guess at a
+    specific SC/ST Act clause) -- but see the Section 3(2) block below,
+    which can still add 3(2)(v) for missing_person when immediate_danger
+    is also reported.
+
+    Section 3(2) (aggravated offences -- arson/explosive damage to
+    property, destruction of a dwelling, or a 10-year-plus IPC offence,
+    all committed because the victim is SC/ST) is added independent of
+    incident_type whenever caste_based_motive clears the confidence
+    floor AND immediate_danger is reported. immediate_danger is used as
+    the trigger because the incident model doesn't detect these specific
+    acts (arson, building destruction) directly yet -- it's the
+    strongest available proxy, not a precise match to the clause
+    elements, so this stays advisory same as every other provision here.
     """
 
     incident_type = incident.get("incident_type")
@@ -349,14 +394,21 @@ def get_legal_guidance(incident, district=None):
         incident.get("confidence_breakdown") or {}
     ).get("caste_based_motive", 0.0)
 
-    if (
+    caste_motive_confirmed = (
         incident.get("caste_based_motive")
         and caste_confidence >= CASTE_MOTIVE_CONFIDENCE_FLOOR
-    ):
+    )
+
+    if caste_motive_confirmed:
         caste_node = f"{incident_type}__caste_motivated"
 
         if caste_node in graph:
             provision_ids += list(graph.successors(caste_node))
+
+        if incident.get("immediate_danger"):
+            for provision_id in ("scst_3_2_iii", "scst_3_2_iv", "scst_3_2_v"):
+                if provision_id not in provision_ids:
+                    provision_ids.append(provision_id)
 
     if not provision_ids:
         return None

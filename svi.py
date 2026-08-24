@@ -134,24 +134,30 @@ def _text_distress_score(incident):
 # VOICE STRESS
 # ============================================================
 #
-# Rough conversational baselines used only to score *deviation* from
-# them -- not claimed as clinically validated thresholds, just a
-# reasonable hackathon-scale starting point. Same caveat pipeline.py
-# already carries for RETRIEVAL_CONFIDENCE_THRESHOLD: tune against
-# real labeled voice samples if there's time before the deadline, not
-# blocking for the demo.
+# Calibrated from Samreen's 2026-08-24 acoustic distress-index (ADI)
+# handoff -- her "Low Risk" band per metric (pitch_variation 0.00-0.35,
+# pause_ratio < 0.15, speech_rate 130-160 WPM) is used as the calm
+# baseline below, and her formula weights (pitch 0.50 / pause 0.30 /
+# rate 0.20) replace the earlier even-ish split. Not claimed as
+# clinically validated -- same caveat pipeline.py already carries for
+# RETRIEVAL_CONFIDENCE_THRESHOLD: tune against real labeled voice
+# samples if there's time before the deadline. This module keeps the
+# continuous deviation-from-baseline scoring (rather than Samreen's
+# discrete per-metric Low/Moderate/High/Critical step bands) so the
+# score doesn't jump discontinuously at a band edge -- same actual
+# calm/moderate/high/critical cut points, graded between them instead
+# of stepped. NOTE: this raises pitch/pause sensitivity noticeably
+# (pitch now flags above 0.35 instead of 0.60, pause above 0.15 instead
+# of 0.25) -- re-check against the Demo Scenarios sheet before the
+# 27th freeze in case any scripted call now lands a different tier.
+CALM_SPEECH_RATE_RANGE = (130, 160)    # words/min, Samreen's Low Risk band
+CALM_PAUSE_RATIO_CEILING = 0.15        # fraction of speaking time spent paused
+PITCH_CALM_CEILING = 0.35              # pitch_variation (0-1); above this, flag
 
-CALM_SPEECH_RATE_RANGE = (110, 150)    # words/min, typical conversational pace
-CALM_PAUSE_RATIO_CEILING = 0.25        # fraction of speaking time spent paused
-
-# Pitch weighted slightly higher -- erratic/breaking pitch is the most
-# commonly cited paralinguistic stress marker in voice-stress
-# literature. Pause and rate split the remainder evenly since there's
-# no calibration data yet to justify favoring one over the other.
 VOICE_WEIGHTS = {
-    "pitch": 0.4,
+    "pitch": 0.5,
     "pause": 0.3,
-    "rate": 0.3,
+    "rate": 0.2,
 }
 
 REQUIRED_VOICE_FIELDS = ("pitch_variation", "pause_ratio", "speech_rate_wpm")
@@ -193,13 +199,13 @@ def _voice_stress_score(voice_features):
     pitch_variation = max(0.0, min(1.0, voice_features["pitch_variation"]))
     pitch_component = pitch_variation * 100
 
-    if pitch_component > 60:
+    if pitch_variation > PITCH_CALM_CEILING:
         points = round(VOICE_WEIGHTS["pitch"] * pitch_component, 2)
         factors.append({
             "signal": "pitch_variation",
             "label": "High pitch variability / voice breaks",
             "value": round(pitch_variation, 2),
-            "threshold": 0.60,
+            "threshold": PITCH_CALM_CEILING,
             "points": points,
         })
 

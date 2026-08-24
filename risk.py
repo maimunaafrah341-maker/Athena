@@ -56,6 +56,41 @@ INCIDENT_TYPE_CONFIDENCE_FLOOR = 60
 
 
 # ============================================================
+# RESPONSE PROTOCOL (SLA / routing / action per risk tier)
+# ============================================================
+#
+# Per-tier triage SLA and routing, from Samreen 2026-08-24. This is
+# staff-facing routing metadata -- what queue a case lands in, who
+# gets alerted, and the response-time target -- not a live dispatch
+# integration. "Auto 112 Dispatch" in particular describes the
+# intended real-world action for a Critical case; this module doesn't
+# call India's ERSS-112 system itself, same way kg.py's
+# escalation_contact is a phone number to call, not an auto-dialer.
+RESPONSE_PROTOCOL = {
+    "Low": {
+        "sla": "24 hours",
+        "route": "Standard Queue",
+        "action": "Log Docket + SMS",
+    },
+    "Medium": {
+        "sla": "2 hours",
+        "route": "Priority Queue",
+        "action": "Supervisor Alert + DLSA Legal Aid",
+    },
+    "High": {
+        "sla": "15 minutes",
+        "route": "Express District Alert",
+        "action": "SP Office + DM Office + Tele-MANAS",
+    },
+    "Critical": {
+        "sla": "Immediate",
+        "route": "ERSS 112 Hard Override",
+        "action": "Auto 112 Dispatch + SP Intercept",
+    },
+}
+
+
+# ============================================================
 # RISK ASSESSMENT
 # ============================================================
 
@@ -193,7 +228,8 @@ def assess_risk(incident):
         "risk_tier": risk_tier,
         "risk_score": min(score, 100),
         "risk_factors": risk_factors,
-        "confidence": confidence
+        "confidence": confidence,
+        "response_protocol": RESPONSE_PROTOCOL[risk_tier],
     }
 
 
