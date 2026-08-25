@@ -189,6 +189,22 @@
   .tag.Medium   { background: #fff6cc; color: #8a6d00; }
   .tag.Low      { background: #dff5df; color: #2e7d32; }
 
+  .voice-bubble {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .voice-bubble audio {
+    height: 32px;
+    width: 220px;
+  }
+
+  .voice-bubble .mic-badge {
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
   .typing-row { padding-left: 4px; }
 
   .typing-bubble {
@@ -303,6 +319,7 @@
   <div class="composer">
     <span class="icon">😊</span>
     <span class="icon">📎</span>
+    <span class="icon" onclick="sendVoiceNote()" title="Send demo voice note" style="cursor:pointer;">🎤</span>
     <input
       id="msgInput"
       type="text"
@@ -403,13 +420,11 @@
     headerStatus.textContent = "online";
   }
 
-  async function sendMessage() {
+  // Shared by both the typed-message flow and the voice-note flow --
+  // both end up sending {text, language} to the exact same pipeline,
+  // the only difference is what the outgoing bubble looked like.
+  async function submitToPipeline(text, language) {
 
-    const text = input.value.trim();
-    if (!text) return;
-
-    input.value = "";
-    addOutgoing(text);
     showTyping();
 
     let data;
@@ -419,7 +434,7 @@
       const response = await fetch(REPORT_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text, language: null }),
+        body: JSON.stringify({ text: text, language: language || null }),
       });
 
       data = await response.json();
@@ -449,6 +464,51 @@
     } else if (data.reason) {
       addSystemPill(data.reason);
     }
+  }
+
+  async function sendMessage() {
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = "";
+    addOutgoing(text);
+
+    await submitToPipeline(text, null);
+  }
+
+  // Demo voice note: a real, playable recording (not synthesized) with
+  // a verified transcript attached ahead of time -- live transcription
+  // is billing-gated (see voice_service.py / API_CONTRACT.md), so
+  // rather than fake it or silently fall back to a placeholder, this
+  // sends the verified transcript straight into the exact same
+  // pipeline a real transcription would hit. The audio bubble plays
+  // for real; only the mic-to-text hop is stood in for.
+  const DEMO_VOICE_NOTE = {
+    file: "demo_audio/caste_harassment_hindi.ogg",
+    transcript: "Meri jaati ke karan mujhe mandir mein ghusne nahi diya gaya aur sabke saamne apmaanit kiya gaya. Bheed abhi mujhe ghar ke bahar ghera kiye khadi hai.",
+    language: "hi",
+  };
+
+  function addOutgoingVoice(file) {
+    const row = document.createElement("div");
+    row.className = "row out";
+    row.innerHTML = `
+      <div class="bubble out">
+        <div class="voice-bubble">
+          <span class="mic-badge">🎤</span>
+          <audio controls src="${file}"></audio>
+        </div>
+        <div class="meta">${nowTime()} <span class="tick">✓✓</span></div>
+      </div>
+    `;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  async function sendVoiceNote() {
+    addOutgoingVoice(DEMO_VOICE_NOTE.file);
+    await submitToPipeline(DEMO_VOICE_NOTE.transcript, DEMO_VOICE_NOTE.language);
   }
 
 </script>
