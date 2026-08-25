@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from google import genai
 
+from risk import INCIDENT_TYPE_CONFIDENCE_FLOOR
+
 # ============================================================
 # GEMINI CONFIGURATION
 # ============================================================
@@ -163,6 +165,26 @@ def build_prompt(
         retrieved_documents
     )
 
+    # relationship has no dedicated anchor-confidence gate upstream the
+    # way incident_type (60) and caste_based_motive (80, kg.py) do --
+    # found 2026-08-26 via a live low-confidence English report ("Yusra
+    # is manipulating me") where relationship guessed "husband" at only
+    # 41% confidence, and the prompt below stated it as flat fact,
+    # which Gemini then confidently repeated back as if reported.
+    # Reusing INCIDENT_TYPE_CONFIDENCE_FLOOR here (not a new constant)
+    # since it's the same underlying question -- "is this classifier
+    # output confident enough to state as fact" -- risk.py/pipeline.py
+    # already answer it the same way for incident_type.
+    relationship_confidence = (
+        incident.get("confidence_breakdown") or {}
+    ).get("relationship", 0)
+
+    relationship_for_prompt = (
+        incident.get("relationship")
+        if relationship_confidence >= INCIDENT_TYPE_CONFIDENCE_FLOOR
+        else "not stated / unclear from the report"
+    )
+
     prompt = f"""
 You are Athena, a safety assistance system focused on women's
 safety, and also supporting anyone reporting violence, harassment,
@@ -307,7 +329,7 @@ Injury present:
 {incident.get("injury_present")}
 
 Relationship:
-{incident.get("relationship")}
+{relationship_for_prompt}
 
 Location:
 {incident.get("location")}
