@@ -82,4 +82,11 @@ Stated honestly rather than discovered by a judge mid-demo — full detail in `A
 
 ## Team
 
-RAG/pipeline, backend · frontend · multilingual/voice · deployment · pitch — see the project board for current ownership.
+| Name | Focus |
+|---|---|
+| **Maimuna** | Team lead · RAG, AI pipeline & backend — understanding, risk, SVI, knowledge graph, retrieval |
+| **Yusra** | Backend / API integration — voice transcription integration, endpoint testing |
+| **Sadaf** | Frontend — UI/UX, report flow, safety map |
+| **Samreen** | Multilingual & voice — audio input pipeline |
+| **Saboora** | Deployment / DevOps — infrastructure and hosting |
+| **Nuvaira** | Pitch & problem research — problem-statement grounding, presentation |
