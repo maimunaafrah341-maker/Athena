@@ -1,7 +1,8 @@
 import re
 
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+
+from embedding_model import model
 
 
 # ============================================================
@@ -22,12 +23,14 @@ Supported demo languages:
 # ============================================================
 # CONFIGURATION
 # ============================================================
-
-MODEL_NAME = "intfloat/multilingual-e5-small"
-
-print("Loading multilingual understanding model...")
-
-model = SentenceTransformer(MODEL_NAME)
+#
+# Reuses embedding_model.model instead of loading its own second
+# copy of the same intfloat/multilingual-e5-small weights -- this
+# was loading identical model weights twice at process startup
+# (once here, once in embedding_model.py for retrieval.py), which is
+# exactly what pushed a Render free-tier deploy (512MB) into an OOM
+# crash loop. Same model, same weights, now one instance shared
+# between incident understanding and RAG retrieval.
 
 # ============================================================
 # NEUTRAL / OUT-OF-DOMAIN BASELINE
