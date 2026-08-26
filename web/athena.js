@@ -2192,5 +2192,10 @@ document.addEventListener(
 
         loadDashboard();
 
+        document.getElementById("sidebarExit")?.addEventListener(
+            "click",
+            () => { window.location.href = "/"; }
+        );
+
     }
 );
