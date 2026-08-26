@@ -464,6 +464,28 @@
     } else if (data.reason) {
       addSystemPill(data.reason);
     }
+
+    // The AI's own text response is deliberately grounded only in
+    // retrieved documents -- it won't state a helpline number unless
+    // one turned up in that specific retrieval, so it can correctly
+    // say "not verified" even though real national helplines always
+    // exist. Surface those separately here from /call-options (a
+    // hardcoded, always-available, real source) rather than loosening
+    // what the AI itself is allowed to claim.
+    if (riskTier === "Critical" || riskTier === "High") {
+      try {
+        const callOptionsResponse = await fetch("/call-options");
+        const callOptions = await callOptionsResponse.json();
+        if (callOptions && callOptions.length) {
+          const lines = callOptions
+            .map((option) => `${option.label}: ${option.phone}`)
+            .join(" · ");
+          addSystemPill(`📞 ${lines}`);
+        }
+      } catch (error) {
+        console.error("Could not load call options:", error);
+      }
+    }
   }
 
   async function sendMessage() {
