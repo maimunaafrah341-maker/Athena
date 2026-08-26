@@ -1,0 +1,22 @@
+# Render blueprint for Athena. Connect the repo on Render, it reads this
+# file automatically, and asks you to fill in the three envVars below
+# (marked sync: false = "you type the real value in, not stored here").
+#
+# buildCommand runs `python ingestion.py` because chroma_db/ is
+# gitignored (see .gitignore) -- the vector DB has to be rebuilt from
+# the tracked source PDFs (data/sources/*.pdf) on every fresh deploy,
+# or every legal citation silently returns nothing.
+services:
+  - type: web
+    name: athena-backend
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python ingestion.py"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ADMIN_API_KEY
+        sync: false

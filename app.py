@@ -592,3 +592,21 @@ def patch_case_status(case_id: int, payload: StatusUpdateRequest):
         raise HTTPException(status_code=404, detail="Case not found")
 
     return case
+
+
+# ============================================================
+# STATIC FRONTEND
+# ============================================================
+#
+# Mounted last, after every API route above -- Starlette matches routes
+# in registration order, so /report, /cases, etc. are always resolved
+# by the real handlers first and only an unmatched path falls through
+# to a static file lookup. Deliberately points at web/ (a folder
+# containing only the public frontend files -- index.html [the
+# WhatsApp-style demo], dashboard.html [the counsellor view],
+# athena.css/js, demo_audio/) rather than the repo root, so .env,
+# cases.db, chroma_db/, and the source PDFs are never reachable over
+# HTTP even by path-guessing. html=True serves web/index.html for "/".
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+app.mount("/", StaticFiles(directory="web", html=True), name="web")
