@@ -11,17 +11,19 @@
 
 :root {
 
-    --bg: #f4f2ed;
+    --bg: #F6F8F7;
     --surface: #ffffff;
-    --surface-soft: #f8f7f3;
+    --surface-soft:#F1F5F4;
 
     --ink: #26332e;
     --muted: #737b76;
     --muted-light: #9aa19c;
 
-    --sage: #718879;
-    --sage-dark: #526a5a;
-    --sage-light: #e7eee8;
+   --sage: #0F766E;
+--sage-dark: #123B4A;
+--sage-light: #E6F4F1;
+
+--sidebar: #102F38;
 
     --border: #e3e0d8;
 
@@ -30,7 +32,7 @@
     --high: #a95c4d;
     --critical: #8f4141;
 
-    --sidebar: #293630;
+    
 
     --shadow:
         0 10px 35px rgba(38, 51, 46, 0.06);
@@ -56,7 +58,9 @@ body {
     background: var(--bg);
     color: var(--ink);
 
-    line-height: 1.5;
+    line-height: 1.6;
+
+    font-size: 14px;
 }
 
 button,
@@ -155,7 +159,7 @@ a {
 .brand-text strong {
     display: block;
 
-    font-size: 17px;
+    font-size: 18px;
 }
 
 .brand-text span {
@@ -175,7 +179,7 @@ a {
 
     color: #8d9a92;
 
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
 
     letter-spacing: 1.4px;
@@ -207,7 +211,7 @@ a {
 
     text-align: left;
 
-    font-size: 12px;
+    font-size: 14px;
 
     transition: 0.2s ease;
 }
@@ -489,7 +493,7 @@ a {
 .eyebrow {
     color: var(--sage-dark);
 
-    font-size: 8px;
+    font-size: 10px;
 
     font-weight: 900;
 
@@ -497,21 +501,22 @@ a {
 }
 
 .page-heading h1 {
-    margin-top: 5px;
+    margin-top: 6px;
 
-    font-size: 29px;
+    font-size: 34px;
+
+    line-height: 1.15;
 
     letter-spacing: -1px;
 }
 
 .page-heading p {
-    margin-top: 5px;
+    margin-top: 8px;
 
     color: var(--muted);
 
-    font-size: 11px;
+    font-size: 13px;
 }
-
 
 /* =========================================================
    BUTTONS
@@ -609,7 +614,7 @@ a {
 
     color: var(--muted);
 
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -634,7 +639,7 @@ a {
 
     margin-top: 14px;
 
-    font-size: 28px;
+    font-size: 32px;
 
     letter-spacing: -1px;
 }
@@ -646,7 +651,7 @@ a {
 
     color: var(--muted-light);
 
-    font-size: 8px;
+    font-size: 10px;
 }
 
 .critical-stat {
@@ -701,9 +706,9 @@ a {
 }
 
 .card-heading h2 {
-    margin-top: 4px;
+    margin-top: 5px;
 
-    font-size: 14px;
+    font-size: 17px;
 }
 
 .card-period {
@@ -953,7 +958,7 @@ a {
 
     border-bottom: 1px solid #eeece7;
 
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .overview-case:last-child {
@@ -961,7 +966,7 @@ a {
 }
 
 .overview-case strong {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .overview-case span {
@@ -1003,7 +1008,12 @@ a {
     color: var(--low);
 }
 
-.risk-tag.moderate {
+.risk-tag.moderate,
+.risk-tag.medium {
+    /* risk_tier's real value is "Medium"; svi_tier's is "Moderate" --
+       two different fields both render through this same .risk-tag
+       component, so both class names need to resolve to a style or
+       a Medium-risk case tag renders with no color at all. */
     background: #f1e8dc;
     color: var(--moderate);
 }
@@ -1525,7 +1535,7 @@ th {
 
     text-align: left;
 
-    font-size: 8px;
+    font-size: 10px;
 
     letter-spacing: 1px;
 }
@@ -1537,7 +1547,7 @@ td {
 
     color: var(--muted);
 
-    font-size: 9px;
+    font-size: 11px;
 }
 
 td:first-child {
@@ -1716,14 +1726,17 @@ td:first-child {
 .guidance-grid {
     display: grid;
 
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 
-    gap: 16px;
+    gap: 18px;
 
-    max-width: 900px;
+    width: 100%;
+    max-width: none;
 }
 
 .guidance-card {
+    width: 100%;
+
     padding: 25px;
 
     background: white;
@@ -1748,7 +1761,7 @@ td:first-child {
 .guidance-card h3 {
     margin-top: 17px;
 
-    font-size: 16px;
+    font-size: 19px;
 }
 
 .guidance-card p {
@@ -1756,7 +1769,7 @@ td:first-child {
 
     color: var(--muted);
 
-    font-size: 10px;
+    font-size: 13px;
 
     line-height: 1.7;
 }
@@ -1767,10 +1780,13 @@ td:first-child {
 ========================================================= */
 
 .alerts-container {
-    max-width: 900px;
+    width: 100%;
+    max-width: none;
 }
 
 .alert-card {
+    width: 100%;
+
     padding: 18px;
 
     margin-bottom: 10px;
@@ -1794,6 +1810,8 @@ td:first-child {
     width: 35px;
     height: 35px;
 
+    flex-shrink: 0;
+
     display: grid;
     place-items: center;
 
@@ -1807,7 +1825,7 @@ td:first-child {
 }
 
 .alert-card strong {
-    font-size: 10px;
+    font-size: 13px;
 }
 
 .alert-card p {
@@ -1815,10 +1833,12 @@ td:first-child {
 
     color: var(--muted);
 
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .empty-alert {
+    width: 100%;
+
     padding: 50px;
 
     text-align: center;
@@ -1833,8 +1853,6 @@ td:first-child {
 
     font-size: 10px;
 }
-
-
 /* =========================================================
    RESPONSIVE
 ========================================================= */
@@ -2016,6 +2034,988 @@ td:first-child {
 
     .map-legend {
         flex-wrap: wrap;
+    }
+
+}
+/* =========================================================
+   CONTENT WIDTH FIX
+========================================================= */
+
+.guidance-grid,
+.alerts-container {
+    width: 100%;
+    max-width: none;
+}
+
+.guidance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.alerts-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.alert-card {
+    width: 100%;
+}
+/* =========================================================
+   ATHENA — VISUAL POLISH
+========================================================= */
+
+/* Cleaner overall spacing */
+
+.page-container {
+    width: min(1450px, calc(100% - 80px));
+    padding-top: 42px;
+}
+
+
+/* Stronger page hierarchy */
+
+.page-heading {
+    margin-bottom: 32px;
+}
+
+.page-heading h1 {
+    font-size: 31px;
+    font-weight: 750;
+    letter-spacing: -1.2px;
+}
+
+.page-heading p {
+    max-width: 650px;
+    line-height: 1.7;
+}
+
+
+/* Less "floating AI card" look */
+
+.stat-card,
+.dashboard-card,
+.report-card,
+.cases-card,
+.map-dashboard-card,
+.guidance-card,
+.alert-card {
+    box-shadow: 0 4px 18px rgba(38, 51, 46, 0.045);
+}
+
+
+/* Make cards feel more like a real admin system */
+
+.stat-card {
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 8px 24px rgba(38, 51, 46, 0.08);
+
+    border-color: #d4d9d4;
+}
+
+
+/* More visual distinction between statistics */
+
+.stat-card strong {
+    font-size: 30px;
+    font-weight: 750;
+}
+
+.stat-card small {
+    font-size: 9px;
+}
+
+
+/* Better dashboard cards */
+
+.dashboard-card,
+.map-dashboard-card,
+.cases-card {
+    border-radius: 15px;
+}
+
+.card-heading,
+.map-header {
+    padding: 20px 23px;
+}
+
+
+/* =========================================================
+   GUIDANCE
+========================================================= */
+
+.guidance-grid {
+    width: 100%;
+    max-width: none;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 18px;
+}
+
+.guidance-card {
+    min-height: 190px;
+
+    padding: 27px;
+
+    border-radius: 14px;
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.guidance-card:hover {
+    transform: translateY(-2px);
+
+    border-color: #ccd5ce;
+
+    box-shadow:
+        0 8px 24px rgba(38, 51, 46, 0.07);
+}
+
+.guidance-number {
+    display: inline-flex;
+
+    padding: 5px 8px;
+
+    border-radius: 6px;
+
+    background: var(--sage-light);
+
+    font-size: 8px;
+}
+
+.guidance-card h3 {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.guidance-card p {
+    max-width: 620px;
+
+    font-size: 10px;
+
+    line-height: 1.8;
+}
+
+
+/* =========================================================
+   ALERTS
+========================================================= */
+
+.alerts-container {
+    width: 100%;
+    max-width: none;
+}
+
+.alert-card {
+    width: 100%;
+
+    padding: 19px 22px;
+
+    border-radius: 11px;
+
+    background: #fff;
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.alert-card:hover {
+    transform: translateX(2px);
+
+    box-shadow:
+        0 5px 18px rgba(38, 51, 46, 0.07);
+}
+
+.alert-card strong {
+    font-size: 11px;
+}
+
+.alert-card p {
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   CASE TABLE
+========================================================= */
+
+.cases-card {
+    border-radius: 15px;
+}
+
+table th {
+    font-weight: 800;
+    background: #f5f4f0;
+}
+
+table td {
+    height: 52px;
+}
+
+table tbody tr {
+    transition: background 0.15s ease;
+}
+
+table tbody tr:hover {
+    background: #fafaf7;
+}
+
+
+/* =========================================================
+   RISK TAGS
+========================================================= */
+
+.risk-tag {
+    padding: 5px 9px;
+
+    font-size: 7.5px;
+
+    letter-spacing: .2px;
+}
+
+
+/* =========================================================
+   REPORT PAGE
+========================================================= */
+
+.report-layout {
+    width: 100%;
+    max-width: 1150px;
+}
+
+.report-card {
+    border-radius: 16px;
+}
+
+.support-card {
+    border-radius: 16px;
+}
+
+
+/* Make microphone feel intentional rather than generic AI */
+
+.large-mic {
+    width: 118px;
+    height: 118px;
+
+    box-shadow:
+        0 0 0 9px var(--sage-light),
+        0 10px 25px rgba(82,106,90,.14);
+}
+
+.large-mic:hover {
+    transform: scale(1.035);
+}
+
+
+/* =========================================================
+   MAP
+========================================================= */
+
+.map-dashboard-card {
+    border-radius: 15px;
+}
+
+.large-map {
+    min-height: 560px;
+}
+
+.map-header {
+    background: #fff;
+}
+
+.map-header h2 {
+    font-size: 16px;
+    font-weight: 750;
+}
+
+.map-header p {
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+    box-shadow:
+        3px 0 18px rgba(20, 30, 25, 0.06);
+}
+
+.nav-item {
+    transition:
+        background 0.18s ease,
+        color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.nav-item:hover {
+    transform: translateX(2px);
+}
+
+.nav-item.active {
+    box-shadow:
+        inset 3px 0 0 #a8bca9,
+        0 3px 10px rgba(0,0,0,.08);
+}
+
+
+/* =========================================================
+   TOPBAR
+========================================================= */
+
+.topbar {
+    background: rgba(255,255,255,.97);
+
+    box-shadow:
+        0 1px 10px rgba(38,51,46,.025);
+}
+
+
+/* =========================================================
+   BUTTON POLISH
+========================================================= */
+
+.primary-button {
+    padding: 11px 18px;
+
+    border-radius: 8px;
+
+    transition:
+        transform .18s ease,
+        background .18s ease,
+        box-shadow .18s ease;
+}
+
+.primary-button:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 5px 14px rgba(82,106,90,.18);
+}
+
+.secondary-button {
+    transition:
+        background .18s ease,
+        border-color .18s ease;
+}
+
+.secondary-button:hover {
+    background: #f7f7f3;
+    border-color: #d3d4ce;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 750px) {
+
+    .page-container {
+        width: calc(100% - 28px);
+    }
+
+    .guidance-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+/* =========================================================
+   LIVE RISK MAP MARKERS
+========================================================= */
+
+.risk-marker-wrapper {
+    background: transparent !important;
+    border: none !important;
+}
+
+.risk-marker {
+    width: 22px;
+    height: 22px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.92);
+
+    border: 2px solid var(--marker-color);
+
+    box-shadow:
+        0 3px 10px rgba(38, 51, 46, 0.22);
+
+    position: relative;
+}
+
+.risk-marker span {
+    width: 10px;
+    height: 10px;
+
+    border-radius: 50%;
+
+    background: var(--marker-color);
+}
+
+
+/* Critical cases get a subtle pulse */
+
+.risk-marker[style*="#8f4141"] {
+    animation: criticalPulse 1.8s infinite;
+}
+
+@keyframes criticalPulse {
+
+    0% {
+        box-shadow:
+            0 0 0 0 rgba(143, 65, 65, 0.35);
+    }
+
+    70% {
+        box-shadow:
+            0 0 0 9px rgba(143, 65, 65, 0);
+    }
+
+    100% {
+        box-shadow:
+            0 0 0 0 rgba(143, 65, 65, 0);
+    }
+
+}
+
+
+/* =========================================================
+   MAP POPUP
+========================================================= */
+
+.risk-popup {
+    min-width: 190px;
+
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    color: var(--ink);
+}
+
+.risk-popup-top {
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    margin-bottom: 7px;
+}
+
+.risk-popup-tag {
+    font-size: 9px;
+
+    font-weight: 900;
+
+    text-transform: uppercase;
+
+    letter-spacing: .7px;
+}
+
+.risk-popup-sos {
+    padding: 3px 6px;
+
+    border-radius: 5px;
+
+    background: #ead9d9;
+
+    color: var(--critical);
+
+    font-size: 7px;
+
+    font-weight: 900;
+}
+
+.risk-popup-title {
+    display: block;
+
+    margin-bottom: 11px;
+
+    font-size: 14px;
+}
+
+.risk-popup-row {
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding: 6px 0;
+
+    border-top: 1px solid #eeeae3;
+
+    font-size: 8px;
+}
+
+.risk-popup-row span {
+    color: var(--muted);
+}
+
+.risk-popup-row strong {
+    color: var(--ink);
+
+    text-align: right;
+
+    font-size: 8px;
+}
+
+.risk-popup-status {
+    margin-top: 8px;
+
+    padding-top: 8px;
+
+    border-top: 1px solid #eeeae3;
+
+    color: var(--muted);
+
+    font-size: 8px;
+}
+
+/* =========================================================
+   CLICKABLE CASE ROWS
+========================================================= */
+
+.case-row {
+    cursor: pointer;
+    transition: background .18s ease;
+}
+
+.case-row:hover {
+    background: #f8f7f3;
+}
+
+.case-row td:first-child {
+    position: relative;
+}
+
+.case-row td:first-child::after {
+    content: "→";
+
+    margin-left: 7px;
+
+    color: var(--muted-light);
+
+    font-size: 10px;
+
+    opacity: 0;
+
+    transition: .18s ease;
+}
+
+.case-row:hover td:first-child::after {
+    opacity: 1;
+}
+
+
+/* =========================================================
+   CASE BRIEF OVERLAY
+========================================================= */
+
+.case-brief-overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 1000;
+
+    display: flex;
+
+    justify-content: flex-end;
+
+    background: rgba(38, 51, 46, .32);
+
+    backdrop-filter: blur(3px);
+
+}
+
+
+.case-brief-panel {
+
+    width: min(560px, 92vw);
+
+    height: 100%;
+
+    overflow-y: auto;
+
+    padding: 30px;
+
+    background: var(--surface);
+
+    box-shadow:
+        -12px 0 40px rgba(38, 51, 46, .12);
+
+    animation: briefSlideIn .25s ease;
+
+}
+
+
+@keyframes briefSlideIn {
+
+    from {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+}
+
+
+.case-brief-header {
+
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding-bottom: 22px;
+
+    border-bottom: 1px solid var(--border);
+
+}
+
+
+.case-brief-header h2 {
+
+    margin-top: 5px;
+
+    font-size: 25px;
+
+}
+
+
+.case-brief-header p {
+
+    margin-top: 3px;
+
+    color: var(--muted);
+
+    font-size: 10px;
+
+}
+
+
+.case-brief-close {
+
+    width: 34px;
+    height: 34px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 9px;
+
+    background: white;
+
+    color: var(--muted);
+
+    font-size: 20px;
+
+    line-height: 1;
+
+}
+
+
+.case-brief-risk {
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 10px;
+
+    margin: 22px 0;
+
+}
+
+
+.case-brief-risk > div {
+
+    padding: 14px;
+
+    background: var(--surface-soft);
+
+    border: 1px solid var(--border);
+
+    border-radius: 12px;
+
+}
+
+
+.brief-label {
+
+    display: block;
+
+    margin-bottom: 8px;
+
+    color: var(--muted-light);
+
+    font-size: 7px;
+
+    font-weight: 900;
+
+    letter-spacing: .8px;
+
+}
+
+
+.case-brief-risk strong {
+
+    font-size: 16px;
+
+}
+
+
+.case-brief-section {
+
+    padding: 20px 0;
+
+    border-top: 1px solid var(--border);
+
+}
+
+
+.case-summary,
+.brief-reason {
+
+    margin-top: 9px;
+
+    color: var(--ink);
+
+    font-size: 11px;
+
+    line-height: 1.7;
+
+}
+
+
+.case-brief-grid {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 10px;
+
+    padding: 20px 0;
+
+}
+
+
+.brief-info {
+
+    padding: 13px;
+
+    background: var(--surface-soft);
+
+    border-radius: 10px;
+
+}
+
+
+.brief-info span {
+
+    display: block;
+
+    color: var(--muted);
+
+    font-size: 8px;
+
+}
+
+
+.brief-info strong {
+
+    display: block;
+
+    margin-top: 4px;
+
+    font-size: 10px;
+
+}
+
+
+.brief-list {
+
+    margin-top: 10px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+
+}
+
+
+.brief-list-item {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding: 11px 13px;
+
+    background: var(--surface-soft);
+
+    border-radius: 9px;
+
+    font-size: 9px;
+
+}
+
+
+.brief-list-item p {
+
+    margin-top: 3px;
+
+    color: var(--muted);
+
+    font-size: 8px;
+
+}
+
+
+.brief-list-item > span {
+
+    color: var(--sage-dark);
+
+    font-weight: 800;
+
+    white-space: nowrap;
+
+}
+
+
+.brief-steps {
+
+    margin-top: 10px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+}
+
+
+.brief-step {
+
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 10px;
+
+}
+
+
+.brief-step > span {
+
+    width: 22px;
+    height: 22px;
+
+    flex-shrink: 0;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 50%;
+
+    background: var(--sage-light);
+
+    color: var(--sage-dark);
+
+    font-size: 8px;
+
+    font-weight: 900;
+
+}
+
+
+.brief-step p {
+
+    padding-top: 3px;
+
+    color: var(--muted);
+
+    font-size: 9px;
+
+    line-height: 1.5;
+
+}
+
+
+.case-brief-footer {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding-top: 20px;
+
+    border-top: 1px solid var(--border);
+
+    color: var(--muted-light);
+
+    font-size: 8px;
+
+}
+
+
+@media (max-width: 600px) {
+
+    .case-brief-panel {
+        width: 100%;
+        padding: 22px;
+    }
+
+    .case-brief-risk {
+        grid-template-columns: 1fr 1fr;
     }
 
 }

@@ -8,11 +8,23 @@
    CONFIG
 ========================================================= */
 
-// Empty string -> relative paths (/cases, /report, ...) so this file works
-// unmodified whether it's opened locally against localhost or served by the
-// deployed backend itself -- same origin either way once app.py mounts it.
+// Relative path -> same origin the page was served from, whether
+// that's a local backend or the deployed one. Do not hardcode a host
+// here.
 const API_BASE_URL = "";
 
+// Never hardcode the real admin key in a shipped file -- this is a
+// public repo, so anything written here is permanently visible in git
+// history to anyone, and it gates every case endpoint (real reporter
+// text, legal guidance, SVI). Prompted once per browser tab instead
+// and kept only in sessionStorage, not in source.
+const ADMIN_API_KEY =
+    sessionStorage.getItem("athena_admin_key") ||
+    (() => {
+        const key = prompt("Enter the admin key to open the counsellor dashboard:");
+        if (key) sessionStorage.setItem("athena_admin_key", key);
+        return key;
+    })();
 
 /* =========================================================
    STATE
@@ -543,9 +555,14 @@ async function loadCases() {
     try {
 
         const response =
-            await fetch(
-                `${API_BASE_URL}/cases`
-            );
+    await fetch(
+        `${API_BASE_URL}/cases`,
+        {
+            headers: {
+                "X-API-Key": ADMIN_API_KEY
+            }
+        }
+    );
 
 
         if (!response.ok) {
@@ -679,15 +696,15 @@ function renderCasesTable() {
                 const matchesSearch =
                     !search ||
 
-                    item.id
+                    String(item.id)
                         .toLowerCase()
                         .includes(search) ||
 
-                    item.incident
+                    String(item.incident)
                         .toLowerCase()
                         .includes(search) ||
 
-                    item.district
+                    String(item.district)
                         .toLowerCase()
                         .includes(search);
 
@@ -730,10 +747,16 @@ function renderCasesTable() {
 
 
             return `
-                <tr>
+                <tr
+                    class="case-row"
+                    data-case-id="${escapeHTML(item.id)}"
+                    title="View case brief"
+                >
 
                     <td>
-                        ${escapeHTML(item.id)}
+                        <strong>
+                            ${escapeHTML(item.id)}
+                        </strong>
                     </td>
 
                     <td>
@@ -763,8 +786,521 @@ function renderCasesTable() {
 
         }).join("");
 
+
+    /* Add click handlers */
+
+    body
+        .querySelectorAll(".case-row")
+        .forEach(row => {
+
+            row.addEventListener(
+                "click",
+                () => {
+
+                    const caseId =
+                        row.dataset.caseId;
+
+                    if (caseId) {
+
+                        openCaseBrief(caseId);
+
+                    }
+
+                }
+            );
+
+        });
+
 }
 
+/* =========================================================
+   CASE BRIEF
+========================================================= */
+
+async function openCaseBrief(caseId) {
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE_URL}/cases/${caseId}/brief`,
+                {
+                    headers: {
+                        "X-API-Key": ADMIN_API_KEY
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Case brief request failed: ${response.status}`
+            );
+
+        }
+
+
+        const brief =
+            await response.json();
+
+
+        console.log(
+            "Case brief:",
+            brief
+        );
+
+
+        showCaseBrief(brief);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Could not load case brief:",
+            error
+        );
+
+        alert(
+            "Unable to load the case details."
+        );
+
+    }
+
+}
+
+/* =========================================================
+   SHOW CASE BRIEF
+========================================================= */
+
+function showCaseBrief(brief) {
+
+    /* Remove existing panel */
+
+    document
+        .querySelector(".case-brief-overlay")
+        ?.remove();
+
+
+    const risk =
+        brief.risk_tier ||
+        "Low";
+
+
+    const riskClass =
+        risk
+            .toLowerCase()
+            .replace(" ", "-");
+
+
+    const sviScore =
+        brief.svi_score ??
+        "—";
+
+
+    const confidence =
+        brief.confidence != null
+            ? `${Number(brief.confidence).toFixed(0)}%`
+            : "—";
+
+
+    const signals =
+        brief.svi_explainability?.text_signals ||
+        [];
+
+
+    const legalSteps =
+        brief.legal_guidance?.procedural_next_steps ||
+        [];
+
+
+    const provisions =
+        brief.legal_guidance?.applicable_provisions ||
+        [];
+
+
+    const overlay =
+        document.createElement("div");
+
+
+    overlay.className =
+        "case-brief-overlay";
+
+
+    overlay.innerHTML = `
+
+        <div class="case-brief-panel">
+
+            <div class="case-brief-header">
+
+                <div>
+
+                    <span class="eyebrow">
+                        CASE BRIEF
+                    </span>
+
+                    <h2>
+                        Case #${escapeHTML(
+                            brief.case_id
+                        )}
+                    </h2>
+
+                    <p>
+                        ${escapeHTML(
+                            brief.incident_type ||
+                            "General report"
+                        )}
+                    </p>
+
+                </div>
+
+
+                <button
+                    class="case-brief-close"
+                    type="button"
+                    aria-label="Close"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="case-brief-risk">
+
+                <div>
+
+                    <span class="brief-label">
+                        RISK LEVEL
+                    </span>
+
+                    <span class="
+                        risk-tag
+                        ${riskClass}
+                    ">
+                        ${escapeHTML(risk)}
+                    </span>
+
+                </div>
+
+
+                <div>
+
+                    <span class="brief-label">
+                        RISK SCORE
+                    </span>
+
+                    <strong>
+                        ${brief.risk_score ?? "—"}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span class="brief-label">
+                        SVI SCORE
+                    </span>
+
+                    <strong>
+                        ${sviScore}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span class="brief-label">
+                        CONFIDENCE
+                    </span>
+
+                    <strong>
+                        ${confidence}
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="case-brief-section">
+
+                <span class="eyebrow">
+                    REPORT
+                </span>
+
+                <p class="case-summary">
+                    ${escapeHTML(
+                        brief.summary ||
+                        "No summary available."
+                    )}
+                </p>
+
+            </div>
+
+
+            <div class="case-brief-grid">
+
+                <div class="brief-info">
+
+                    <span>District</span>
+
+                    <strong>
+                        ${escapeHTML(
+                            brief.district ||
+                            "—"
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div class="brief-info">
+
+                    <span>Language</span>
+
+                    <strong>
+                        ${escapeHTML(
+                            brief.language ||
+                            "—"
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div class="brief-info">
+
+                    <span>Status</span>
+
+                    <strong>
+                        ${escapeHTML(
+                            brief.status ||
+                            "—"
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div class="brief-info">
+
+                    <span>SOS</span>
+
+                    <strong>
+                        ${
+                            brief.is_sos
+                                ? "Yes"
+                                : "No"
+                        }
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="case-brief-section">
+
+                <span class="eyebrow">
+                    AI ASSESSMENT
+                </span>
+
+                <p class="brief-reason">
+                    ${escapeHTML(
+                        brief.reason ||
+                        "No assessment explanation available."
+                    )}
+                </p>
+
+            </div>
+
+
+            ${
+                signals.length
+                    ? `
+                        <div class="case-brief-section">
+
+                            <span class="eyebrow">
+                                STRESS / TRAUMA SIGNALS
+                            </span>
+
+                            <div class="brief-list">
+
+                                ${
+                                    signals.map(signal => `
+                                        <div class="brief-list-item">
+
+                                            <strong>
+                                                ${escapeHTML(
+                                                    signal.label ||
+                                                    signal.signal ||
+                                                    "Signal"
+                                                )}
+                                            </strong>
+
+                                            <span>
+                                                ${signal.points ?? 0} points
+                                            </span>
+
+                                        </div>
+                                    `).join("")
+                                }
+
+                            </div>
+
+                        </div>
+                      `
+                    : ""
+            }
+
+
+            ${
+                provisions.length
+                    ? `
+                        <div class="case-brief-section">
+
+                            <span class="eyebrow">
+                                LEGAL GUIDANCE
+                            </span>
+
+                            <div class="brief-list">
+
+                                ${
+                                    provisions.map(item => `
+                                        <div class="brief-list-item">
+
+                                            <div>
+
+                                                <strong>
+                                                    ${escapeHTML(
+                                                        item.act ||
+                                                        "Applicable provision"
+                                                    )}
+                                                </strong>
+
+                                                <p>
+                                                    ${escapeHTML(
+                                                        item.section ||
+                                                        ""
+                                                    )}
+                                                </p>
+
+                                            </div>
+
+                                        </div>
+                                    `).join("")
+                                }
+
+                            </div>
+
+                        </div>
+                      `
+                    : ""
+            }
+
+
+            ${
+                legalSteps.length
+                    ? `
+                        <div class="case-brief-section">
+
+                            <span class="eyebrow">
+                                PROCEDURAL NEXT STEPS
+                            </span>
+
+                            <div class="brief-steps">
+
+                                ${
+                                    legalSteps.map(step => `
+                                        <div class="brief-step">
+
+                                            <span>
+                                                ${step.step ?? ""}
+                                            </span>
+
+                                            <p>
+                                                ${escapeHTML(
+                                                    step.action ||
+                                                    ""
+                                                )}
+                                            </p>
+
+                                        </div>
+                                    `).join("")
+                                }
+
+                            </div>
+
+                        </div>
+                      `
+                    : ""
+            }
+
+
+            <div class="case-brief-footer">
+
+                <span>
+                    First reported:
+                    ${formatTime(
+                        brief.first_reported
+                    )}
+                </span>
+
+                <button
+                    class="primary-button case-brief-close-button"
+                    type="button"
+                >
+                    Close
+                </button>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(overlay);
+
+
+    /* Close buttons */
+
+    overlay
+        .querySelectorAll(
+            ".case-brief-close, .case-brief-close-button"
+        )
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => overlay.remove()
+            );
+
+        });
+
+
+    /* Close by clicking outside */
+
+    overlay.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target === overlay
+            ) {
+
+                overlay.remove();
+
+            }
+
+        }
+    );
+
+}
 
 /* =========================================================
    OVERVIEW CASES
@@ -903,7 +1439,11 @@ function updateDashboardStats() {
 
     const moderate =
         cases.filter(
-            item => item.risk === "Moderate"
+            // risk_tier's real value is "Medium", not "Moderate" --
+            // that's svi_tier's naming, a different field entirely
+            // (see svi.py). This was silently undercounting every
+            // medium-risk case out of every tier bucket.
+            item => item.risk === "Medium"
         ).length;
 
 
@@ -944,9 +1484,14 @@ async function loadStats() {
     try {
 
         const response =
-            await fetch(
-                `${API_BASE_URL}/stats`
-            );
+    await fetch(
+        `${API_BASE_URL}/stats`,
+        {
+            headers: {
+                "X-API-Key": ADMIN_API_KEY
+            }
+        }
+    );
 
         if (!response.ok) {
 
@@ -1092,50 +1637,44 @@ async function loadDashboard() {
 
 }
 
+
+
+ 
+
 /* =========================================================
    RISK MAP
 ========================================================= */
 
+let riskMap = null;
+let riskMarkers = [];
+
+
 async function loadRiskMap() {
 
-    const mapContainer =
-        $("#districtMap");
+    const mapContainer = $("#districtMap");
 
     if (!mapContainer) return;
 
-
     try {
 
-        const response =
-            await fetch(
-                `${API_BASE_URL}/cases/map`
-            );
-
+        const response = await fetch(
+            `${API_BASE_URL}/cases/map`
+        );
 
         if (!response.ok) {
-
             throw new Error(
                 `Risk map request failed: ${response.status}`
             );
-
         }
 
+        const data = await response.json();
 
-        const data =
-            await response.json();
-
-
-        console.log(
-            "Risk map data:",
-            data
-        );
-
+        console.log("Risk map data:", data);
 
         state.mapCases =
             Array.isArray(data)
                 ? data
                 : data.cases || data.data || [];
-
 
         renderRiskMap();
 
@@ -1160,16 +1699,29 @@ async function loadRiskMap() {
 
 
 /* =========================================================
-   RENDER RISK MAP
+   RENDER REAL LEAFLET MAP
 ========================================================= */
 
 function renderRiskMap() {
 
-    const mapContainer =
-        $("#districtMap");
+    const mapContainer = $("#districtMap");
 
     if (!mapContainer) return;
 
+
+    /* Remove previous map */
+
+    if (riskMap) {
+
+        riskMap.remove();
+
+        riskMap = null;
+        riskMarkers = [];
+
+    }
+
+
+    /* Empty state */
 
     if (!state.mapCases.length) {
 
@@ -1184,21 +1736,285 @@ function renderRiskMap() {
     }
 
 
+    /* Create Leaflet container */
+
     mapContainer.innerHTML = `
-
-        <div class="large-india">
-            INDIA
-        </div>
-
-        <div class="map-data-label">
-            ${state.mapCases.length} district case records
-        </div>
-
+        <div
+            id="liveRiskMap"
+            style="width:100%; height:100%; min-height:520px;"
+        ></div>
     `;
 
+
+    /* Check Leaflet */
+
+    if (typeof L === "undefined") {
+
+        console.error("Leaflet is not loaded.");
+
+        mapContainer.innerHTML = `
+            <div class="map-error">
+                Map library could not be loaded.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    /* Create map */
+
+    riskMap = L.map("liveRiskMap", {
+        zoomControl: true
+    }).setView(
+        [20.5937, 78.9629],
+        5
+    );
+
+
+    /* OpenStreetMap */
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 18,
+            attribution:
+                '&copy; OpenStreetMap contributors'
+        }
+    ).addTo(riskMap);
+
+
+    /* =====================================================
+       RISK MARKERS
+    ===================================================== */
+
+    state.mapCases.forEach(caseItem => {
+
+        const latitude =
+            Number(caseItem.latitude);
+
+        const longitude =
+            Number(caseItem.longitude);
+
+
+        /* Ignore cases without coordinates */
+
+        if (
+            !Number.isFinite(latitude) ||
+            !Number.isFinite(longitude)
+        ) {
+            return;
+        }
+
+
+        const risk =
+            String(
+                caseItem.risk_tier || "Low"
+            ).toLowerCase();
+
+
+        /* Risk colour */
+
+        let markerColor;
+
+        if (risk === "critical") {
+
+            markerColor = "#8f4141";
+
+        }
+
+        else if (risk === "high") {
+
+            markerColor = "#a95c4d";
+
+        }
+
+        else if (risk === "medium") {
+
+            // risk_tier's real value from /cases/map is "Medium" --
+            // this was checking "moderate" (that's svi_tier's scale,
+            // a different axis), so every medium-risk pin was
+            // silently falling through to the green low-risk color.
+            markerColor = "#a8763c";
+
+        }
+
+        else {
+
+            markerColor = "#4c8060";
+
+        }
+
+
+        /* Custom circular marker */
+
+        const markerIcon =
+            L.divIcon({
+
+                className: "risk-marker-wrapper",
+
+                html: `
+                    <div
+                        class="risk-marker"
+                        style="
+                            --marker-color:${markerColor};
+                        "
+                    >
+                        <span></span>
+                    </div>
+                `,
+
+                iconSize: [22, 22],
+
+                iconAnchor: [11, 11],
+
+                popupAnchor: [0, -12]
+
+            });
+
+
+        /* Create marker */
+
+        const marker =
+            L.marker(
+                [latitude, longitude],
+                {
+                    icon: markerIcon
+                }
+            ).addTo(riskMap);
+
+
+        /* Popup */
+
+        marker.bindPopup(`
+
+            <div class="risk-popup">
+
+                <div class="risk-popup-top">
+
+                    <span
+                        class="risk-popup-tag"
+                        style="
+                            color:${markerColor};
+                        "
+                    >
+                        ${escapeHTML(
+                            caseItem.risk_tier || "Low"
+                        )}
+                    </span>
+
+                    ${
+                        caseItem.is_sos
+                            ? `
+                                <span class="risk-popup-sos">
+                                    SOS
+                                </span>
+                              `
+                            : ""
+                    }
+
+                </div>
+
+
+                <strong class="risk-popup-title">
+                    Case #${escapeHTML(caseItem.id)}
+                </strong>
+
+
+                <div class="risk-popup-row">
+
+                    <span>Incident</span>
+
+                    <strong>
+                        ${escapeHTML(
+                            caseItem.incident_type ||
+                            "General"
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div class="risk-popup-row">
+
+                    <span>Coordinates</span>
+
+                    <strong>
+                        ${latitude.toFixed(3)},
+                        ${longitude.toFixed(3)}
+                    </strong>
+
+                </div>
+
+
+                <div class="risk-popup-status">
+
+                    ${
+                        caseItem.is_sos
+                            ? "Immediate attention required"
+                            : "Reported case"
+                    }
+
+                </div>
+
+            </div>
+
+        `);
+
+
+        riskMarkers.push(marker);
+
+    });
+
+
+    /* =====================================================
+       FIT MAP TO CASES
+    ===================================================== */
+
+    if (riskMarkers.length === 1) {
+
+        riskMap.setView(
+            riskMarkers[0].getLatLng(),
+            12
+        );
+
+    }
+
+    else if (riskMarkers.length > 1) {
+
+        const bounds =
+            L.featureGroup(
+                riskMarkers
+            ).getBounds();
+
+
+        riskMap.fitBounds(
+            bounds,
+            {
+                padding: [50, 50],
+                maxZoom: 12
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       FIX LEAFLET SIZE
+    ===================================================== */
+
+    setTimeout(() => {
+
+        if (riskMap) {
+
+            riskMap.invalidateSize();
+
+        }
+
+    }, 250);
+
 }
-
-
 /* =========================================================
    ALERTS
 ========================================================= */
