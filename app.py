@@ -41,7 +41,11 @@ from cases import (
     VALID_DISCLOSURE_LEVELS,
 )
 from voice_service import process_voice_to_text
-from ocr import extract_text
+# NOT imported at top level on purpose -- easyocr pulls in opencv/
+# scipy/scikit-image, which cost real memory at process startup even
+# though EasyOCR's own Reader models are already lazy (see ocr.py).
+# Deferred into report_image() below so a deploy that never receives
+# an image upload never pays for this chain at all.
 from nearby_help import find_nearby_help, get_call_options
 from consent import get_voice_recording_policy
 
@@ -399,6 +403,8 @@ async def report_image(
 
     with open(saved_path, "wb") as f:
         f.write(image_bytes)
+
+    from ocr import extract_text  # see the deferred-import note near the top imports
 
     extracted_text = extract_text(image_bytes, language=language or "en")
 
