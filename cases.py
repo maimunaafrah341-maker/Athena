@@ -56,6 +56,11 @@ _NEW_COLUMNS = {
     # case created before this column existed just reads back None.
     "stress_assessment_json": "TEXT",
     "legal_guidance_json": "TEXT",
+    # nhaa.py's docket record (docket_id, channel, svi_score,
+    # risk_category, status) binding this case to the NHAA entry
+    # point it came in through. Nullable: a case created before this
+    # column existed just reads back None.
+    "nhaa_docket_json": "TEXT",
     # Low-disclosure reporting. disclosure_level defaults to "full" at
     # the SQL level for any row that predates this column (existing
     # cases were all full-identification reports, that's an accurate
@@ -152,6 +157,7 @@ def create_case(
     reporter_name=None,
     reporter_contact=None,
     district=None,
+    created_at=None,
 ):
     """
     Persist one pipeline result as a case row.
@@ -179,6 +185,13 @@ def create_case(
     tradeoff of partial/anonymous reporting: case follow-up is
     genuinely limited for these cases, not just hidden from a view --
     documented in API_CONTRACT.md rather than solved further.
+
+    created_at, if given, must be an ISO-8601 UTC timestamp string and
+    overrides the default "now" -- used only by seed_data.py to
+    backdate demo cases so trend/district-pattern detection has
+    something realistic to show on a freshly emptied database. None
+    (the normal case, every real report) means "now", same as before
+    this parameter existed.
 
     district is stored normalized (.strip().lower()) so "Hyderabad"
     and "hyderabad" aggregate as the same district for
@@ -216,6 +229,7 @@ def create_case(
     risk = pipeline_result.get("risk") or {}
     stress_assessment = pipeline_result.get("stress_assessment")
     legal_guidance = pipeline_result.get("legal_guidance")
+    nhaa_docket = pipeline_result.get("nhaa_docket")
 
     escalate = bool(pipeline_result.get("escalate"))
     status = "Escalated" if escalate else "Resolved"
@@ -231,12 +245,13 @@ def create_case(
                 escalate, reason, response, citations_json,
                 evidence_path, location, latitude, longitude, is_sos,
                 stress_assessment_json, legal_guidance_json,
-                disclosure_level, reporter_name, reporter_contact, district
+                disclosure_level, reporter_name, reporter_contact, district,
+                nhaa_docket_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                datetime.now(timezone.utc).isoformat(),
+                created_at or datetime.now(timezone.utc).isoformat(),
                 status,
                 original_text,
                 incident.get("language"),
@@ -259,6 +274,7 @@ def create_case(
                 reporter_name,
                 reporter_contact,
                 district,
+                json.dumps(nhaa_docket) if nhaa_docket is not None else None,
             ),
         )
 
@@ -304,6 +320,11 @@ def _row_to_case(row):
         "legal_guidance": (
             json.loads(row["legal_guidance_json"])
             if "legal_guidance_json" in row_keys and row["legal_guidance_json"]
+            else None
+        ),
+        "nhaa_docket": (
+            json.loads(row["nhaa_docket_json"])
+            if "nhaa_docket_json" in row_keys and row["nhaa_docket_json"]
             else None
         ),
         "disclosure_level": (
@@ -766,6 +787,7 @@ def build_escalation_brief(case_id):
         "svi_score": stress_assessment.get("svi_score"),
         "svi_explainability": stress_assessment.get("explainability"),
         "legal_guidance": case["legal_guidance"],
+        "nhaa_docket": case["nhaa_docket"],
         # A reviewer needs to see this before trying to follow up --
         # "anonymous"/"partial" cases genuinely have no name/contact/
         # precise location on file, not just a hidden one.

@@ -23,8 +23,11 @@ from kg import get_legal_guidance
 from retrieval import retrieve
 from response_engine import prepare_response
 from cases import init_db, create_case
+from nhaa import create_nhaa_docket, DEFAULT_CHANNEL
+from seed_data import seed_demo_cases
 
 init_db()
+seed_demo_cases()
 
 
 # ============================================================
@@ -141,6 +144,7 @@ def _finalize(
     reporter_name=None,
     reporter_contact=None,
     district=None,
+    channel=DEFAULT_CHANNEL,
 ):
     """
     Persist every processed report as a case (see cases.py) and
@@ -157,10 +161,21 @@ def _finalize(
     enforcement point for what "partial"/"anonymous" redacts (not
     district -- see create_case()'s docstring) -- not re-validated or
     re-redacted here, to keep a single source of truth for that logic.
+
+    channel identifies which NHAA entry point (14566 voice, IVRS,
+    Integrated Portal, chatbot, mobile app) this report came in
+    through -- see nhaa.py. Every finalized case gets a docket bound
+    to its SVI outcome, same as a real NHAA complaint gets a docket
+    number at first contact.
     """
 
     if is_sos:
         result = _apply_sos_override(result)
+
+    stress = result.get("stress_assessment") or {}
+    result["nhaa_docket"] = create_nhaa_docket(
+        channel, stress.get("svi_score"), stress.get("svi_tier"),
+    )
 
     case_id = create_case(
         text,
@@ -200,6 +215,7 @@ def run_pipeline(
     disclosure_level="full",
     reporter_name=None,
     reporter_contact=None,
+    channel=DEFAULT_CHANNEL,
 ):
     """
     Run one incident report through the full Athena pipeline.
@@ -244,6 +260,11 @@ def run_pipeline(
 
     reporter_name/reporter_contact: optional, only meaningful (i.e.
     only ever persisted) when disclosure_level == "full".
+
+    channel: which NHAA entry point this report came in through --
+    "14566_voice" | "ivrs" | "portal" | "chatbot" | "mobile_app" (see
+    nhaa.CHANNELS). Defaults to "portal". Every finalized result gets
+    an nhaa_docket binding its SVI outcome to this channel.
 
     Returns a single JSON-serializable dict. This is the contract
     the frontend / API should rely on — nothing else should reach
@@ -323,7 +344,7 @@ def run_pipeline(
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
            is_sos=is_sos, disclosure_level=disclosure_level,
            reporter_name=reporter_name, reporter_contact=reporter_contact,
-           district=district)
+           district=district, channel=channel)
 
     # --------------------------------------------------------
     # 5. Generate grounded response
@@ -354,7 +375,7 @@ def run_pipeline(
         }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
            is_sos=is_sos, disclosure_level=disclosure_level,
            reporter_name=reporter_name, reporter_contact=reporter_contact,
-           district=district)
+           district=district, channel=channel)
 
     # Critical/High-risk incidents, a Critical stress/trauma reading,
     # OR low understanding confidence should each independently be
@@ -414,7 +435,7 @@ def run_pipeline(
     }, evidence_path=evidence_path, latitude=latitude, longitude=longitude,
        is_sos=is_sos, disclosure_level=disclosure_level,
        reporter_name=reporter_name, reporter_contact=reporter_contact,
-       district=district)
+       district=district, channel=channel)
 
 
 # ============================================================

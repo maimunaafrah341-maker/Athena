@@ -48,6 +48,7 @@ from voice_service import process_voice_to_text
 # an image upload never pays for this chain at all.
 from nearby_help import find_nearby_help, get_call_options
 from consent import get_voice_recording_policy
+from nhaa import CHANNELS, DEFAULT_CHANNEL
 
 EVIDENCE_DIR = "evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
@@ -165,6 +166,7 @@ class ReportRequest(BaseModel):
     disclosure_level: Optional[str] = "full"
     reporter_name: Optional[str] = None
     reporter_contact: Optional[str] = None
+    channel: Optional[str] = DEFAULT_CHANNEL
 
 
 class StatusUpdateRequest(BaseModel):
@@ -180,6 +182,7 @@ class SosRequest(BaseModel):
     disclosure_level: Optional[str] = "full"
     reporter_name: Optional[str] = None
     reporter_contact: Optional[str] = None
+    channel: Optional[str] = DEFAULT_CHANNEL
 
 
 def _validate_disclosure_level(disclosure_level):
@@ -279,6 +282,7 @@ def report(payload: ReportRequest):
         disclosure_level=payload.disclosure_level,
         reporter_name=payload.reporter_name,
         reporter_contact=payload.reporter_contact,
+        channel=payload.channel or DEFAULT_CHANNEL,
     )
 
     if payload.latitude is not None and payload.longitude is not None:
@@ -340,6 +344,7 @@ def sos(payload: SosRequest):
         disclosure_level=payload.disclosure_level,
         reporter_name=payload.reporter_name,
         reporter_contact=payload.reporter_contact,
+        channel=payload.channel or DEFAULT_CHANNEL,
     )
 
     if payload.latitude is not None and payload.longitude is not None:
@@ -469,7 +474,7 @@ async def report_voice(
 
     transcription = process_voice_to_text(saved_path, language)
 
-    result = run_pipeline(transcription, evidence_path=saved_path)
+    result = run_pipeline(transcription, evidence_path=saved_path, channel="14566_voice")
     result["transcription"] = transcription
 
     return _strip_counsellor_only_fields(result)

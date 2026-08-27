@@ -1078,6 +1078,10 @@ a {
     gap: 5px;
 }
 
+.channel-options {
+    flex-wrap: wrap;
+}
+
 .report-language-btn {
     border: 1px solid var(--border);
 

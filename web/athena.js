@@ -16,13 +16,15 @@ const API_BASE_URL = "";
 // Never hardcode the real admin key in a shipped file -- this is a
 // public repo, so anything written here is permanently visible in git
 // history to anyone, and it gates every case endpoint (real reporter
-// text, legal guidance, SVI). Prompted once per browser tab instead
-// and kept only in sessionStorage, not in source.
+// text, legal guidance, SVI). Prompted once per browser (not per tab
+// -- localStorage, not sessionStorage, so opening a new tab or
+// reloading doesn't re-prompt every time) and kept only in
+// localStorage, not in source.
 const ADMIN_API_KEY =
-    sessionStorage.getItem("athena_admin_key") ||
+    localStorage.getItem("athena_admin_key") ||
     (() => {
         const key = prompt("Enter the admin key to open the counsellor dashboard:");
-        if (key) sessionStorage.setItem("athena_admin_key", key);
+        if (key) localStorage.setItem("athena_admin_key", key);
         return key;
     })();
 
@@ -37,6 +39,8 @@ const state = {
     selectedLanguage: "en",
 
     selectedDisclosure: "full",
+
+    selectedChannel: "portal",
 
     recording: false,
 
@@ -174,6 +178,27 @@ $$(".report-language-btn").forEach(button => {
         else {
             state.selectedLanguage = "en";
         }
+
+    });
+
+});
+
+
+/* =========================================================
+   NHAA CHANNEL
+========================================================= */
+
+$$(".channel-options .report-language-btn").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+        $$(".channel-options .report-language-btn").forEach(btn => {
+            btn.classList.remove("active");
+        });
+
+        button.classList.add("active");
+
+        state.selectedChannel = button.dataset.channel || "portal";
 
     });
 
@@ -343,6 +368,11 @@ async function sendVoiceReport(audioBlob) {
             state.selectedDisclosure
         );
 
+        formData.append(
+            "channel",
+            state.selectedChannel
+        );
+
 
         const response =
             await fetch(
@@ -474,7 +504,10 @@ async function submitTextReport() {
                             state.selectedLanguage,
 
                         disclosure_level:
-                            state.selectedDisclosure
+                            state.selectedDisclosure,
+
+                        channel:
+                            state.selectedChannel
 
                     })
 
@@ -920,6 +953,20 @@ function showCaseBrief(brief) {
         [];
 
 
+    const docket =
+        brief.nhaa_docket ||
+        null;
+
+
+    const CHANNEL_LABELS = {
+        "14566_voice": "14566 Voice Call",
+        "ivrs": "IVRS",
+        "portal": "Integrated Portal",
+        "chatbot": "Chatbot",
+        "mobile_app": "Mobile App",
+    };
+
+
     const overlay =
         document.createElement("div");
 
@@ -965,6 +1012,33 @@ function showCaseBrief(brief) {
                 </button>
 
             </div>
+
+
+            ${
+                docket
+                    ? `
+                        <div class="case-brief-section">
+
+                            <span class="eyebrow">
+                                NHAA DOCKET
+                            </span>
+
+                            <p class="case-summary">
+                                <strong>${escapeHTML(docket.docket_id || "—")}</strong>
+                                &nbsp;·&nbsp;
+                                ${escapeHTML(CHANNEL_LABELS[docket.channel] || docket.channel || "—")}
+                                &nbsp;·&nbsp;
+                                ${escapeHTML(
+                                    docket.status === "escalated"
+                                        ? "Auto-escalated"
+                                        : "Logged"
+                                )}
+                            </p>
+
+                        </div>
+                      `
+                    : ""
+            }
 
 
             <div class="case-brief-risk">
