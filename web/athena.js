@@ -352,8 +352,18 @@ async function sendVoiceReport(audioBlob) {
 
         const formData = new FormData();
 
+        // Field name/shape must match /report/voice's actual signature
+        // (file: UploadFile, language: Form(str)) -- this was
+        // previously posting to /report (which expects a JSON body
+        // with a required "text" field, not multipart audio) under a
+        // field name ("audio") that endpoint never even declared, so
+        // the mic button always failed with a 422 before this fix.
+        // disclosure_level/channel aren't accepted by /report/voice
+        // yet -- dropped here rather than sent and silently ignored;
+        // voice reports default to full disclosure / the 14566_voice
+        // channel until that endpoint is extended to take them.
         formData.append(
-            "audio",
+            "file",
             audioBlob,
             "report.webm"
         );
@@ -363,20 +373,10 @@ async function sendVoiceReport(audioBlob) {
             state.selectedLanguage
         );
 
-        formData.append(
-            "disclosure_level",
-            state.selectedDisclosure
-        );
-
-        formData.append(
-            "channel",
-            state.selectedChannel
-        );
-
 
         const response =
             await fetch(
-                `${API_BASE_URL}/report`,
+                `${API_BASE_URL}/report/voice`,
                 {
                     method: "POST",
                     body: formData
