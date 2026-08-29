@@ -155,6 +155,37 @@ LANGUAGE_EXAMPLES = {
         "Nenu pramadamlo unnanu mariyu naaku sahayam kavali.",
         "Evaro nannu bediristunnaru.",
     ],
+
+    "ur": [
+        "یہ ایک اردو رپورٹ ہے جو ایک عورت پر تشدد کے بارے میں ہے۔",
+        "میں خطرے میں ہوں اور مجھے مدد چاہیے۔",
+        "کوئی مجھے دھمکی دے رہا ہے۔",
+
+        # Romanized Urdu -- linguistically very close to romanized
+        # Hindi (same spoken Hindustani base), which is exactly why
+        # this LANGUAGE_EXAMPLES bank matters for it: without its own
+        # anchors here, romanized Urdu text would very plausibly get
+        # semantically pulled toward "hi" instead by the fallback
+        # below. Native-script Urdu never reaches this fallback at all
+        # (see detect_language()'s script-count branch above) -- these
+        # anchors are purely for Latin-script Urdu typing.
+        "Yeh Urdu mein aik report hai jo aurat par tashaddud ke baare mein hai.",
+        "Main khatre mein hoon aur mujhe madad chahiye.",
+        "Koi mujhe dhamki de raha hai.",
+    ],
+
+    "bn": [
+        "এটি একজন নারীর উপর সহিংসতা সম্পর্কিত একটি বাংলা প্রতিবেদন।",
+        "আমি বিপদে আছি এবং আমার সাহায্য দরকার।",
+        "কেউ আমাকে হুমকি দিচ্ছে।",
+
+        # Romanized Bengali (Banglish) -- native-script Bengali never
+        # reaches this fallback (own script-count branch above); these
+        # anchors are for Latin-script Bengali typing.
+        "Eta ekjon narir upor sohingshotar bapare ekti bangla report.",
+        "Ami bipode achi ebong amar sahajyo dorkar.",
+        "Keu amake humki dicche.",
+    ],
 }
 
 
@@ -194,33 +225,65 @@ def detect_language(text):
 
     devanagari_count = 0
     telugu_count = 0
+    urdu_count = 0
+    bengali_count = 0
     other_script_count = 0
 
     for char in text:
 
         code = ord(char)
 
-        # Devanagari: U+0900 - U+097F
-        if 0x0900 <= code <= 0x097F:
+        # Devanagari: U+0900 - U+097F, excluding U+0964/U+0965 (danda /
+        # double danda). The danda is pan-Brahmic sentence-ending
+        # punctuation reused by Bengali (and Gujarati, Gurmukhi, Odia)
+        # -- counting it as "Devanagari" meant a pure-Bengali sentence
+        # like "...দরকার।" registered one Devanagari character from its
+        # own full stop and got returned as "hi" before bengali_count
+        # was ever consulted, below. Found live 2026-08-29 testing
+        # detect_language() against real Bengali sentences.
+        if 0x0900 <= code <= 0x097F and code not in (0x0964, 0x0965):
             devanagari_count += 1
 
         # Telugu: U+0C00 - U+0C7F
         elif 0x0C00 <= code <= 0x0C7F:
             telugu_count += 1
 
+        # Urdu (Perso-Arabic script): U+0600 - U+06FF (Arabic block,
+        # which Urdu is written with) plus U+0750-U+077F (Arabic
+        # Supplement) and U+FB50-U+FDFF/U+FE70-U+FEFF (Arabic
+        # Presentation Forms), both used by Urdu-specific letterforms
+        # (e.g. ں, ے) that don't appear in the base block. Known,
+        # accepted limitation: standard Arabic text uses the same
+        # codepoints and would also land here as "ur" -- same tradeoff
+        # already made for Tamil/Kannada/etc. below (a script this
+        # project doesn't have real support for shouldn't fall through
+        # to the semantic fallback and get a confidently wrong native-
+        # script label), and Arabic-script input from an Indian
+        # national helpline's reporters is overwhelmingly more likely
+        # to be Urdu than Arabic.
+        elif (
+            0x0600 <= code <= 0x06FF
+            or 0x0750 <= code <= 0x077F
+            or 0xFB50 <= code <= 0xFDFF
+            or 0xFE70 <= code <= 0xFEFF
+        ):
+            urdu_count += 1
+
+        # Bengali: U+0980 - U+09FF
+        elif 0x0980 <= code <= 0x09FF:
+            bengali_count += 1
+
         # Any other non-Latin script this project doesn't support
-        # (Tamil, Kannada, Malayalam, Bengali, Gurmukhi, Gujarati,
-        # Odia, Arabic, etc.) -- see the guard below for why this is
-        # checked separately from the semantic fallback.
+        # (Tamil, Kannada, Malayalam, Gurmukhi, Gujarati, Odia, etc.)
+        # -- see the guard below for why this is checked separately
+        # from the semantic fallback.
         elif (
             0x0B80 <= code <= 0x0BFF  # Tamil
             or 0x0C80 <= code <= 0x0CFF  # Kannada
             or 0x0D00 <= code <= 0x0D7F  # Malayalam
-            or 0x0980 <= code <= 0x09FF  # Bengali
             or 0x0A00 <= code <= 0x0A7F  # Gurmukhi (Punjabi)
             or 0x0A80 <= code <= 0x0AFF  # Gujarati
             or 0x0B00 <= code <= 0x0B7F  # Odia
-            or 0x0600 <= code <= 0x06FF  # Arabic
         ):
             other_script_count += 1
 
@@ -233,6 +296,12 @@ def detect_language(text):
 
     if telugu_count > 0:
         return "te"
+
+    if urdu_count > 0:
+        return "ur"
+
+    if bengali_count > 0:
+        return "bn"
 
     # A script this project definitively does not support (confirmed
     # by real character ranges, not a guess) must never reach the
@@ -286,6 +355,8 @@ SUPPORTED_LANGUAGES = {
     "en": "English",
     "hi": "Hindi",
     "te": "Telugu",
+    "ur": "Urdu",
+    "bn": "Bengali",
 }
 
 
@@ -331,7 +402,27 @@ INCIDENT_EXAMPLES = {
         # Romanized Telugu
         "Naa bharta nannu kodutunnadu.",
         "Naa bharta nannu bediristunnadu mariyu himsistunnadu.",
-        "Naa kutumba sabhyudu nannu intlo vedhistunnadu."
+        "Naa kutumba sabhyudu nannu intlo vedhistunnadu.",
+
+        "میرا شوہر مجھے مارتا ہے۔",
+        "میرا شوہر مجھے جسمانی طور پر تکلیف دیتا ہے۔",
+        "میرا شوہر مجھے دھمکاتا ہے اور مارتا پیٹتا ہے۔",
+        "میرے گھر کا فرد مجھے گھر میں تنگ کرتا ہے۔",
+
+        # Romanized Urdu
+        "Mera shohar mujhe maarta hai.",
+        "Mera shohar mujhe dhamkata hai aur maarta peetta hai.",
+        "Mere ghar ka fard mujhe ghar mein tang karta hai.",
+
+        "আমার স্বামী আমাকে মারে।",
+        "আমার স্বামী আমাকে শারীরিকভাবে আঘাত করে।",
+        "আমার স্বামী আমাকে হুমকি দেয় এবং মারধর করে।",
+        "আমার পরিবারের একজন সদস্য আমাকে বাড়িতে কষ্ট দেয়।",
+
+        # Romanized Bengali
+        "Amar shami amake mare.",
+        "Amar shami amake humki dey ebong mardhor kore.",
+        "Amar poribarer ekjon sodossho amake barite koshto dey."
     ],
 
     "sexual_violence": [
@@ -349,7 +440,21 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Telugu
         "Naapai laingika daadi jarigindi.",
-        "Nannu laingikanga vedhincharu."
+        "Nannu laingikanga vedhincharu.",
+
+        "کسی نے میرے ساتھ جنسی زیادتی کی۔",
+        "میرے ساتھ جنسی زیادتی ہوئی۔",
+
+        # Romanized Urdu
+        "Kisi ne mere sath jinsi zyadti ki.",
+        "Mere sath jinsi zyadti hui.",
+
+        "কেউ আমার সাথে যৌন নির্যাতন করেছে।",
+        "আমার সাথে যৌন নিপীড়ন হয়েছে।",
+
+        # Romanized Bengali
+        "Keu amar sathe joun nirjaton koreche.",
+        "Amar sathe joun nipiron hoyeche."
     ],
 
     "harassment": [
@@ -369,6 +474,20 @@ INCIDENT_EXAMPLES = {
         "Evarina nannu nirantaram vedhistunnaru.",
         "Evarina nannu pade pade bedhiristunnaru.",
 
+        "کوئی مجھے مسلسل تنگ کر رہا ہے۔",
+        "میرے ساتھ زبانی بدسلوکی ہو رہی ہے۔",
+
+        # Romanized Urdu
+        "Koi mujhe musalsal tang kar raha hai.",
+        "Koi mujhe baar baar be-izzat aur dhamki deta hai.",
+
+        "কেউ আমাকে ক্রমাগত হয়রানি করছে।",
+        "আমার সাথে মৌখিক নির্যাতন করা হচ্ছে।",
+
+        # Romanized Bengali
+        "Keu amake khromagoto hoyrani korche.",
+        "Keu bar bar amake opoman ebong humki dey.",
+
         # Caste-based public insult/humiliation -- without these,
         # classify_incident() had no real anchor for this kind of
         # text at all and was picking essentially arbitrary incident
@@ -386,7 +505,21 @@ INCIDENT_EXAMPLES = {
         "Meri jaati ke karan mujhe sarvajanik roop se apmanit kiya gaya.",
 
         # Romanized Telugu
-        "Naa kulam karananga nannu bahirangamga avamanincharu."
+        "Naa kulam karananga nannu bahirangamga avamanincharu.",
+
+        "کسی نے میری ذات کی وجہ سے مجھے سب کے سامنے بے عزت کیا۔",
+        "مجھے میری ذات کی وجہ سے داخلے سے روکا گیا۔",
+
+        # Romanized Urdu
+        "Kisi ne meri zaat ki wajah se mujhe sab ke samne be-izzat kiya.",
+        "Mujhe meri zaat ki wajah se dakhle se roka gaya.",
+
+        "কেউ আমার জাতের কারণে জনসম্মুখে আমাকে অপমান করেছে।",
+        "আমার জাতের কারণে আমাকে ঢুকতে দেওয়া হয়নি।",
+
+        # Romanized Bengali
+        "Keu amar jater karone jonoshommukhe amake opoman koreche.",
+        "Amar jater karone amake dhukte deya hoyni."
     ],
 
     "stalking": [
@@ -404,7 +537,25 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Telugu
         "Evarina nannu vembadistunnaru.",
-        "Evarina nannu nirantaram anusaristunnaru."
+        "Evarina nannu nirantaram anusaristunnaru.",
+
+        "کوئی ہر جگہ میرا پیچھا کر رہا ہے۔",
+        "کوئی مسلسل میرا پیچھا کرتا ہے۔",
+        "ایک آدمی ہر روز باہر میرا انتظار کرتا ہے اور میرا پیچھا کرتا ہے۔",
+
+        # Romanized Urdu
+        "Koi har jagah mera peecha kar raha hai.",
+        "Koi musalsal mera peecha karta hai.",
+        "Aik aadmi har roz bahar mera intezar karta hai aur mera peecha karta hai.",
+
+        "কেউ সবসময় আমাকে অনুসরণ করছে।",
+        "কেউ আমার পিছু নিচ্ছে।",
+        "একজন লোক প্রতিদিন বাইরে আমার জন্য অপেক্ষা করে এবং আমার পিছু নেয়।",
+
+        # Romanized Bengali
+        "Keu shobshomoy amake onushoron korche.",
+        "Keu amar pichu nicche.",
+        "Ekjon lok protidin baire amar jonno opekkha kore ebong amar pichu ney."
     ],
 
     "trafficking": [
@@ -422,7 +573,21 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Telugu
         "Nannu akrama ravana kosam balavantanga teesukellaru.",
-        "Nannu dopidi kosam balavantanga teesukellaru."
+        "Nannu dopidi kosam balavantanga teesukellaru.",
+
+        "مجھے انسانی اسمگلنگ کا نشانہ بنایا جا رہا ہے۔",
+        "کوئی عورتوں کو زبردستی اسمگلنگ میں دھکیل رہا ہے۔",
+
+        # Romanized Urdu
+        "Mujhe insaani smuggling ka nishana banaya ja raha hai.",
+        "Koi aurton ko zabardasti smuggling mein dhakel raha hai.",
+
+        "আমাকে পাচার করা হচ্ছে।",
+        "কেউ জোর করে নারীদের পাচারে ঠেলে দিচ্ছে।",
+
+        # Romanized Bengali
+        "Amake pachar kora hocche.",
+        "Keu jor kore narider pachare thele dicche."
     ],
 
     "cyber_harassment": [
@@ -440,7 +605,21 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Telugu
         "Evarina nannu online lo bedhiristunnaru.",
-        "Evarina social media lo nannu vedhistunnaru."
+        "Evarina social media lo nannu vedhistunnaru.",
+
+        "کوئی مجھے آن لائن دھمکی دے رہا ہے۔",
+        "کوئی سوشل میڈیا پر مجھے تنگ کر رہا ہے۔",
+
+        # Romanized Urdu
+        "Koi mujhe online dhamki de raha hai.",
+        "Koi social media par mujhe tang kar raha hai.",
+
+        "কেউ আমাকে অনলাইনে হুমকি দিচ্ছে।",
+        "কেউ সোশ্যাল মিডিয়ায় আমাকে হয়রানি করছে।",
+
+        # Romanized Bengali
+        "Keu amake online-e humki dicche.",
+        "Keu social media-y amake hoyrani korche."
     ],
 
     "missing_person": [
@@ -458,7 +637,21 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Telugu
         "Naa kumarthe kanipinchadam ledu.",
-        "Naa sodari kanipinchadam ledu."
+        "Naa sodari kanipinchadam ledu.",
+
+        "میری بیٹی لاپتہ ہے۔",
+        "میری بہن غائب ہو گئی ہے۔",
+
+        # Romanized Urdu
+        "Meri beti lapata hai.",
+        "Meri behan ghayab ho gayi hai.",
+
+        "আমার মেয়ে নিখোঁজ।",
+        "আমার বোন হারিয়ে গেছে।",
+
+        # Romanized Bengali
+        "Amar meye nikhoj.",
+        "Amar bon hariye geche."
     ],
 }
 
@@ -560,7 +753,25 @@ SIGNAL_EXAMPLES = {
         # check, not just the first. Broader anchor coverage is the
         # real fix for both, not a threshold tweak.
         "Mera pati mujhe maarta hai aur dhamki deta hai.",
-        "Naa bharta nannu kottutunnadu mariyu bediristunnadu."
+        "Naa bharta nannu kottutunnadu mariyu bediristunnadu.",
+
+        "مجھے دھمکی دی جا رہی ہے۔",
+        "وہ مجھے دھمکی دے رہا ہے۔",
+        "میرا شوہر مجھے مارتا ہے اور دھمکی دیتا ہے۔",
+
+        # Romanized Urdu
+        "Mujhe dhamki di ja rahi hai.",
+        "Woh mujhe dhamki de raha hai.",
+        "Mera shohar mujhe maarta hai aur dhamki deta hai.",
+
+        "আমাকে হুমকি দেওয়া হচ্ছে।",
+        "সে আমাকে হুমকি দিচ্ছে।",
+        "আমার স্বামী আমাকে মারে এবং হুমকি দেয়।",
+
+        # Romanized Bengali
+        "Amake humki deya hocche.",
+        "Se amake humki dicche.",
+        "Amar shami amake mare ebong humki dey."
     ],
 
     "injury_present": [
@@ -603,7 +814,25 @@ SIGNAL_EXAMPLES = {
         "Mere pita mujhe maarte hain. Woh lagbhag roz mujhe peetate hain.",
 
         # Romanized Telugu
-        "Naa thandri nannu kodathadu. Atanu dadapu prathi roju nannu kodathadu."
+        "Naa thandri nannu kodathadu. Atanu dadapu prathi roju nannu kodathadu.",
+
+        "مجھے جسمانی طور پر تکلیف پہنچائی گئی ہے۔",
+        "کوئی مجھے مار رہا ہے۔",
+        "میرے والد مجھے مارتے ہیں۔ وہ تقریباً روز مجھے پیٹتے ہیں۔ مجھے ڈر لگتا ہے۔",
+
+        # Romanized Urdu
+        "Mujhe jismani taur par takleef pahunchai gayi hai.",
+        "Koi mujhe maar raha hai.",
+        "Mere walid mujhe maarte hain. Woh taqreeban roz mujhe peetate hain. Mujhe dar lagta hai.",
+
+        "আমি শারীরিকভাবে আহত হয়েছি।",
+        "কেউ আমাকে মারছে।",
+        "আমার বাবা আমাকে মারে। সে প্রায় প্রতিদিন আমাকে পেটায়। আমি ভয় পাচ্ছি।",
+
+        # Romanized Bengali
+        "Ami sharirikvabe ahoto hoyechi.",
+        "Keu amake marche.",
+        "Amar baba amake mare. Se prai protidin amake petay. Ami bhoy pacchi."
     ],
 
     "immediate_danger": [
@@ -621,7 +850,25 @@ SIGNAL_EXAMPLES = {
 
         # Romanized Telugu
         "Naaku ippudu pramadam undi.",
-        "Atanu ippudu naapai daadi chestunnadu."
+        "Atanu ippudu naapai daadi chestunnadu.",
+
+        "مجھے ابھی خطرہ ہے۔",
+        "وہ ابھی مجھ پر حملہ کر رہا ہے۔",
+
+        # Romanized Urdu -- "khatra"/"hamla" are shared Hindustani
+        # vocabulary, so this reads close to the romanized Hindi
+        # anchors above; kept as its own explicit "ur" example rather
+        # than relying on the Hindi anchor to cover it, since native-
+        # script Urdu is what actually needs this signal covered.
+        "Mujhe is waqt khatra hai.",
+        "Woh is waqt mujh par hamla kar raha hai.",
+
+        "আমি এখনই বিপদে আছি।",
+        "সে এখন আমার উপর আক্রমণ করছে।",
+
+        # Romanized Bengali
+        "Ami ekhoni bipode achi.",
+        "Se ekhon amar upor akromon korche."
     ],
 
     # Examples grounded directly in the enumerated offences under the
@@ -648,7 +895,21 @@ SIGNAL_EXAMPLES = {
 
         # Romanized Telugu
         "Naa kulam karananga nannu bahirangamga avamanincharu.",
-        "Naa kulam valla nannu lopaliki ranivvaledu."
+        "Naa kulam valla nannu lopaliki ranivvaledu.",
+
+        "کسی نے میری ذات کی وجہ سے سب کے سامنے مجھے بے عزت کیا۔",
+        "مجھے میری ذات کی وجہ سے داخلے سے روکا گیا۔",
+
+        # Romanized Urdu
+        "Kisi ne meri zaat ki wajah se sab ke samne mujhe be-izzat kiya.",
+        "Mujhe meri zaat ki wajah se dakhle se roka gaya.",
+
+        "কেউ আমার জাতের কারণে জনসম্মুখে আমাকে অপমান করেছে।",
+        "আমার জাতের কারণে আমাকে ঢুকতে দেওয়া হয়নি।",
+
+        # Romanized Bengali
+        "Keu amar jater karone jonoshommukhe amake opoman koreche.",
+        "Amar jater karone amake dhukte deya hoyni."
     ],
 
     # Deliberately kept to direct, unambiguous statements of wanting
@@ -697,6 +958,36 @@ SIGNAL_EXAMPLES = {
         # Romanized Telugu
         "Nenu naa jeevitham mugincha alani anukuntunnanu.",
         "Naaku ika bathakalani anipinchatledu.",
+
+        # Urdu -- direct statements
+        "میں اپنی زندگی ختم کرنا چاہتی ہوں۔",
+        "میں اب زندہ نہیں رہنا چاہتی۔",
+        "مجھے لگتا ہے مجھے مر جانا چاہیے۔",
+
+        # Urdu -- indirect/euphemistic
+        "مجھے لگتا ہے کہ میرے بغیر سب بہتر رہیں گے۔",
+        "میں بس ہمیشہ کے لیے غائب ہو جانا چاہتی ہوں۔",
+
+        # Romanized Urdu
+        "Main apni zindagi khatam karna chahti hoon.",
+        "Main ab zinda nahi rehna chahti.",
+        "Mujhe lagta hai mujhe mar jana chahiye.",
+        "Mujhe lagta hai ke mere bagair sab behtar rahenge.",
+
+        # Bengali -- direct statements
+        "আমি আমার জীবন শেষ করে দিতে চাই।",
+        "আমি আর বাঁচতে চাই না।",
+        "আমার মনে হয় আমার মরে যাওয়া উচিত।",
+
+        # Bengali -- indirect/euphemistic
+        "আমার মনে হয় আমাকে ছাড়া সবাই ভালো থাকবে।",
+        "আমি শুধু চিরতরে হারিয়ে যেতে চাই।",
+
+        # Romanized Bengali
+        "Ami amar jibon shesh kore dite chai.",
+        "Ami ar bachte chai na.",
+        "Amar mone hoy amar more jawa uchit.",
+        "Amar mone hoy amake chara shobai bhalo thakbe.",
     ],
 }
 
@@ -744,6 +1035,12 @@ SIGNAL_HARD_NEGATIVES = {
         "I feel hopeless about how things are going right now.",
         "मुझे आजकल बहुत थकान महसूस होती है और मेरा दिन बहुत खराब गया।",
         "నాకు ఈమధ్య చాలా అలసటగా ఉంది మరియు ఒత్తిడిగా అనిపిస్తుంది.",
+        "آج میرا کام پر بہت مشکل اور تھکا دینے والا دن تھا اور میں تھکی ہوئی ہوں۔",
+        "مجھے اس ہفتے اپنے امتحانوں کے بارے میں بہت پریشانی اور تناؤ محسوس ہو رہا ہے۔",
+        "Aaj mera kaam par bahut mushkil aur thaka dene wala din tha aur main thaki hui hoon.",
+        "আজ কাজে আমার খুব কঠিন এবং ক্লান্তিকর দিন গেছে এবং আমি ক্লান্ত।",
+        "এই সপ্তাহে আমার পরীক্ষা নিয়ে খুব দুশ্চিন্তা এবং মানসিক চাপ অনুভব করছি।",
+        "Aj kaje amar khub kothin ebong klanti-kor din geche ebong ami klanto.",
     ],
 
     "injury_present": [
@@ -756,6 +1053,12 @@ SIGNAL_HARD_NEGATIVES = {
         "ఎవరైనా నన్ను నిరంతరం అనుసరిస్తున్నారు.",
         "Koi mera peecha kar raha hai.",
         "Evarina nannu vembadistunnaru.",
+        "کوئی ہر جگہ میرا پیچھا کر رہا ہے۔",
+        "کوئی مسلسل میرا پیچھا کرتا ہے۔",
+        "Koi har jagah mera peecha kar raha hai.",
+        "কেউ সবসময় আমাকে অনুসরণ করছে।",
+        "কেউ আমার পিছু নিচ্ছে।",
+        "Keu shobshomoy amake onushoron korche.",
     ],
 
     "threat_present": [
@@ -768,6 +1071,43 @@ SIGNAL_HARD_NEGATIVES = {
         "ఎవరైనా నన్ను నిరంతరం అనుసరిస్తున్నారు.",
         "Koi mera peecha kar raha hai.",
         "Evarina nannu vembadistunnaru.",
+        "کوئی ہر جگہ میرا پیچھا کر رہا ہے۔",
+        "کوئی مسلسل میرا پیچھا کرتا ہے۔",
+        "Koi har jagah mera peecha kar raha hai.",
+        "কেউ সবসময় আমাকে অনুসরণ করছে।",
+        "কেউ আমার পিছু নিচ্ছে।",
+        "Keu shobshomoy amake onushoron korche.",
+    ],
+
+    # Confirmed live 2026-08-29 while extending this signal to Urdu/
+    # Bengali (found via eval_pipeline.py's report, not introduced by
+    # that work -- the underlying anchor set wasn't touched): plain
+    # sexual_violence text with zero caste content scored 81% on
+    # caste_based_motive -- ABOVE CASTE_MOTIVE_CONFIDENCE_FLOOR (80),
+    # meaning kg.py attached five SC/ST Act citations to "A man forced
+    # himself on me at a party last night." with no caste mention at
+    # all. domestic_violence text showed the same pull at a lower,
+    # already-gated 60%. Root cause not fully understood (no obvious
+    # lexical overlap -- likely multilingual-e5-small placing
+    # "dignity violation" framing close together in embedding space
+    # regardless of cause), but the fix is the same pattern already
+    # used for suicidal_ideation's mundane-distress confusion: give
+    # caste_based_motive real, topical non-caste sexual_violence/
+    # domestic_violence examples to discriminate against.
+    "caste_based_motive": [
+        "A man forced himself on me at a party last night.",
+        "Someone sexually assaulted me.",
+        "I was sexually abused.",
+        "My husband is beating me.",
+        "My husband threatens and abuses me.",
+        "मेरे साथ यौन हिंसा हुई है।",
+        "मेरे पति मुझे मार रहे हैं।",
+        "నాపై లైంగిక దాడి జరిగింది.",
+        "నా భర్త నన్ను కొడుతున్నాడు.",
+        "کسی نے میرے ساتھ جنسی زیادتی کی۔",
+        "میرا شوہر مجھے مارتا ہے۔",
+        "কেউ আমার সাথে যৌন নির্যাতন করেছে।",
+        "আমার স্বামী আমাকে মারে।",
     ],
 }
 

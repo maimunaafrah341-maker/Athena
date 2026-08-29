@@ -25,6 +25,7 @@ from response_engine import prepare_response
 from cases import init_db, create_case
 from nhaa import create_nhaa_docket, DEFAULT_CHANNEL
 from emergency_contacts import get_deterministic_contacts
+from geocoding import geocode_district
 from seed_data import seed_demo_cases
 
 init_db()
@@ -174,6 +175,21 @@ def _finalize(
     deterministically from risk_tier/svi_tier/is_sos, regardless of
     whether a location was shared or what retrieval.py found. This is
     the actual alert a Critical/High case needs, not just a risk label.
+
+    If no GPS fix was given (latitude/longitude both None -- browser
+    geolocation denied/unavailable, or a channel like 14566/IVRS that
+    has no location API to begin with) but a district was, this falls
+    back to geocoding.py's district-centroid lookup so the case still
+    gets a map pin instead of silently having none. Judge feedback
+    2026-08-29: the safety map showed nothing for cases where a
+    location had explicitly been given, purely because "given" meant
+    "typed a district," not "shared GPS." The fallback coordinates are
+    approximate (district-level, not the reporter's actual location)
+    and marked as such via location_source="district_approx" so a map
+    pin built from this can say "approximate" rather than implying
+    GPS-level precision it doesn't have. Redacted the same way
+    latitude/longitude are for "partial"/"anonymous" disclosure (see
+    create_case()) -- this never runs at all for a real GPS fix.
     """
 
     if is_sos:
@@ -190,6 +206,14 @@ def _finalize(
         escalate=bool(result.get("escalate")),
     )
 
+    location_source = None
+
+    if latitude is None and longitude is None and district:
+        approx_lat, approx_lon = geocode_district(district)
+        if approx_lat is not None and approx_lon is not None:
+            latitude, longitude = approx_lat, approx_lon
+            location_source = "district_approx"
+
     case_id = create_case(
         text,
         result,
@@ -201,6 +225,7 @@ def _finalize(
         reporter_name=reporter_name,
         reporter_contact=reporter_contact,
         district=district,
+        location_source=location_source,
     )
 
     result["case_id"] = case_id

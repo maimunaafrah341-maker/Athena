@@ -37,6 +37,7 @@ from kg import get_legal_guidance
 from retrieval import retrieve
 from nhaa import create_nhaa_docket
 from cases import init_db, create_case, get_stats
+from geocoding import geocode_district
 
 
 # Each entry: (text, language, district, channel, disclosure_level,
@@ -225,12 +226,24 @@ def seed_demo_cases(force=False):
 
         created_at = (now - timedelta(days=days_ago)).isoformat()
 
+        # Every seed district is Telangana and lands in geocoding.py's
+        # static table (instant, no network call) -- this is what
+        # makes the risk map populated on first startup instead of
+        # showing nothing until real GPS-tagged reports come in. Same
+        # district_approx fallback pipeline.py's _finalize() uses for
+        # real reports, applied here since seeding calls create_case()
+        # directly rather than through the pipeline.
+        seed_lat, seed_lon = geocode_district(district)
+
         create_case(
             text,
             pipeline_result,
             disclosure_level=disclosure_level,
             district=district,
             created_at=created_at,
+            latitude=seed_lat,
+            longitude=seed_lon,
+            location_source="district_approx" if seed_lat is not None else None,
         )
 
     print("[seed_data] Done.")

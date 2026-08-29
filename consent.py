@@ -11,19 +11,23 @@ screen; this just gives it real content to render instead of a
 placeholder.
 
 Every claim below is checked against what the code actually does as
-of 2026-08-24, not aspirational policy language:
+of 2026-08-29, not aspirational policy language:
 - /report/voice (app.py) saves the uploaded audio to EVIDENCE_DIR
   ("evidence/") under a random filename, referenced by the case's
   evidence_path -- same mechanism /report/image uses for screenshots.
-- voice_service.py sends that audio to OpenAI's transcription API
-  (api.openai.com, a US company) for transcription. This is the one
-  real third-party transfer that happens. Swapped from Bhashini
-  2026-08-24 -- Bhashini's government approval never cleared in time
-  for the deadline. This is a real change in the privacy story, not
-  just a vendor swap: Bhashini was a Government of India service
-  (domestic transfer only), OpenAI is a US company (recordings now
-  leave India for transcription) -- stated plainly below rather than
-  glossed over.
+- voice_service.py sends that audio to Groq's hosted Whisper API
+  (api.groq.com, a US company) for transcription -- swapped from
+  OpenAI 2026-08-29 because OpenAI's transcription API needed a
+  funded account that never happened, and Groq's free tier actually
+  works. Falls back to OpenAI's transcription API only if a
+  OPENAI_API_KEY is configured and the Groq call fails; falls back to
+  a fixed placeholder transcript if neither is available. This is the
+  one real third-party transfer that happens either way. Originally
+  built against Bhashini (a Government of India ASR service, domestic
+  transfer only); every provider swap since (OpenAI 2026-08-24, Groq
+  2026-08-29) has kept the same real change in the privacy story --
+  recordings leave India for processing -- stated plainly below
+  rather than glossed over.
 - Nothing in this codebase deletes or expires evidence files -- no
   cron job, no TTL, no cleanup routine exists anywhere in the repo
   (checked directly, not assumed).
@@ -45,11 +49,12 @@ VOICE_RECORDING_POLICY = {
         "Your voice recording is saved as part of your case, so a "
         "counsellor reviewing your report can hear the original audio, "
         "not just a text version of what was said.",
-        "It is sent to OpenAI (a US-based AI company) to convert your "
-        "speech into text so Athena can process your report. This "
-        "transfer happens for every voice report -- it's required to "
-        "transcribe what you said, and it means your recording briefly "
-        "leaves India for processing.",
+        "It is sent to Groq (a US-based AI company) to convert your "
+        "speech into text so Athena can process your report -- and, in "
+        "the rare case that fails, to OpenAI (also US-based) instead. "
+        "This transfer happens for every voice report -- it's required "
+        "to transcribe what you said, and it means your recording "
+        "briefly leaves India for processing.",
     ],
     "retention": {
         "how_long_stored": (
@@ -65,18 +70,22 @@ VOICE_RECORDING_POLICY = {
         "sent_to_third_parties": True,
         "third_parties": [
             {
+                "name": "Groq (transcription API, United States)",
+                "purpose": "Speech-to-text transcription of your report (primary).",
+            },
+            {
                 "name": "OpenAI (transcription API, United States)",
-                "purpose": "Speech-to-text transcription of your report only.",
-            }
+                "purpose": "Speech-to-text transcription of your report, only if Groq's transcription attempt fails.",
+            },
         ],
         "used_for_training_or_other_purposes": False,
         "note": (
             "Your recording is not currently used for anything beyond "
             "processing this specific report and transcribing it. Per "
-            "OpenAI's API terms, audio submitted through their API is "
-            "not used to train their models -- this is a real "
-            "contractual claim from OpenAI, not something Athena's own "
-            "code enforces or can verify independently."
+            "Groq's and OpenAI's API terms, audio submitted through "
+            "their APIs is not used to train their models -- this is a "
+            "real contractual claim from each provider, not something "
+            "Athena's own code enforces or can verify independently."
         ),
     },
     "who_can_access_it": {
@@ -104,7 +113,7 @@ VOICE_RECORDING_POLICY = {
             "of the API contract."
         ),
     },
-    "last_updated": "2026-08-24",
+    "last_updated": "2026-08-29",
 }
 
 

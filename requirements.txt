@@ -32,6 +32,13 @@ importlib_resources==7.1.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
 kubernetes==36.0.3
+# Voice acoustic feature extraction (voice_features.py) -- pulls in
+# numba/llvmlite, a real chunk of install size/memory. See app.py's
+# /report/voice docstring: lazy-imported so a deploy that never
+# receives a voice upload doesn't pay the cost at startup, but it's
+# still part of the Railway memory-budget conversation if that
+# deployment gets revisited.
+librosa==0.11.0
 markdown-it-py==4.2.0
 mdurl==0.1.2
 mmh3==5.2.1
@@ -71,6 +78,7 @@ rpds-py==2026.6.3
 sentence-transformers==5.7.0
 shellingham==1.5.4
 six==1.17.0
+soundfile==0.14.0
 tqdm==4.70.0
 typer==0.27.1
 typing-inspection==0.4.4

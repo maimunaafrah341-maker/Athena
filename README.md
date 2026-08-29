@@ -10,9 +10,10 @@ Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a
 
 ## What it does
 
-- **Understands** a report in English, Hindi, or Telugu — native script or romanized — using semantic similarity against curated real-world examples, not keyword matching.
+- **Understands** a report in English, Hindi, Telugu, Urdu, or Bengali — native script or romanized (Latin script for Hindi/Telugu/Urdu/Bengali) — using semantic similarity against curated real-world examples, not keyword matching. The interface itself (not just the complaint text) is also localized into Hindi/Telugu/Urdu/Bengali, so a reporter doesn't need to already read English to get through the report form. Urdu/Bengali support is new (2026-08-29) and hasn't had a native-speaker review pass yet — see `eval_pipeline.py`.
+- **Places a report on the safety map even without GPS.** If a reporter shares a district but denies/lacks location access, `geocoding.py` resolves an approximate district-level pin (OSM Nominatim, with a cached/offline table for common districts) instead of the case simply not appearing — clearly labeled "(approx.)" rather than implying GPS precision it doesn't have.
 - **Assesses risk** (`risk_tier`: Low/Medium/High/Critical) from detected signals — threats, injury, immediate danger, caste-based motive — with a concrete per-tier response protocol (SLA, escalation route, action).
-- **Assesses stress** independently via the **Stress Vulnerability Index (SVI)** — the module this problem statement names directly — fusing text distress signals with optional voice acoustic features (pitch variation, pause ratio, speech rate) into a Low/Moderate/High/Critical tier, and flagging when text and voice disagree.
+- **Assesses stress** independently via the **Stress Vulnerability Index (SVI)** — the module this problem statement names directly — fusing text distress signals with voice acoustic features (pitch variation, pause ratio, speech rate, real-extracted from the actual audio via `voice_features.py`/librosa, not placeholder values) into a Low/Moderate/High/Critical tier, and flagging when text and voice disagree.
 - **Grounds every legal citation** in real, ingested government source documents (Bharatiya Nyaya Sanhita 2023, the SC/ST Prevention of Atrocities Act 1989 bare act, PWDVA 2005, Mission Shakti guidelines) via a confidence-gated RAG pipeline — nothing is cited that wasn't actually retrieved above a similarity threshold.
 - **Resolves an escalation contact** from a national directory of 554 districts across 33 states/UTs, provenance-tagged (manually verified vs. machine-parsed) so nothing is presented with false confidence.
 - **Escalates to a human** on any of three independent triggers: Critical risk, Critical stress, or the system simply not being confident it understood the report at all.
@@ -55,9 +56,9 @@ Full request/response contract, known limitations, and field-level detail: [API_
 | API server | FastAPI + uvicorn |
 | Language/incident understanding | `intfloat/multilingual-e5-small` (sentence-transformers) |
 | Knowledge retrieval | ChromaDB |
-| Response generation | Google Gemini, with an ordered model-fallback list |
+| Response generation | Groq (primary), Google Gemini, then OpenRouter — an ordered cross-provider fallback so one provider's outage/quota can't take generation down |
 | Legal knowledge graph | `networkx.DiGraph` |
-| Voice transcription | OpenAI Whisper (`whisper-1`) |
+| Voice transcription | Groq-hosted Whisper (`whisper-large-v3-turbo`, primary), falling back to OpenAI Whisper (`whisper-1`) |
 | Evidence OCR | EasyOCR |
 | Frontend | Static HTML/CSS/JS ([web/dashboard.html](web/dashboard.html)), plus a [WhatsApp-style demo channel](web/index.html) calling the same `/report` endpoint |
 
@@ -72,7 +73,7 @@ copy env.example .env        # then fill in your real keys
 python app.py                # or: uvicorn app:app --reload
 ```
 
-Required in `.env`: `GEMINI_API_KEY`, `ADMIN_API_KEY`. Optional: `OPENAI_API_KEY` (voice transcription — falls back to a placeholder transcript if unset or unfunded). See [env.example](env.example) for details on each.
+Required in `.env`: `ADMIN_API_KEY`, `GROQ_API_KEY` (primary for both response generation and voice transcription). Optional: `GEMINI_API_KEY`/`OPENROUTER_API_KEY` (generation fallback tiers), `OPENAI_API_KEY` (voice transcription fallback). Voice transcription falls back to a placeholder transcript only if both Groq and OpenAI are unset/unavailable. See [env.example](env.example) for details on each.
 
 With the server running, open:
 - `http://localhost:8000/` — the WhatsApp-style citizen-facing demo
@@ -82,7 +83,7 @@ With the server running, open:
 
 Stated honestly rather than discovered by a judge mid-demo — full detail in `API_CONTRACT.md`'s Known Limitations section:
 
-- Live voice transcription is billing-gated (OpenAI account has no active credits), not broken — the integration is built and was verified against a real API call.
+- Live voice transcription now works end-to-end (2026-08-29: swapped from OpenAI, which needed a funded account that never happened, to Groq's hosted Whisper, which has a genuinely usable free tier) — verified against real audio (`demo_audio/caste_harassment_hindi.ogg`), not a placeholder.
 - The hosted deployment is currently memory-constrained on its free-tier plan (this stack needs ~1-2GB RAM) — see the [demo video](https://youtu.be/BsoHkgnQuOM) for a full live walkthrough rather than relying on the hosted link being up.
 - Legal citations are deliberately scoped to the SC/ST Act only, matching 14566's actual legal remit — the detection mechanism underneath is not hardcoded to caste and can extend to other Acts as future scope.
 - Romanized-script retrieval can occasionally miss a correct smaller source document when a much larger one dominates ranking — a documented safe-failure edge case (declines rather than hallucinates), not yet fixed.

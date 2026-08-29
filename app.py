@@ -22,6 +22,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 load_dotenv()
@@ -41,6 +42,7 @@ from cases import (
     VALID_DISCLOSURE_LEVELS,
 )
 from voice_service import process_voice_to_text
+from tts_service import synthesize_speech
 # NOT imported at top level on purpose -- easyocr pulls in opencv/
 # scipy/scikit-image, which cost real memory at process startup even
 # though EasyOCR's own Reader models are already lazy (see ocr.py).
@@ -173,6 +175,11 @@ class StatusUpdateRequest(BaseModel):
     status: str
 
 
+class TTSRequest(BaseModel):
+    text: str
+    language: Optional[str] = "en"
+
+
 class SosRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -225,6 +232,34 @@ def consent_voice_recording():
     """
 
     return get_voice_recording_policy()
+
+
+@app.post("/tts")
+def text_to_speech(payload: TTSRequest):
+    """
+    Synthesizes the given text as spoken audio (MP3) via
+    tts_service.py (Google Cloud TTS). On-demand only -- not called
+    automatically by /report or /report/voice, since synthesis costs
+    real latency/money per call and most responses are read, not
+    played back. The frontend calls this only when a reporter actually
+    taps a "listen to this" control on a response already shown as
+    text.
+
+    Returns 503 if GOOGLE_TTS_API_KEY isn't configured or synthesis
+    otherwise fails -- a missing/broken TTS provider should degrade to
+    "no audio available," never break the page that's displaying the
+    text response it's trying to read aloud.
+    """
+
+    audio_bytes = synthesize_speech(payload.text, payload.language or "en")
+
+    if audio_bytes is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Text-to-speech is not available right now.",
+        )
+
+    return Response(content=audio_bytes, media_type="audio/mpeg")
 
 
 # Rounding precision for any coordinates that get persisted to a
@@ -461,6 +496,20 @@ async def report_voice(
     given, with no way to also get the transcription back out, so
     calling the underlying ASR function directly (same pattern as
     the OCR endpoint above) is what actually lets us return both.
+
+    Also runs the saved audio through voice_features.py to feed
+    svi.py's voice-fusion scoring (pitch_variation, pause_ratio,
+    speech_rate_wpm) -- previously this endpoint transcribed the audio
+    and then discarded it, so every voice report was scored on text
+    alone even though svi.py has had voice-fusion logic sitting ready
+    and unused since 2026-08-24. librosa is imported lazily here, same
+    reasoning as easyocr above: it pulls in numba/llvmlite, real
+    memory at process startup that a deploy receiving zero voice
+    uploads shouldn't have to pay for. A feature-extraction failure
+    (corrupt audio, a clip too short for reliable pitch tracking) never
+    blocks the report -- extract_voice_features() returns None rather
+    than raising, and run_pipeline() already treats voice_features=None
+    as the normal text-only case.
     """
 
     audio_bytes = await file.read()
@@ -474,7 +523,15 @@ async def report_voice(
 
     transcription = process_voice_to_text(saved_path, language)
 
-    result = run_pipeline(transcription, evidence_path=saved_path, channel="14566_voice")
+    from voice_features import extract_voice_features
+    voice_features = extract_voice_features(saved_path, transcript=transcription)
+
+    result = run_pipeline(
+        transcription,
+        evidence_path=saved_path,
+        channel="14566_voice",
+        voice_features=voice_features,
+    )
     result["transcription"] = transcription
 
     return _strip_counsellor_only_fields(result)

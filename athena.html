@@ -58,7 +58,7 @@
                         data-page="overview"
                     >
                         <span class="nav-icon">⌂</span>
-                        <span>Overview</span>
+                        <span data-i18n="nav.overview">Overview</span>
                     </button>
 
 
@@ -67,7 +67,7 @@
                         data-page="new-report"
                     >
                         <span class="nav-icon">＋</span>
-                        <span>New Report</span>
+                        <span data-i18n="nav.newReport">New Report</span>
                     </button>
 
 
@@ -76,7 +76,7 @@
                         data-page="cases"
                     >
                         <span class="nav-icon">▤</span>
-                        <span>Cases</span>
+                        <span data-i18n="nav.cases">Cases</span>
                     </button>
 
 
@@ -85,7 +85,7 @@
                         data-page="risk-map"
                     >
                         <span class="nav-icon">⌖</span>
-                        <span>Risk Map</span>
+                        <span data-i18n="nav.riskMap">Risk Map</span>
                     </button>
 
 
@@ -94,7 +94,7 @@
                         data-page="guidance"
                     >
                         <span class="nav-icon">◇</span>
-                        <span>Guidance</span>
+                        <span data-i18n="nav.guidance">Guidance</span>
                     </button>
 
 
@@ -103,7 +103,7 @@
                         data-page="alerts"
                     >
                         <span class="nav-icon">!</span>
-                        <span>Alerts</span>
+                        <span data-i18n="nav.alerts">Alerts</span>
 
                         <span
                             id="alertCount"
@@ -128,8 +128,8 @@
                     </span>
 
                     <div>
-                        <strong>National Helpline</strong>
-                        <span>Support line · 14566</span>
+                        <strong data-i18n="sidebar.helpline">National Helpline</strong>
+                        <span data-i18n="sidebar.helplineSub">Support line · 14566</span>
                     </div>
 
                 </div>
@@ -140,7 +140,7 @@
                     class="sidebar-exit"
                 >
                     <span>↪</span>
-                    Exit dashboard
+                    <span data-i18n="sidebar.exit">Exit dashboard</span>
                 </button>
 
             </div>
@@ -173,9 +173,13 @@
 
                 <div class="topbar-right">
 
-                    <div class="language-pill">
-                        English
-                    </div>
+                    <select
+                        id="uiLanguageSelect"
+                        class="language-pill"
+                        aria-label="Interface language"
+                    >
+                        <option value="en">English</option>
+                    </select>
 
                     <div class="operator">
 
@@ -184,8 +188,8 @@
                         </div>
 
                         <div class="operator-info">
-                            <strong>Counsellor</strong>
-                            <span>Support desk</span>
+                            <strong data-i18n="topbar.operator">Counsellor</strong>
+                            <span data-i18n="topbar.operatorSub">Support desk</span>
                         </div>
 
                     </div>
@@ -218,15 +222,15 @@
 
                         <div>
 
-                            <span class="eyebrow">
+                            <span class="eyebrow" data-i18n="overview.eyebrow">
                                 ATHENA · OVERVIEW
                             </span>
 
-                            <h1>
+                            <h1 data-i18n="overview.title">
                                 Overview
                             </h1>
 
-                            <p>
+                            <p data-i18n="overview.subtitle">
                                 Real-time helpline monitoring and case support.
                             </p>
 
@@ -238,7 +242,7 @@
                             data-page-target="new-report"
                         >
                             <span>＋</span>
-                            New report
+                            <span data-i18n="overview.newReportBtn">New report</span>
                         </button>
 
                     </div>
@@ -251,13 +255,13 @@
                         <div class="stat-card">
 
                             <div class="stat-top">
-                                <span>Total cases</span>
+                                <span data-i18n="stats.total">Total cases</span>
                                 <span class="stat-icon">▤</span>
                             </div>
 
                             <strong id="totalCases">—</strong>
 
-                            <small>
+                            <small data-i18n="stats.totalSub">
                                 All received cases
                             </small>
 
@@ -267,13 +271,13 @@
                         <div class="stat-card critical-stat">
 
                             <div class="stat-top">
-                                <span>Critical</span>
+                                <span data-i18n="risk.critical">Critical</span>
                                 <span class="stat-icon">!</span>
                             </div>
 
                             <strong id="criticalCases">—</strong>
 
-                            <small>
+                            <small data-i18n="stats.criticalSub">
                                 Immediate attention
                             </small>
 
@@ -283,13 +287,13 @@
                         <div class="stat-card high-stat">
 
                             <div class="stat-top">
-                                <span>High</span>
+                                <span data-i18n="risk.high">High</span>
                                 <span class="stat-icon">↑</span>
                             </div>
 
                             <strong id="highCases">—</strong>
 
-                            <small>
+                            <small data-i18n="stats.highSub">
                                 Priority review
                             </small>
 
@@ -299,13 +303,13 @@
                         <div class="stat-card pending-stat">
 
                             <div class="stat-top">
-                                <span>Pending</span>
+                                <span data-i18n="stats.pending">Pending</span>
                                 <span class="stat-icon">◷</span>
                             </div>
 
                             <strong id="pendingCases">—</strong>
 
-                            <small>
+                            <small data-i18n="stats.pendingSub">
                                 Awaiting review
                             </small>
 
@@ -327,16 +331,16 @@
                             <div class="card-heading">
 
                                 <div>
-                                    <span class="eyebrow">
+                                    <span class="eyebrow" data-i18n="risk.sectionEyebrow">
                                         RISK MONITORING
                                     </span>
 
-                                    <h2>
+                                    <h2 data-i18n="risk.sectionTitle">
                                         Risk distribution
                                     </h2>
                                 </div>
 
-                                <span class="card-period">
+                                <span class="card-period" data-i18n="risk.current">
                                     Current
                                 </span>
 
@@ -353,7 +357,7 @@
                                             —
                                         </strong>
 
-                                        <span>
+                                        <span data-i18n="risk.casesWord">
                                             cases
                                         </span>
 
@@ -366,25 +370,25 @@
 
                                     <div class="risk-legend-item">
                                         <span class="legend-color low"></span>
-                                        <span>Low</span>
+                                        <span data-i18n="risk.low">Low</span>
                                         <strong id="lowPercent">—</strong>
                                     </div>
 
                                     <div class="risk-legend-item">
                                         <span class="legend-color moderate"></span>
-                                        <span>Moderate</span>
+                                        <span data-i18n="risk.moderate">Moderate</span>
                                         <strong id="moderatePercent">—</strong>
                                     </div>
 
                                     <div class="risk-legend-item">
                                         <span class="legend-color high"></span>
-                                        <span>High</span>
+                                        <span data-i18n="risk.high">High</span>
                                         <strong id="highPercent">—</strong>
                                     </div>
 
                                     <div class="risk-legend-item">
                                         <span class="legend-color critical"></span>
-                                        <span>Critical</span>
+                                        <span data-i18n="risk.critical">Critical</span>
                                         <strong id="criticalPercent">—</strong>
                                     </div>
 
@@ -403,11 +407,11 @@
     <div class="card-heading">
 
         <div>
-            <span class="eyebrow">
+            <span class="eyebrow" data-i18n="district.eyebrow">
                 NATIONAL COVERAGE
             </span>
 
-            <h2>
+            <h2 data-i18n="district.title">
                 District risk
             </h2>
         </div>
@@ -416,7 +420,7 @@
             class="text-button"
             data-page-target="risk-map"
         >
-            View map →
+            <span data-i18n="district.viewMap">View map →</span>
         </button>
 
     </div>
@@ -425,7 +429,7 @@
         id="miniDistrictMap"
         class="mini-map"
     >
-        <div class="mini-map-placeholder">
+        <div class="mini-map-placeholder" data-i18n="district.placeholder">
             District risk data
         </div>
     </div>
@@ -440,11 +444,11 @@
                         <div class="card-heading">
 
                             <div>
-                                <span class="eyebrow">
+                                <span class="eyebrow" data-i18n="recent.eyebrow">
                                     CASE MANAGEMENT
                                 </span>
 
-                                <h2>
+                                <h2 data-i18n="recent.title">
                                     Recent cases
                                 </h2>
                             </div>
@@ -453,7 +457,7 @@
                                 class="text-button"
                                 data-page-target="cases"
                             >
-                                View all →
+                                <span data-i18n="recent.viewAll">View all →</span>
                             </button>
 
                         </div>
@@ -464,7 +468,7 @@
                             class="overview-case-list"
                         >
 
-                            <div class="loading-state">
+                            <div class="loading-state" data-i18n="loading.cases">
                                 Loading cases...
                             </div>
 
@@ -489,15 +493,15 @@
 
                         <div>
 
-                            <span class="eyebrow">
+                            <span class="eyebrow" data-i18n="newreport.eyebrow">
                                 NATIONAL HELPLINE · 14566
                             </span>
 
-                            <h1>
+                            <h1 data-i18n="newreport.title">
                                 Share what happened
                             </h1>
 
-                            <p>
+                            <p data-i18n="newreport.subtitle">
                                 Speak in your own words. We are here to listen.
                             </p>
 
@@ -516,22 +520,30 @@
 
                             <div class="report-language">
 
-                                <span>
+                                <span data-i18n="lang.choose">
                                     Choose your language
                                 </span>
 
                                 <div class="language-options">
 
-                                    <button class="report-language-btn active">
+                                    <button class="report-language-btn active" data-lang="en">
                                         English
                                     </button>
 
-                                    <button class="report-language-btn">
+                                    <button class="report-language-btn" data-lang="hi">
                                         हिंदी
                                     </button>
 
-                                    <button class="report-language-btn">
+                                    <button class="report-language-btn" data-lang="te">
                                         తెలుగు
+                                    </button>
+
+                                    <button class="report-language-btn" data-lang="ur">
+                                        اردو
+                                    </button>
+
+                                    <button class="report-language-btn" data-lang="bn">
+                                        বাংলা
                                     </button>
 
                                 </div>
@@ -543,14 +555,14 @@
 
                             <div class="report-language">
 
-                                <span>
+                                <span data-i18n="channel.question">
                                     How are you reaching us?
                                 </span>
 
                                 <div class="language-options channel-options">
 
                                     <button class="report-language-btn" data-channel="14566_voice">
-                                        14566 Call
+                                        <span data-i18n="channel.call">14566 Call</span>
                                     </button>
 
                                     <button class="report-language-btn" data-channel="ivrs">
@@ -558,15 +570,15 @@
                                     </button>
 
                                     <button class="report-language-btn active" data-channel="portal">
-                                        Portal
+                                        <span data-i18n="channel.portal">Portal</span>
                                     </button>
 
                                     <button class="report-language-btn" data-channel="chatbot">
-                                        Chatbot
+                                        <span data-i18n="channel.chatbot">Chatbot</span>
                                     </button>
 
                                     <button class="report-language-btn" data-channel="mobile_app">
-                                        Mobile App
+                                        <span data-i18n="channel.mobile">Mobile App</span>
                                     </button>
 
                                 </div>
@@ -578,15 +590,15 @@
 
                             <div class="voice-area">
 
-                                <span class="voice-label">
+                                <span class="voice-label" data-i18n="voice.label">
                                     VOICE FIRST
                                 </span>
 
-                                <h2>
+                                <h2 data-i18n="voice.title">
                                     Tell us in your own words
                                 </h2>
 
-                                <p>
+                                <p data-i18n="voice.body">
                                     You don't need to explain everything perfectly.
                                     Just tell us what happened.
                                 </p>
@@ -607,13 +619,14 @@
                                 <strong
                                     id="micStatus"
                                     class="mic-status"
+                                    data-i18n="voice.tapToSpeak"
                                 >
                                     Tap to speak
                                 </strong>
 
 
                                 <span class="voice-support">
-                                    English · हिंदी · తెలుగు
+                                    English · हिंदी · తెలుగు · اردو · বাংলা
                                 </span>
 
                             </div>
@@ -622,15 +635,39 @@
                             <!-- TEXT -->
 
                             <div class="text-divider">
-                                <span>OR TYPE BELOW</span>
+                                <span data-i18n="divider.orType">OR TYPE BELOW</span>
                             </div>
 
 
                             <textarea
                                 id="reportInput"
                                 placeholder="Tell us what happened..."
+                                data-i18n-placeholder="textarea.placeholder"
                                 maxlength="3000"
                             ></textarea>
+
+
+                            <div class="evidence-attach">
+
+                                <button
+                                    id="evidenceAttachButton"
+                                    type="button"
+                                    class="text-button"
+                                >
+                                    <span>📎</span>
+                                    <span data-i18n="evidence.attach">Attach evidence photo (optional)</span>
+                                </button>
+
+                                <input
+                                    id="evidenceFileInput"
+                                    type="file"
+                                    accept="image/*"
+                                    style="display:none;"
+                                />
+
+                                <span id="evidenceFileName" class="evidence-filename"></span>
+
+                            </div>
 
 
                             <div class="report-bottom">
@@ -643,7 +680,7 @@
                                     id="submitReportButton"
                                     class="primary-button"
                                 >
-                                    Send report
+                                    <span id="submitReportLabel" data-i18n="submit.send">Send report</span>
                                     <span>→</span>
                                 </button>
 
@@ -660,11 +697,11 @@
                                 ♡
                             </div>
 
-                            <h3>
+                            <h3 data-i18n="support.title">
                                 You are being heard.
                             </h3>
 
-                            <p>
+                            <p data-i18n="support.body">
                                 Your information helps trained support staff
                                 understand your situation and provide the right
                                 assistance.
@@ -676,17 +713,17 @@
 
                             <div class="support-point">
                                 <span>01</span>
-                                <p>Your information is handled carefully.</p>
+                                <p data-i18n="support.point1">Your information is handled carefully.</p>
                             </div>
 
                             <div class="support-point">
                                 <span>02</span>
-                                <p>Trained staff can review cases when needed.</p>
+                                <p data-i18n="support.point2">Trained staff can review cases when needed.</p>
                             </div>
 
                             <div class="support-point">
                                 <span>03</span>
-                                <p>Urgent situations can be prioritised.</p>
+                                <p data-i18n="support.point3">Urgent situations can be prioritised.</p>
                             </div>
 
                         </aside>
@@ -712,26 +749,26 @@
                             ✓
                         </div>
 
-                        <span class="eyebrow">
+                        <span class="eyebrow" data-i18n="confirm.eyebrow">
                             REPORT RECEIVED
                         </span>
 
-                        <h1>
+                        <h1 data-i18n="confirm.title">
                             We hear you.
                         </h1>
 
-                        <p>
+                        <p data-i18n="confirm.body">
                             We've received what you shared.
                         </p>
 
                         <div class="help-box">
                             <span>♡</span>
-                            <strong>
+                            <strong data-i18n="confirm.helpTitle">
                                 Help is on the way.
                             </strong>
                         </div>
 
-                        <p class="confirmation-small">
+                        <p class="confirmation-small" data-i18n="confirm.small">
                             Your information has been sent to the support team.
                             A trained person can help if your situation needs
                             further attention.
@@ -741,13 +778,14 @@
                             class="primary-button"
                             data-page-target="new-report"
                         >
-                            Share more
+                            <span data-i18n="confirm.shareMore">Share more</span>
                             <span>→</span>
                         </button>
 
                         <a
                             class="call-link"
                             href="tel:14566"
+                            data-i18n="confirm.callLink"
                         >
                             Need direct support? Call 14566
                         </a>
@@ -1091,6 +1129,8 @@
 <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
 </script>
+
+<script src="i18n.js"></script>
 
 <script src="athena.js"></script>
 

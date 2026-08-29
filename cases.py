@@ -78,6 +78,15 @@ _NEW_COLUMNS = {
     # (see create_case()'s docstring), so it's kept regardless of
     # disclosure_level. Nullable: most reports won't include one.
     "district": "TEXT",
+    # "gps" | "district_approx" | NULL. Set by app.py when latitude/
+    # longitude came from geocoding.py's district-centroid fallback
+    # rather than the reporter's actual device GPS -- see app.py's
+    # /report handler. A map pin built from this should say so rather
+    # than implying GPS-level precision it doesn't have; NULL covers
+    # every case created before this column existed, all of which
+    # came from real GPS (this feature didn't exist yet), so a NULL
+    # is safely read as "gps" by consumers, not "unknown."
+    "location_source": "TEXT",
 }
 
 
@@ -158,6 +167,7 @@ def create_case(
     reporter_contact=None,
     district=None,
     created_at=None,
+    location_source=None,
 ):
     """
     Persist one pipeline result as a case row.
@@ -199,6 +209,14 @@ def create_case(
     _resolve_escalation_contact() already applies for lookup, kept in
     sync here rather than reimplemented. Never redacted by
     disclosure_level (see the _NEW_COLUMNS comment on "district").
+
+    location_source ("gps" | "district_approx" | None) records where
+    latitude/longitude actually came from -- see app.py's /report
+    handler, which sets it to "district_approx" when it fell back to
+    geocoding.py's district-centroid lookup because no real GPS fix
+    was given. Redacted alongside latitude/longitude for "partial"/
+    "anonymous" disclosure, same reasoning: no point remembering how a
+    coordinate was derived once the coordinate itself is dropped.
     """
 
     if disclosure_level not in VALID_DISCLOSURE_LEVELS:
@@ -219,6 +237,7 @@ def create_case(
         reporter_name = None
         latitude = None
         longitude = None
+        location_source = None
 
     if disclosure_level == "anonymous":
         reporter_contact = None
@@ -246,9 +265,9 @@ def create_case(
                 evidence_path, location, latitude, longitude, is_sos,
                 stress_assessment_json, legal_guidance_json,
                 disclosure_level, reporter_name, reporter_contact, district,
-                nhaa_docket_json
+                nhaa_docket_json, location_source
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 created_at or datetime.now(timezone.utc).isoformat(),
@@ -275,6 +294,7 @@ def create_case(
                 reporter_contact,
                 district,
                 json.dumps(nhaa_docket) if nhaa_docket is not None else None,
+                location_source,
             ),
         )
 
@@ -341,6 +361,13 @@ def _row_to_case(row):
             _district_display_name(row["district"])
             if "district" in row_keys else None
         ),
+        # NULL (pre-existing rows, or a real GPS fix) reads as "gps" --
+        # see the _NEW_COLUMNS comment on why that backfill is correct.
+        "location_source": (
+            row["location_source"]
+            if "location_source" in row_keys and row["location_source"]
+            else "gps"
+        ),
     }
 
 
@@ -380,7 +407,8 @@ def list_case_locations():
 
         rows = connection.execute(
             "SELECT id, created_at, incident_type, risk_tier, "
-            "latitude, longitude, location, is_sos FROM cases "
+            "latitude, longitude, location, is_sos, location_source "
+            "FROM cases "
             "WHERE latitude IS NOT NULL AND longitude IS NOT NULL "
             "ORDER BY id DESC"
         ).fetchall()
@@ -395,6 +423,9 @@ def list_case_locations():
                 "longitude": row["longitude"],
                 "location": row["location"],
                 "is_sos": bool(row["is_sos"]),
+                # See create_case()'s location_source docstring note --
+                # NULL (pre-existing GPS-only rows) reads as "gps".
+                "location_source": row["location_source"] or "gps",
             }
             for row in rows
         ]

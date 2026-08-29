@@ -50,7 +50,9 @@ const state = {
 
     mediaRecorder: null,
 
-    audioChunks: []
+    audioChunks: [],
+
+    evidenceFile: null
 
 };
 
@@ -155,33 +157,45 @@ $$("[data-page-target]").forEach(button => {
    LANGUAGE
 ========================================================= */
 
-$$(".report-language-btn").forEach(button => {
+// data-lang on these buttons drives both the NLU language tag AND the
+// UI chrome's language (setUiLanguage, from i18n.js) -- a reporter
+// picking Telugu here expects everything they see to switch to
+// Telugu, not just the eventual response. onUiLanguageChange (below)
+// keeps this in sync the other way, if the language is instead
+// changed via the topbar switcher.
+$$(".report-language-btn[data-lang]").forEach(button => {
 
     button.addEventListener("click", () => {
 
-        $$(".report-language-btn").forEach(btn => {
+        $$(".report-language-btn[data-lang]").forEach(btn => {
             btn.classList.remove("active");
         });
 
         button.classList.add("active");
 
-        const text = button.textContent.trim();
+        state.selectedLanguage = button.dataset.lang || "en";
 
-        if (text === "हिंदी") {
-            state.selectedLanguage = "hi";
-        }
-
-        else if (text === "తెలుగు") {
-            state.selectedLanguage = "te";
-        }
-
-        else {
-            state.selectedLanguage = "en";
+        if (typeof setUiLanguage === "function") {
+            setUiLanguage(state.selectedLanguage);
         }
 
     });
 
 });
+
+// Keeps the New Report page's language buttons in sync when the
+// language is changed from the topbar switcher instead (e.g. a
+// counsellor switching UI language before a reporter has touched New
+// Report at all).
+window.onUiLanguageChange = function (lang) {
+
+    state.selectedLanguage = lang;
+
+    $$(".report-language-btn[data-lang]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.lang === lang);
+    });
+
+};
 
 
 /* =========================================================
@@ -293,7 +307,7 @@ async function startRecording() {
         micButton.classList.add("recording");
 
         $("#micStatus").textContent =
-            "Listening… Tap again when finished";
+            t("voice.listening");
 
     }
 
@@ -302,7 +316,7 @@ async function startRecording() {
         console.error(error);
 
         $("#micStatus").textContent =
-            "Microphone permission is needed";
+            t("voice.micPermission");
 
     }
 
@@ -330,7 +344,7 @@ function stopRecording() {
     micButton.classList.remove("recording");
 
     $("#micStatus").textContent =
-        "Sending your report…";
+        t("voice.sending");
 
 }
 
@@ -413,7 +427,7 @@ async function sendVoiceReport(audioBlob) {
         );
 
         $("#micStatus").textContent =
-            "Something went wrong. Please try again.";
+            t("voice.error");
 
     }
 
@@ -462,13 +476,51 @@ if (submitButton) {
 }
 
 
+/* =========================================================
+   EVIDENCE ATTACHMENT
+========================================================= */
+
+// Alternative input mode, same relationship as voice-vs-text: /report
+// (typed text) and /report/image (OCR'd photo) are separate backend
+// endpoints that don't combine into one call, so attaching a photo
+// submits via /report/image instead of /report, same as recording
+// voice submits via /report/voice instead. See app.py's /report/image
+// docstring -- this endpoint already existed and worked, it just had
+// no UI anywhere to reach it from until now.
+const evidenceAttachButton = $("#evidenceAttachButton");
+const evidenceFileInput = $("#evidenceFileInput");
+const evidenceFileName = $("#evidenceFileName");
+
+if (evidenceAttachButton && evidenceFileInput) {
+
+    evidenceAttachButton.addEventListener("click", () => {
+        evidenceFileInput.click();
+    });
+
+    evidenceFileInput.addEventListener("change", () => {
+
+        const file = evidenceFileInput.files[0] || null;
+
+        state.evidenceFile = file;
+
+        if (evidenceFileName) {
+            evidenceFileName.textContent = file ? file.name : "";
+        }
+
+    });
+
+}
+
+
 async function submitTextReport() {
 
     const text =
         reportInput.value.trim();
 
+    const evidenceFile = state.evidenceFile;
 
-    if (!text) {
+
+    if (!text && !evidenceFile) {
 
         reportInput.focus();
 
@@ -479,14 +531,32 @@ async function submitTextReport() {
 
     submitButton.disabled = true;
 
-    submitButton.innerHTML =
-        "Sending…";
+    const submitLabel = $("#submitReportLabel");
+    if (submitLabel) {
+        submitLabel.textContent = t("submit.sending");
+    }
 
 
     try {
 
-        const response =
-            await fetch(
+        // A photo is an alternative input mode, not combined with
+        // typed text (see the EVIDENCE ATTACHMENT section above) --
+        // if one's attached, it takes priority and goes through OCR
+        // instead of the typed text being sent as-is.
+        const response = evidenceFile
+            ? await fetch(
+                `${API_BASE_URL}/report/image`,
+                {
+                    method: "POST",
+                    body: (() => {
+                        const formData = new FormData();
+                        formData.append("file", evidenceFile);
+                        formData.append("language", state.selectedLanguage || "en");
+                        return formData;
+                    })()
+                }
+            )
+            : await fetch(
                 `${API_BASE_URL}/report`,
                 {
                     method: "POST",
@@ -534,6 +604,10 @@ async function submitTextReport() {
         );
 
 
+        state.evidenceFile = null;
+        if (evidenceFileInput) evidenceFileInput.value = "";
+        if (evidenceFileName) evidenceFileName.textContent = "";
+
         showConfirmation();
 
     }
@@ -546,7 +620,7 @@ async function submitTextReport() {
         );
 
         alert(
-            "Unable to send the report right now. Please try again."
+            t("report.submitError")
         );
 
     }
@@ -555,8 +629,9 @@ async function submitTextReport() {
 
         submitButton.disabled = false;
 
-        submitButton.innerHTML =
-            "Send report <span>→</span>";
+        if (submitLabel) {
+            submitLabel.textContent = t("submit.send");
+        }
 
     }
 
@@ -2017,9 +2092,27 @@ function renderRiskMap() {
                     <strong>
                         ${latitude.toFixed(3)},
                         ${longitude.toFixed(3)}
+                        ${
+                            caseItem.location_source === "district_approx"
+                                ? " (approx.)"
+                                : ""
+                        }
                     </strong>
 
                 </div>
+
+                ${
+                    caseItem.location_source === "district_approx"
+                        ? `
+                            <div class="risk-popup-row">
+                                <span></span>
+                                <em style="font-size:11px;opacity:0.75;">
+                                    District-level location, not exact GPS
+                                </em>
+                            </div>
+                          `
+                        : ""
+                }
 
 
                 <div class="risk-popup-status">

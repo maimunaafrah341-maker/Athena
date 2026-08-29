@@ -164,6 +164,17 @@
 
   .meta .tick { color: #53bdeb; font-size: 13px; }
 
+  .listen-btn {
+    border: none;
+    background: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 4px 0 0;
+    line-height: 1;
+  }
+
+  .listen-btn:disabled { cursor: default; opacity: 0.6; }
+
   .sys-pill {
     background: #e1f2fb;
     color: #4a5b64;
@@ -203,6 +214,13 @@
   .voice-bubble .mic-badge {
     font-size: 15px;
     flex-shrink: 0;
+  }
+
+  .evidence-image {
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 6px;
+    display: block;
   }
 
   .typing-row { padding-left: 4px; }
@@ -298,6 +316,13 @@
       <div class="header-status" id="headerStatus">online</div>
     </div>
     <div class="header-icons">
+      <select id="langToggle" title="Interface language" style="font-size:13px;border:none;border-radius:6px;background:rgba(255,255,255,0.15);color:#fff;padding:2px 4px;">
+        <option value="en">EN</option>
+        <option value="hi">हिं</option>
+        <option value="te">తె</option>
+        <option value="ur">اردو</option>
+        <option value="bn">বাং</option>
+      </select>
       <span>📹</span>
       <span>📞</span>
       <span onclick="window.location.href='/dashboard.html'" title="Open counsellor dashboard" style="cursor:pointer;">⋮</span>
@@ -306,11 +331,7 @@
 
   <div class="chat" id="chat">
     <div class="row sys">
-      <div class="sys-pill">
-        🔒 This is a concept demo. Messages are sent to Athena's safety
-        pipeline — the same one the main app uses — not a real WhatsApp
-        number.
-      </div>
+      <div class="sys-pill" id="sysDisclaimer"></div>
     </div>
   </div>
 
@@ -318,7 +339,14 @@
 
   <div class="composer">
     <span class="icon">😊</span>
-    <span class="icon">📎</span>
+    <span class="icon" onclick="document.getElementById('imageInput').click()" title="Attach a photo as evidence" style="cursor:pointer;">📎</span>
+    <input
+      id="imageInput"
+      type="file"
+      accept="image/*"
+      style="display:none;"
+      onchange="sendImageEvidence(this.files[0]); this.value='';"
+    />
     <span class="icon" onclick="sendVoiceNote()" title="Send demo voice note" style="cursor:pointer;">🎤</span>
     <input
       id="msgInput"
@@ -340,6 +368,82 @@
   const chat = document.getElementById("chat");
   const input = document.getElementById("msgInput");
   const headerStatus = document.getElementById("headerStatus");
+
+  // Small, self-contained translation table for this page only --
+  // deliberately not pulling in i18n.js (dashboard.html's shared
+  // translation layer), matching this file's own "standalone, no
+  // build step" design intent noted above. Same three UI languages as
+  // the dashboard for now; extending this to a new language later is
+  // just one more object below.
+  const UI_STRINGS = {
+    en: {
+      headerName: "Athena Helpline",
+      online: "online",
+      typing: "typing…",
+      disclaimer: "🔒 This is a concept demo. Messages are sent to Athena's safety pipeline — the same one the main app uses — not a real WhatsApp number.",
+      placeholder: "Type a message",
+    },
+    hi: {
+      headerName: "एथेना हेल्पलाइन",
+      online: "ऑनलाइन",
+      typing: "टाइप कर रहे हैं…",
+      disclaimer: "🔒 यह एक कॉन्सेप्ट डेमो है। संदेश एथेना की सुरक्षा प्रणाली को भेजे जाते हैं — वही जो मुख्य ऐप उपयोग करता है — यह असली व्हाट्सऐप नंबर नहीं है।",
+      placeholder: "संदेश टाइप करें",
+    },
+    te: {
+      headerName: "ఎథీనా హెల్ప్‌లైన్",
+      online: "ఆన్‌లైన్",
+      typing: "టైప్ చేస్తున్నారు…",
+      disclaimer: "🔒 ఇది ఒక కాన్సెప్ట్ డెమో. సందేశాలు ఎథీనా భద్రతా వ్యవస్థకు పంపబడతాయి — ప్రధాన యాప్ ఉపయోగించే అదే వ్యవస్థ — ఇది నిజమైన WhatsApp నంబర్ కాదు.",
+      placeholder: "సందేశం టైప్ చేయండి",
+    },
+    ur: {
+      headerName: "ایتھینا ہیلپ لائن",
+      online: "آن لائن",
+      typing: "ٹائپ کر رہے ہیں…",
+      disclaimer: "🔒 یہ ایک تصوراتی ڈیمو ہے۔ پیغامات ایتھینا کے حفاظتی نظام کو بھیجے جاتے ہیں — وہی جو مرکزی ایپ استعمال کرتی ہے — یہ حقیقی واٹس ایپ نمبر نہیں ہے۔",
+      placeholder: "پیغام ٹائپ کریں",
+    },
+    bn: {
+      headerName: "এথীনা হেল্পলাইন",
+      online: "অনলাইন",
+      typing: "টাইপ করছে…",
+      disclaimer: "🔒 এটি একটি ধারণাগত ডেমো। বার্তাগুলি এথীনার নিরাপত্তা ব্যবস্থায় পাঠানো হয় — মূল অ্যাপ যা ব্যবহার করে সেটিই — এটি প্রকৃত হোয়াটসঅ্যাপ নম্বর নয়।",
+      placeholder: "বার্তা লিখুন",
+    },
+  };
+
+  const langToggle = document.getElementById("langToggle");
+  const sysDisclaimer = document.getElementById("sysDisclaimer");
+
+  let currentUiLang = "en";
+
+  function applyUiLanguage(lang) {
+    currentUiLang = UI_STRINGS[lang] ? lang : "en";
+    const strings = UI_STRINGS[currentUiLang];
+    document.querySelector(".header-name").textContent = strings.headerName;
+    headerStatus.textContent =
+      headerStatus.dataset.state === "typing" ? strings.typing : strings.online;
+    sysDisclaimer.textContent = strings.disclaimer;
+    input.placeholder = strings.placeholder;
+    try {
+      localStorage.setItem("athena_ui_lang", currentUiLang);
+    } catch (error) {
+      // localStorage unavailable -- language still applies this load.
+    }
+  }
+
+  if (langToggle) {
+    let initialLang = "en";
+    try {
+      initialLang = localStorage.getItem("athena_ui_lang") || "en";
+    } catch (error) {
+      // default to English
+    }
+    langToggle.value = UI_STRINGS[initialLang] ? initialLang : "en";
+    applyUiLanguage(langToggle.value);
+    langToggle.addEventListener("change", () => applyUiLanguage(langToggle.value));
+  }
 
   function escapeHTML(str) {
     const div = document.createElement("div");
@@ -368,7 +472,7 @@
     scrollChat();
   }
 
-  function addIncoming(text, riskTier, escalateNote) {
+  function addIncoming(text, riskTier, escalateNote, language) {
     const row = document.createElement("div");
     row.className = "row in";
 
@@ -380,16 +484,74 @@
       ? `<div style="margin-top:6px;font-size:11px;color:#54656f;">${escapeHTML(escalateNote)}</div>`
       : "";
 
+    // "Listen" playback is on-demand only (POST /tts), never fetched
+    // automatically -- most responses are read, not played back, and
+    // synthesis costs real latency/quota per call. Omitted entirely
+    // when there's no real response text to read.
+    const listenButton = text
+      ? `<button class="listen-btn" onclick="playResponseAudio(this)" title="Listen to this response">🔊</button>`
+      : "";
+
     row.innerHTML = `
       <div class="bubble in">
         <div class="text">${escapeHTML(text || "(no response)")}</div>
         ${tag}
         ${note}
-        <div class="meta">${nowTime()}</div>
+        <div class="meta">${listenButton}${nowTime()}</div>
       </div>
     `;
+
+    if (listenButton) {
+      row.querySelector(".listen-btn").dataset.text = text;
+      row.querySelector(".listen-btn").dataset.language = language || "en";
+    }
+
     chat.appendChild(row);
     scrollChat();
+  }
+
+  // Single shared <audio> element so tapping a new "listen" button
+  // stops whatever was already playing, instead of overlapping.
+  const ttsPlayer = new Audio();
+
+  async function playResponseAudio(button) {
+
+    const text = button.dataset.text;
+    const language = button.dataset.language;
+
+    const original = button.textContent;
+    button.textContent = "⏳";
+    button.disabled = true;
+
+    try {
+
+      const response = await fetch("/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, language }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`TTS request failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      ttsPlayer.src = URL.createObjectURL(blob);
+      await ttsPlayer.play();
+
+    } catch (error) {
+      console.error("Playback failed:", error);
+      // Text-to-speech is optional and may not be configured (see
+      // tts_service.py) -- a failure here just means no audio, never
+      // a broken page.
+      button.textContent = "🔇";
+      setTimeout(() => { button.textContent = original; }, 2000);
+      button.disabled = false;
+      return;
+    }
+
+    button.textContent = original;
+    button.disabled = false;
   }
 
   function addSystemPill(text) {
@@ -410,51 +572,29 @@
       </div>
     `;
     chat.appendChild(row);
-    headerStatus.textContent = "typing…";
+    headerStatus.dataset.state = "typing";
+    headerStatus.textContent = UI_STRINGS[currentUiLang].typing;
     scrollChat();
   }
 
   function removeTyping() {
     const row = document.getElementById("typingRow");
     if (row) row.remove();
-    headerStatus.textContent = "online";
+    headerStatus.dataset.state = "online";
+    headerStatus.textContent = UI_STRINGS[currentUiLang].online;
   }
 
-  // Shared by both the typed-message flow and the voice-note flow --
-  // both end up sending {text, language} to the exact same pipeline,
-  // the only difference is what the outgoing bubble looked like.
-  async function submitToPipeline(text, language) {
-
-    showTyping();
-
-    let data;
-
-    try {
-
-      const response = await fetch(REPORT_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text, language: language || null }),
-      });
-
-      data = await response.json();
-
-    } catch (error) {
-
-      console.error("Backend connection error:", error);
-      removeTyping();
-      addIncoming(
-        "I couldn't connect to the safety intelligence system. " +
-        "Make sure the Athena backend is running on localhost:8000, then try again."
-      );
-      return;
-    }
+  // Shared response handling for both the typed-message flow and the
+  // voice-note flow -- everything after "the backend answered" is
+  // identical regardless of which endpoint produced the answer.
+  async function handlePipelineResponse(data) {
 
     removeTyping();
 
     const riskTier = data.risk ? data.risk.risk_tier : null;
+    const language = data.incident ? data.incident.language : null;
 
-    addIncoming(data.response, riskTier);
+    addIncoming(data.response, riskTier, null, language);
 
     if (data.case_id) {
       addSystemPill(
@@ -488,6 +628,80 @@
     }
   }
 
+  function handlePipelineNetworkError(error) {
+    console.error("Backend connection error:", error);
+    removeTyping();
+    addIncoming(
+      "I couldn't connect to the safety intelligence system. " +
+      "Make sure the Athena backend is running on localhost:8000, then try again."
+    );
+  }
+
+  async function submitToPipeline(text, language) {
+
+    showTyping();
+
+    let data;
+
+    try {
+
+      const response = await fetch(REPORT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text, language: language || null }),
+      });
+
+      data = await response.json();
+
+    } catch (error) {
+      handlePipelineNetworkError(error);
+      return;
+    }
+
+    await handlePipelineResponse(data);
+  }
+
+  // Real transcription (Groq-hosted Whisper, see voice_service.py) --
+  // posts the actual audio to /report/voice, same as a real recorded
+  // voice report would. No fake/hardcoded transcript involved: this
+  // used to send a pre-written transcript straight to /report because
+  // live transcription was billing-gated on OpenAI; that gap closed
+  // 2026-08-29 (Groq's free-tier Whisper), so the demo now shows the
+  // real pipeline end to end, including whichever script Whisper
+  // actually transcribes into -- which is also why the AI's reply now
+  // comes back in native-script Hindi instead of romanized: the reply
+  // language logic matches whatever script the transcript is actually
+  // in (see response_engine.py), and Whisper's native Hindi output is
+  // Devanagari by default.
+  async function submitVoiceToPipeline(audioUrl, language) {
+
+    showTyping();
+
+    let data;
+
+    try {
+
+      const audioBlob = await (await fetch(audioUrl)).blob();
+
+      const formData = new FormData();
+      formData.append("file", audioBlob, "voice-note.ogg");
+      formData.append("language", language);
+
+      const response = await fetch("/report/voice", {
+        method: "POST",
+        body: formData,
+      });
+
+      data = await response.json();
+
+    } catch (error) {
+      handlePipelineNetworkError(error);
+      return;
+    }
+
+    await handlePipelineResponse(data);
+  }
+
   async function sendMessage() {
 
     const text = input.value.trim();
@@ -499,16 +713,14 @@
     await submitToPipeline(text, null);
   }
 
-  // Demo voice note: a real, playable recording (not synthesized) with
-  // a verified transcript attached ahead of time -- live transcription
-  // is billing-gated (see voice_service.py / API_CONTRACT.md), so
-  // rather than fake it or silently fall back to a placeholder, this
-  // sends the verified transcript straight into the exact same
-  // pipeline a real transcription would hit. The audio bubble plays
-  // for real; only the mic-to-text hop is stood in for.
+  // Demo voice note: a real, playable recording (not synthesized),
+  // now transcribed for real via submitVoiceToPipeline() above -- the
+  // audio bubble plays for real, and so does the transcription behind
+  // it. Roughly: "Because of my caste I wasn't allowed into the
+  // temple and was insulted in front of everyone. A crowd is now
+  // surrounding my house."
   const DEMO_VOICE_NOTE = {
     file: "demo_audio/caste_harassment_hindi.ogg",
-    transcript: "Meri jaati ke karan mujhe mandir mein ghusne nahi diya gaya aur sabke saamne apmaanit kiya gaya. Bheed abhi mujhe ghar ke bahar ghera kiye khadi hai.",
     language: "hi",
   };
 
@@ -530,7 +742,66 @@
 
   async function sendVoiceNote() {
     addOutgoingVoice(DEMO_VOICE_NOTE.file);
-    await submitToPipeline(DEMO_VOICE_NOTE.transcript, DEMO_VOICE_NOTE.language);
+    await submitVoiceToPipeline(DEMO_VOICE_NOTE.file, DEMO_VOICE_NOTE.language);
+  }
+
+  function addOutgoingImage(imageUrl) {
+    const row = document.createElement("div");
+    row.className = "row out";
+    row.innerHTML = `
+      <div class="bubble out">
+        <img class="evidence-image" src="${imageUrl}" alt="Evidence photo" />
+        <div class="meta">${nowTime()} <span class="tick">✓✓</span></div>
+      </div>
+    `;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  // Evidence upload: OCRs a screenshot (e.g. a threatening message) via
+  // /report/image (ocr.py/EasyOCR) and runs the extracted text through
+  // the same pipeline as a typed report -- this backend endpoint
+  // already existed and worked, it just had no UI anywhere to reach it
+  // from. `language` is an OCR script hint (en/hi/te only -- EasyOCR's
+  // language-set support doesn't yet cover ur/bn here), not the same
+  // thing as incident-language auto-detection, which still runs on
+  // whatever text OCR extracts.
+  async function submitImageToPipeline(file, language) {
+
+    showTyping();
+
+    let data;
+
+    try {
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("language", language || "en");
+
+      const response = await fetch("/report/image", {
+        method: "POST",
+        body: formData,
+      });
+
+      data = await response.json();
+
+    } catch (error) {
+      handlePipelineNetworkError(error);
+      return;
+    }
+
+    await handlePipelineResponse(data);
+  }
+
+  function sendImageEvidence(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      addOutgoingImage(reader.result);
+      await submitImageToPipeline(file, "en");
+    };
+    reader.readAsDataURL(file);
   }
 
 </script>

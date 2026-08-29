@@ -788,15 +788,16 @@ language: "en"|"hi"|"te"   (form field, default "hi" — which language the
                              language from audio)
 ```
 
-Transcribes the audio via OpenAI's transcription API (`whisper-1`), then
-runs the transcribed text through the same pipeline as `/report`. Same
-response shape as `/report`, plus the transcription itself so you can show
-the user what Athena heard (same principle as `extracted_text` on image
-upload):
+Transcribes the audio via Groq's hosted Whisper API (`whisper-large-v3-turbo`,
+primary) — falling back to OpenAI's transcription API (`whisper-1`) if a
+`OPENAI_API_KEY` is configured and Groq's call fails — then runs the
+transcribed text through the same pipeline as `/report`. Same response shape
+as `/report`, plus the transcription itself so you can show the user what
+Athena heard (same principle as `extracted_text` on image upload):
 
 ```json
 {
-  "transcription": "the text OpenAI transcribed from the audio",
+  "transcription": "the text Groq/OpenAI transcribed from the audio",
   "incident": { ... }, "risk": { ... }, "citations": [ ... ],
   "escalate": true, "reason": "...", "response": "...",
   "case_id": 6, "case_status": "Escalated"
@@ -806,17 +807,19 @@ upload):
 **Provider history**: originally built against Bhashini (a Government of
 India ASR service, keeping voice data domestic), swapped to OpenAI
 2026-08-24 because Bhashini's government approval queue never cleared
-before the deadline. This is a real change in the consent story, not just a
-vendor swap — see `consent.py` and the section below.
+before the deadline, then swapped again 2026-08-29 (Groq primary, OpenAI
+demoted to fallback) because OpenAI's transcription API needed a funded
+account that never happened — Groq hosts the same Whisper model family with
+a genuinely usable free tier, and `GROQ_API_KEY` was already in `.env` from
+`response_engine.py`'s LLM fallback chain. Each swap is a real change in the
+consent story, not just a vendor swap — see `consent.py` and the section
+below.
 
-**Caveat — confirm real credits before demoing**: until `OPENAI_API_KEY` in
-`.env` belongs to an account with active billing/credits, every call to
-this endpoint returns the same fixed placeholder transcription regardless
-of what was actually said in the audio, because the underlying API call
-fails (e.g. `"You have no credits remaining"`) and silently falls back to
-mock data. The endpoint being live means the wiring is done and verified
-against the real API, not that voice transcription itself will work for a
-demo — confirm a live, non-mock transcription immediately before presenting.
+**Verified working 2026-08-29**: unlike the OpenAI-only setup, this now
+produces real, non-placeholder transcriptions against real audio (confirmed
+against `demo_audio/caste_harassment_hindi.ogg`) as long as `GROQ_API_KEY`
+is set — no funded billing account required, since Groq's free tier is
+what's actually being used.
 
 ### Consent / data-retention content for a voice-recording screen
 
@@ -834,11 +837,12 @@ aspirational policy language. The honest, load-bearing facts it discloses:
 - The recording is saved to disk indefinitely alongside the case — **there
   is no automatic deletion**, checked directly against the codebase (no
   cron/TTL/cleanup exists anywhere in this repo).
-- It's sent to **OpenAI** (a US-based transcription API) for transcription —
-  the one real third-party transfer that happens, and the only one. This
-  means a voice recording briefly leaves India for processing, unlike the
-  original Bhashini design — stated plainly to the reporter, not glossed
-  over.
+- It's sent to **Groq** (a US-based transcription API, primary) for
+  transcription, falling back to **OpenAI** (also US-based) only if Groq's
+  call fails — the one real third-party transfer that happens either way.
+  This means a voice recording briefly leaves India for processing, unlike
+  the original Bhashini design — stated plainly to the reporter, not
+  glossed over.
 - **Case data (including a saved recording's reference) sits behind a
   single shared admin API key as of 2026-08-23** — see **Admin
   authentication** above. Real, but a single shared secret, not
