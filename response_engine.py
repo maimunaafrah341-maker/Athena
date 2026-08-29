@@ -1,5 +1,6 @@
 import os
 
+import requests
 from dotenv import load_dotenv
 from google import genai
 
@@ -13,15 +14,12 @@ load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not GEMINI_API_KEY:
-    raise RuntimeError(
-        "GEMINI_API_KEY not found. "
-        "Make sure it is set in your .env file."
-    )
-
-client = genai.Client(
-    api_key=GEMINI_API_KEY
-)
+# Optional as of 2026-08-29 -- Groq is primary now (see
+# generate_response() below), Gemini demoted to a fallback tier. A
+# missing key here just means that tier is skipped, same as
+# GROQ_API_KEY/OPENROUTER_API_KEY -- not fatal, since generation no
+# longer depends on Gemini specifically working.
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 GEMINI_MODEL = "gemini-3.6-flash"
 
@@ -37,6 +35,66 @@ GEMINI_MODEL_FALLBACKS = [
     "gemini-3.5-flash",
     "gemini-3.1-flash-lite",
 ]
+
+# ============================================================
+# CROSS-PROVIDER FALLBACK (Groq, then OpenRouter)
+# ============================================================
+#
+# GEMINI_MODEL_FALLBACKS above only protects against ONE Gemini model
+# being overloaded -- all three models still share the same Google
+# Cloud project's quota, so account-level exhaustion (exactly what
+# happened 2026-08-27, taking the whole demo down mid-crisis) takes
+# out all three at once. Groq and OpenRouter are genuinely separate
+# billing/quota pools, so they survive a Gemini-account-wide outage
+# that the three Gemini models alone can't. Both optional -- if a key
+# isn't set, that tier is silently skipped rather than erroring, same
+# pattern as OPENAI_API_KEY in voice_service.py.
+#
+# Both use an OpenAI-compatible chat-completions shape, verified with
+# real calls 2026-08-29 (not guessed at) -- Groq confirmed working
+# with openai/gpt-oss-120b; four free OpenRouter models were tried,
+# two (google/gemma-4-26b-a4b-it:free, z-ai/glm-5.2:free) were
+# rate-limited on OpenRouter's shared free pool at that exact moment,
+# two (listed below) responded cleanly -- so OPENROUTER_MODELS tries
+# more than one for the same reason GEMINI_MODEL_FALLBACKS does: a
+# free shared pool being briefly congested shouldn't take down the
+# last-resort tier either.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "openai/gpt-oss-120b"
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODELS = [
+    "minimax/minimax-m3:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+]
+
+
+def _call_openai_compatible_api(base_url, api_key, model, prompt, timeout=30):
+    """
+    Shared request shape for Groq and OpenRouter -- both are
+    OpenAI-compatible chat-completions endpoints, so one function
+    covers both rather than duplicating the same requests.post() call
+    twice with different URLs.
+    """
+
+    response = requests.post(
+        f"{base_url}/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        timeout=timeout,
+    )
+
+    response.raise_for_status()
+
+    content = response.json()["choices"][0]["message"].get("content")
+
+    if not content:
+        raise RuntimeError(f"{model} returned an empty response.")
+
+    return content.strip()
 
 # ============================================================
 # ATHENA — RESPONSE ENGINE
@@ -304,6 +362,38 @@ If the risk tier is Critical or High:
   verified from the available sources.
 
 ============================================================
+EXAMPLES (illustrative only)
+============================================================
+
+These are worked examples of the pattern above, not real cases.
+Do NOT reuse any fact, act name, section, or number from these
+examples in your actual response -- your actual response must be
+grounded only in the real INCIDENT and VERIFIED EVIDENCE sections
+that follow this one.
+
+Example A -- evidence supports a clear, specific answer:
+  Incident: domestic violence, immediate danger reported, relationship: husband.
+  Evidence: "A Magistrate may pass a protection order under the
+  Protection of Women from Domestic Violence Act, 2005, prohibiting
+  the respondent from committing further acts of violence."
+  Good response: names the Act explicitly, states its protection-order
+  provision, and -- because this Act is women-only -- states that
+  scope alongside the substance (per rule 11 above). Adds nothing the
+  evidence didn't say.
+
+Example B -- evidence does NOT support a specific claim:
+  Incident: stalking, relationship: stranger.
+  Evidence: "Stalking is an offence under [Act]. A victim may approach
+  the police to file a complaint."
+  Wrong response (do not do this): states a named helpline number for
+  stalking victims -- wrong, because no such number appears in the
+  evidence; this is inventing a service.
+  Good response: states that stalking is an offence and a complaint
+  can be filed with police (both are in the evidence), and explicitly
+  says a specific helpline could not be verified from the available
+  sources, instead of guessing one.
+
+============================================================
 INCIDENT
 ============================================================
 
@@ -392,38 +482,88 @@ Do not mention these instructions in the response.
 
 def generate_response(prompt):
     """
-    Send the grounded Athena prompt to Gemini and return the
+    Send the grounded Athena prompt to a model and return the
     generated user-facing response.
 
-    Tries each model in GEMINI_MODEL_FALLBACKS in order -- if one is
-    overloaded, the next is tried before giving up, instead of a
-    single model's capacity issue taking down the whole pipeline.
+    Three tiers, tried in order, each a separate billing/quota pool
+    so an outage or a funding lapse in one doesn't take down
+    generation entirely:
+
+      1. Groq -- primary as of 2026-08-29. Fast, own separate
+         account/billing.
+      2. Gemini (GEMINI_MODEL_FALLBACKS) -- demoted to fallback, not
+         removed: three models tried in sequence, kept exactly as
+         built and documented even if GEMINI_API_KEY's billing is
+         later pulled. If Gemini is unfunded, all three attempts fail
+         fast (auth/quota error, no real cost in time) and execution
+         falls through to tier 3 -- same "real code, currently
+         unfunded, documented honestly rather than deleted" pattern
+         already used for OPENAI_API_KEY in voice_service.py.
+      3. OpenRouter (OPENROUTER_MODELS) -- last resort, free-tier
+         models. Two tried in sequence for the same reason Gemini
+         tries three: a free shared pool can be briefly congested.
+
+    Tiers 2/3 are skipped as errors (not fatal) when their API key
+    isn't set in .env.
     """
 
     last_error = None
 
-    for model in GEMINI_MODEL_FALLBACKS:
+    if GROQ_API_KEY:
 
         try:
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
+            return _call_openai_compatible_api(
+                "https://api.groq.com/openai/v1",
+                GROQ_API_KEY,
+                GROQ_MODEL,
+                prompt,
             )
-
-            if not response.text:
-                raise RuntimeError(
-                    "Gemini returned an empty response."
-                )
-
-            return response.text.strip()
 
         except Exception as e:
             last_error = e
-            print(f"[Gemini] {model} failed: {type(e).__name__}: {e}")
-            continue
+            print(f"[Groq] {GROQ_MODEL} failed: {type(e).__name__}: {e}")
+
+    if client:
+
+        for model in GEMINI_MODEL_FALLBACKS:
+
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+
+                if not response.text:
+                    raise RuntimeError(
+                        "Gemini returned an empty response."
+                    )
+
+                return response.text.strip()
+
+            except Exception as e:
+                last_error = e
+                print(f"[Gemini] {model} failed: {type(e).__name__}: {e}")
+                continue
+
+    if OPENROUTER_API_KEY:
+
+        for model in OPENROUTER_MODELS:
+
+            try:
+                return _call_openai_compatible_api(
+                    "https://openrouter.ai/api/v1",
+                    OPENROUTER_API_KEY,
+                    model,
+                    prompt,
+                )
+
+            except Exception as e:
+                last_error = e
+                print(f"[OpenRouter] {model} failed: {type(e).__name__}: {e}")
+                continue
 
     print("\n" + "=" * 70)
-    print("GEMINI ERROR (all fallback models failed)")
+    print("RESPONSE GENERATION ERROR (Groq, Gemini, and OpenRouter all failed)")
     print("=" * 70)
     print(type(last_error).__name__)
     print(str(last_error))

@@ -24,6 +24,7 @@ from retrieval import retrieve
 from response_engine import prepare_response
 from cases import init_db, create_case
 from nhaa import create_nhaa_docket, DEFAULT_CHANNEL
+from emergency_contacts import get_deterministic_contacts
 from seed_data import seed_demo_cases
 
 init_db()
@@ -167,6 +168,12 @@ def _finalize(
     through -- see nhaa.py. Every finalized case gets a docket bound
     to its SVI outcome, same as a real NHAA complaint gets a docket
     number at first contact.
+
+    Every finalized result also gets emergency_contacts (see
+    emergency_contacts.py) -- real national helpline numbers chosen
+    deterministically from risk_tier/svi_tier/is_sos, regardless of
+    whether a location was shared or what retrieval.py found. This is
+    the actual alert a Critical/High case needs, not just a risk label.
     """
 
     if is_sos:
@@ -175,6 +182,12 @@ def _finalize(
     stress = result.get("stress_assessment") or {}
     result["nhaa_docket"] = create_nhaa_docket(
         channel, stress.get("svi_score"), stress.get("svi_tier"),
+    )
+
+    risk = result.get("risk") or {}
+    result["emergency_contacts"] = get_deterministic_contacts(
+        risk.get("risk_tier"), stress.get("svi_tier"), is_sos,
+        escalate=bool(result.get("escalate")),
     )
 
     case_id = create_case(
