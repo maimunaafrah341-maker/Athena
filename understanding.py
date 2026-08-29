@@ -650,6 +650,54 @@ SIGNAL_EXAMPLES = {
         "Naa kulam karananga nannu bahirangamga avamanincharu.",
         "Naa kulam valla nannu lopaliki ranivvaledu."
     ],
+
+    # Deliberately kept to direct, unambiguous statements of wanting
+    # to die/end one's life -- not generic sadness/exhaustion phrases
+    # ("I can't take this anymore"), which are common in genuinely
+    # non-suicidal distress and would make this signal too broad to
+    # trust. Semantic similarity still catches nearby real-world
+    # phrasings of the same direct statement; the anchors don't need
+    # to cover every euphemism, just be unambiguous positives. See
+    # risk.py/svi.py for how this signal is escalated once detected --
+    # deliberately weighted to guarantee Critical on its own, same
+    # design decision as immediate_danger being the strongest single
+    # scored signal, just larger given the stakes here are higher.
+    "suicidal_ideation": [
+        "I want to end my life.",
+        "I don't want to live anymore.",
+        "I've been thinking about killing myself.",
+        "I feel like I should just die.",
+        "I don't want to be alive anymore.",
+        "I have been feeling so hopeless lately, I want to end my life and I don't know what else to do.",
+        "Everything has gotten so bad that I keep thinking about ending it all.",
+
+        # Indirect/euphemistic phrasings -- a very common real-world
+        # pattern for expressing suicidal ideation, often appearing
+        # before a more direct statement. Found live 2026-08-29: the
+        # anchor set above (all direct statements) didn't generalize
+        # to these at all, even though they're a well-documented
+        # expression of the same thing.
+        "Everyone would be better off without me.",
+        "I just want to disappear forever.",
+        "I can't see a way out of this, I just want it all to stop.",
+        "I feel like a burden to everyone around me and it would be easier if I wasn't here.",
+        "मुझे लगता है कि मेरे बिना सब बेहतर रहेंगे।",
+        "నేను లేకపోతే అందరూ బాగుంటారు అనిపిస్తుంది.",
+        "मैं अपनी जिंदगी खत्म करना चाहती हूं।",
+        "मैं अब जीना नहीं चाहती।",
+        "मुझे लगता है मुझे मर जाना चाहिए।",
+        "నేను నా జీవితం ముగించాలని అనుకుంటున్నాను.",
+        "నాకు ఇక బతకాలని అనిపించడం లేదు.",
+
+        # Romanized Hindi
+        "Main apni zindagi khatam karna chahti hoon.",
+        "Main ab jeena nahi chahti.",
+        "Mujhe lagta hai mujhe mar jaana chahiye.",
+
+        # Romanized Telugu
+        "Nenu naa jeevitham mugincha alani anukuntunnanu.",
+        "Naaku ika bathakalani anipinchatledu.",
+    ],
 }
 
 
@@ -676,6 +724,27 @@ SIGNAL_EXAMPLES = {
 # verified -- not applied speculatively to every signal.
 
 SIGNAL_HARD_NEGATIVES = {
+
+    # Confirmed live 2026-08-29: multilingual-e5-small puts almost any
+    # first-person emotional-distress statement within 0.85-0.90+
+    # cosine similarity of the suicidal_ideation anchors -- "I'm
+    # stressed about exams" and "I want to end my life" read as
+    # semantically close (both are emotional self-disclosure) even
+    # though they're categorically different. The raw 0.72 threshold
+    # provides essentially no separation here (everything clears it);
+    # NEUTRAL_MARGIN alone wasn't enough either (a genuine crisis
+    # statement scored a LOWER margin over the neutral baseline than
+    # some of these hard negatives did). This set is what actually
+    # does the discriminating work for this signal.
+    "suicidal_ideation": [
+        "I had a really hard, exhausting day at work today and I am tired.",
+        "I feel really down and stressed about my exams this week.",
+        "My husband is very controlling and it makes me sad sometimes.",
+        "I am so tired of everything going wrong lately.",
+        "I feel hopeless about how things are going right now.",
+        "मुझे आजकल बहुत थकान महसूस होती है और मेरा दिन बहुत खराब गया।",
+        "నాకు ఈమధ్య చాలా అలసటగా ఉంది మరియు ఒత్తిడిగా అనిపిస్తుంది.",
+    ],
 
     "injury_present": [
         "Someone is following me everywhere.",
@@ -766,7 +835,7 @@ for signal, examples in SIGNAL_EXAMPLES.items():
 # DETECT SIGNAL
 # ============================================================
 
-def detect_signal(text, signal, threshold=0.72):
+def detect_signal(text, signal, threshold=0.72, neutral_margin=None):
     """
     Detect whether a particular safety signal is present.
 
@@ -774,7 +843,28 @@ def detect_signal(text, signal, threshold=0.72):
     neutral baseline -- ordinary/off-topic text regularly clears a
     flat threshold on its own (see NEUTRAL_MARGIN above), which was
     causing signals like immediate_danger to fire on unrelated text.
+
+    neutral_margin overrides the shared NEUTRAL_MARGIN constant for
+    this one call -- added for suicidal_ideation (see understand()'s
+    call site), found live 2026-08-29: a real, longer-form suicidal-
+    ideation report ("I have been feeling so hopeless lately. I want
+    to end my life...") sat at 0.882 similarity to the signal but an
+    even higher 0.888 to the neutral baseline (emotionally-loaded
+    language broadly resembles NEUTRAL_EXAMPLES more than a terse
+    anchor phrase does), failing NEUTRAL_MARGIN's required +0.04 lead
+    even though the raw threshold cleared easily -- and because it
+    silently didn't fire, the response fell through to normal RAG
+    grounding, which surfaced and cited abetment-of-suicide *penalty*
+    law to someone expressing suicidal ideation. For every other
+    signal a missed detection degrades the response; for this one it
+    can produce something actively harmful, so it gets its own,
+    deliberately looser margin -- a false positive here just means
+    offering crisis support to someone who didn't strictly need it,
+    which is a low-cost error next to the alternative.
     """
+
+    if neutral_margin is None:
+        neutral_margin = NEUTRAL_MARGIN
 
     query_embedding = model.encode(
         ["query: " + text],
@@ -789,7 +879,7 @@ def detect_signal(text, signal, threshold=0.72):
     best_similarity = float(similarities.max())
 
     neutral_ceil = neutral_ceiling(query_embedding)
-    neutral_margin_ok = (best_similarity - neutral_ceil) >= NEUTRAL_MARGIN
+    neutral_margin_ok = (best_similarity - neutral_ceil) >= neutral_margin
 
     hard_neg_ceil = hard_negative_ceiling(query_embedding, signal)
     hard_negative_margin_ok = (
@@ -1238,6 +1328,11 @@ def understand(text, language=None):
         "caste_based_motive"
     )
 
+    suicidal_ideation, suicidal_score = detect_signal(
+        text,
+        "suicidal_ideation",
+    )
+
     relationship, relationship_score = detect_relationship(text)
 
     location, location_score = detect_location(text)
@@ -1280,6 +1375,7 @@ def understand(text, language=None):
         "relationship": round(relationship_score * 100, 2),
         "location": round(location_score * 100, 2),
         "caste_based_motive": round(caste_score * 100, 2),
+        "suicidal_ideation": round(suicidal_score * 100, 2),
     }
 
     return {
@@ -1294,6 +1390,7 @@ def understand(text, language=None):
         "relationship": relationship,
         "location": location,
         "caste_based_motive": caste_based_motive,
+        "suicidal_ideation": suicidal_ideation,
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
     }

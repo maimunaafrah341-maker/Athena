@@ -219,6 +219,43 @@ def build_prompt(
     else:
         language_instruction = f"Respond ONLY in {language_name}."
 
+    # Only active when understanding.py's suicidal_ideation signal
+    # fired -- kept as an addition to the SAFETY PRIORITY section
+    # rather than a separate prompt path, so every other grounding
+    # rule (never invent a number/service, plain language, etc.)
+    # still applies unchanged. The actual KIRAN number is attached
+    # deterministically by emergency_contacts.py regardless of what
+    # this response says -- this block asks Gemini to point toward
+    # that support existing, not to state the number itself, so
+    # there's nothing here for Gemini to get wrong or invent.
+    if incident.get("suicidal_ideation"):
+        crisis_instructions = """
+- The report indicates possible suicidal ideation. In addition to
+  everything above:
+  - NEVER cite any law, section, or provision about penalties,
+    imprisonment, fines, or criminal liability for suicide or
+    helping/encouraging someone else's suicide -- even if such text
+    appears in the verified evidence below. This is never appropriate
+    to say to someone expressing suicidal ideation, regardless of
+    what evidence retrieval happened to find. If the only relevant
+    evidence is about penalties/criminal liability, treat it as if
+    there were no relevant evidence at all for this response.
+  - Acknowledge what they shared directly and without judgment --
+    do not minimize it, and do not ask why.
+  - Do not use platitudes ("it will get better", "everything
+    happens for a reason") -- they can read as dismissive.
+  - Do not suggest specific methods exist or discuss any method,
+    even to advise against it.
+  - Clearly and calmly say that reaching out to a real, trained
+    person right now matters, and that free, confidential mental
+    health support exists for exactly this -- without stating a
+    specific phone number yourself (the system attaches a verified
+    one separately).
+  - Keep this part especially short and warm, not clinical.
+"""
+    else:
+        crisis_instructions = ""
+
     evidence = format_evidence(
         retrieved_documents
     )
@@ -360,7 +397,7 @@ If the risk tier is Critical or High:
 - If the available evidence does not contain a specific
   emergency procedure, state that it could not be
   verified from the available sources.
-
+{crisis_instructions}
 ============================================================
 EXAMPLES (illustrative only)
 ============================================================
@@ -576,6 +613,42 @@ def generate_response(prompt):
 # BUILD RESPONSE PACKAGE
 # ============================================================
 
+# Terms that, together, mean a retrieved chunk is about penalties/
+# criminal liability FOR suicide or abetting it (e.g. BNS2023's
+# abetment-of-suicide section) -- not support content. Found live
+# 2026-08-29: a suicidal-ideation report retrieved exactly this kind
+# of chunk (it mentions "suicide" and matched on that), and Gemini
+# cited "up to ten years in prison" to someone expressing suicidal
+# ideation despite a prompt instruction not to -- relying on
+# instruction-following alone wasn't reliable enough for something
+# this safety-critical, so this chunk never reaches the prompt at all
+# when suicidal_ideation fired, same "code guarantees it, not the LLM"
+# approach as emergency_contacts.py. Deliberately a narrow, explicit
+# keyword pair rather than a general classifier -- appropriate for
+# this one well-defined harmful pattern, not a substitute for one.
+_CRISIS_UNSAFE_TERMS = ("suicide", "self-harm", "self harm")
+_CRISIS_PENALTY_TERMS = ("punish", "imprisonment", "penalty", "fine", "abet")
+
+
+def _filter_evidence_for_crisis(retrieved_documents):
+
+    safe_documents = []
+
+    for document in retrieved_documents:
+
+        text_lower = (document.get("text") or "").lower()
+
+        is_unsafe = (
+            any(term in text_lower for term in _CRISIS_UNSAFE_TERMS)
+            and any(term in text_lower for term in _CRISIS_PENALTY_TERMS)
+        )
+
+        if not is_unsafe:
+            safe_documents.append(document)
+
+    return safe_documents
+
+
 def prepare_response(
     incident,
     risk_assessment,
@@ -585,6 +658,9 @@ def prepare_response(
     Build the grounded prompt and generate the final
     user-facing response using Gemini.
     """
+
+    if incident.get("suicidal_ideation"):
+        retrieved_documents = _filter_evidence_for_crisis(retrieved_documents)
 
     prompt = build_prompt(
         incident,

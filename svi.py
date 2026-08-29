@@ -77,6 +77,19 @@ def _text_distress_score(incident):
 
     confidence_breakdown = incident.get("confidence_breakdown") or {}
 
+    # Weighted to guarantee Critical (>=60) on its own -- same
+    # reasoning as risk.py's treatment of this signal: the strongest
+    # single contributor here, given the stakes.
+    if incident.get("suicidal_ideation"):
+        points = 65
+        score += points
+        factors.append({
+            "signal": "suicidal_ideation",
+            "label": "Suicidal ideation detected",
+            "confidence": confidence_breakdown.get("suicidal_ideation"),
+            "points": points,
+        })
+
     if incident.get("immediate_danger"):
         points = 35
         score += points

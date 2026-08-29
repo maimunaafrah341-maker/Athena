@@ -125,7 +125,20 @@ def assess_risk(incident):
     immediate_danger = incident.get("immediate_danger", False)
     threat_present = incident.get("threat_present", False)
     injury_present = incident.get("injury_present", False)
+    suicidal_ideation = incident.get("suicidal_ideation", False)
     confidence = incident.get("confidence", 0.0)
+
+    # --------------------------------------------------------
+    # Suicidal ideation -- weighted to guarantee Critical (>=60) on
+    # its own, same design decision as immediate_danger being the
+    # strongest single scored signal below, just larger given the
+    # stakes here are higher. See understanding.py's SIGNAL_EXAMPLES
+    # for why this stays gated to direct, unambiguous statements.
+    # --------------------------------------------------------
+
+    if suicidal_ideation:
+        score += 65
+        risk_factors.append("Suicidal ideation detected — immediate human review required")
 
     # --------------------------------------------------------
     # Immediate danger
