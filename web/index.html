@@ -164,17 +164,6 @@
 
   .meta .tick { color: #53bdeb; font-size: 13px; }
 
-  .listen-btn {
-    border: none;
-    background: none;
-    font-size: 12px;
-    cursor: pointer;
-    padding: 0 4px 0 0;
-    line-height: 1;
-  }
-
-  .listen-btn:disabled { cursor: default; opacity: 0.6; }
-
   .sys-pill {
     background: #e1f2fb;
     color: #4a5b64;
@@ -472,7 +461,7 @@
     scrollChat();
   }
 
-  function addIncoming(text, riskTier, escalateNote, language) {
+  function addIncoming(text, riskTier, escalateNote) {
     const row = document.createElement("div");
     row.className = "row in";
 
@@ -484,74 +473,16 @@
       ? `<div style="margin-top:6px;font-size:11px;color:#54656f;">${escapeHTML(escalateNote)}</div>`
       : "";
 
-    // "Listen" playback is on-demand only (POST /tts), never fetched
-    // automatically -- most responses are read, not played back, and
-    // synthesis costs real latency/quota per call. Omitted entirely
-    // when there's no real response text to read.
-    const listenButton = text
-      ? `<button class="listen-btn" onclick="playResponseAudio(this)" title="Listen to this response">🔊</button>`
-      : "";
-
     row.innerHTML = `
       <div class="bubble in">
         <div class="text">${escapeHTML(text || "(no response)")}</div>
         ${tag}
         ${note}
-        <div class="meta">${listenButton}${nowTime()}</div>
+        <div class="meta">${nowTime()}</div>
       </div>
     `;
-
-    if (listenButton) {
-      row.querySelector(".listen-btn").dataset.text = text;
-      row.querySelector(".listen-btn").dataset.language = language || "en";
-    }
-
     chat.appendChild(row);
     scrollChat();
-  }
-
-  // Single shared <audio> element so tapping a new "listen" button
-  // stops whatever was already playing, instead of overlapping.
-  const ttsPlayer = new Audio();
-
-  async function playResponseAudio(button) {
-
-    const text = button.dataset.text;
-    const language = button.dataset.language;
-
-    const original = button.textContent;
-    button.textContent = "⏳";
-    button.disabled = true;
-
-    try {
-
-      const response = await fetch("/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS request failed: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      ttsPlayer.src = URL.createObjectURL(blob);
-      await ttsPlayer.play();
-
-    } catch (error) {
-      console.error("Playback failed:", error);
-      // Text-to-speech is optional and may not be configured (see
-      // tts_service.py) -- a failure here just means no audio, never
-      // a broken page.
-      button.textContent = "🔇";
-      setTimeout(() => { button.textContent = original; }, 2000);
-      button.disabled = false;
-      return;
-    }
-
-    button.textContent = original;
-    button.disabled = false;
   }
 
   function addSystemPill(text) {
@@ -592,9 +523,8 @@
     removeTyping();
 
     const riskTier = data.risk ? data.risk.risk_tier : null;
-    const language = data.incident ? data.incident.language : null;
 
-    addIncoming(data.response, riskTier, null, language);
+    addIncoming(data.response, riskTier);
 
     if (data.case_id) {
       addSystemPill(
