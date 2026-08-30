@@ -79,7 +79,8 @@ const TRANSLATIONS = {
 
         "lang.choose": "Choose your language",
 
-        "channel.question": "How are you reaching us?",
+        "channel.question": "Channel this came through",
+        "channel.hint": "Tag which of NHAA's channels this report is coming through -- used for case tracking, not shown to the reporter.",
         "channel.call": "14566 Call",
         "channel.portal": "Portal",
         "channel.chatbot": "Chatbot",
@@ -170,7 +171,8 @@ const TRANSLATIONS = {
 
         "lang.choose": "अपनी भाषा चुनें",
 
-        "channel.question": "आप हम तक कैसे पहुँच रहे हैं?",
+        "channel.question": "यह रिपोर्ट किस माध्यम से आई",
+        "channel.hint": "यह रिपोर्ट NHAA के किस चैनल से आ रही है, वह चुनें -- केवल केस ट्रैकिंग के लिए, रिपोर्ट करने वाले को नहीं दिखाया जाता।",
         "channel.call": "14566 कॉल",
         "channel.portal": "पोर्टल",
         "channel.chatbot": "चैटबॉट",
@@ -261,7 +263,8 @@ const TRANSLATIONS = {
 
         "lang.choose": "మీ భాషను ఎంచుకోండి",
 
-        "channel.question": "మీరు మమ్మల్ని ఎలా సంప్రదిస్తున్నారు?",
+        "channel.question": "ఈ నివేదిక ఏ మార్గం ద్వారా వచ్చింది",
+        "channel.hint": "ఈ నివేదిక NHAA యొక్క ఏ ఛానెల్ ద్వారా వస్తుందో ఎంచుకోండి -- ఇది కేసు ట్రాకింగ్ కోసం మాత్రమే, రిపోర్టర్‌కు చూపించబడదు.",
         "channel.call": "14566 కాల్",
         "channel.portal": "పోర్టల్",
         "channel.chatbot": "చాట్‌బాట్",
@@ -359,7 +362,8 @@ const TRANSLATIONS = {
 
         "lang.choose": "اپنی زبان منتخب کریں",
 
-        "channel.question": "آپ ہم تک کیسے پہنچ رہے ہیں؟",
+        "channel.question": "یہ رپورٹ کس ذریعے سے آئی",
+        "channel.hint": "منتخب کریں کہ یہ رپورٹ NHAA کے کس چینل سے آ رہی ہے -- صرف کیس ٹریکنگ کے لیے، رپورٹ کرنے والے کو نہیں دکھایا جاتا۔",
         "channel.call": "14566 کال",
         "channel.portal": "پورٹل",
         "channel.chatbot": "چیٹ بوٹ",
@@ -450,7 +454,8 @@ const TRANSLATIONS = {
 
         "lang.choose": "আপনার ভাষা নির্বাচন করুন",
 
-        "channel.question": "আপনি আমাদের সাথে কীভাবে যোগাযোগ করছেন?",
+        "channel.question": "এই রিপোর্ট কোন মাধ্যমে এসেছে",
+        "channel.hint": "এই রিপোর্ট NHAA-র কোন চ্যানেলের মাধ্যমে আসছে তা ট্যাগ করুন -- শুধু কেস ট্র্যাকিংয়ের জন্য, রিপোর্টকারীকে দেখানো হয় না।",
         "channel.call": "14566 কল",
         "channel.portal": "পোর্টাল",
         "channel.chatbot": "চ্যাটবট",
@@ -531,6 +536,10 @@ function applyTranslations() {
 
     document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
         el.setAttribute("placeholder", t(el.dataset.i18nPlaceholder));
+    });
+
+    document.querySelectorAll("[data-i18n-title]").forEach(el => {
+        el.setAttribute("title", t(el.dataset.i18nTitle));
     });
 
     const select = document.getElementById("uiLanguageSelect");

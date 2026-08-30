@@ -32,6 +32,8 @@ from cases import (
     list_case_locations,
     get_case,
     update_status,
+    escalate_case,
+    add_case_note,
     get_stats,
     get_trend,
     get_flagged_districts,
@@ -135,6 +137,20 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+def _seed_on_startup():
+    """
+    seed_demo_cases() was already written idempotent (only inserts
+    when cases.db has zero rows) specifically for Railway's ephemeral
+    filesystem -- every fresh deploy starts from an empty DB -- but
+    nothing ever actually called it, so deploys stayed empty until
+    real reports came in. Cheap: no LLM calls, all local computation.
+    """
+    import seed_data
+
+    seed_data.seed_demo_cases()
+
+
 # ============================================================
 # REQUEST MODEL
 # ============================================================
@@ -171,6 +187,15 @@ class ReportRequest(BaseModel):
 
 class StatusUpdateRequest(BaseModel):
     status: str
+    note: Optional[str] = None
+
+
+class EscalateRequest(BaseModel):
+    note: Optional[str] = None
+
+
+class NoteRequest(BaseModel):
+    note: str
 
 
 class SosRequest(BaseModel):
@@ -611,6 +636,8 @@ def get_case_brief(case_id: int):
 def patch_case_status(case_id: int, payload: StatusUpdateRequest):
     """
     Move a case to a new status, e.g. "Under Review" -> "Resolved".
+    Logged to the case's timeline; optional payload.note is attached
+    to that log entry.
     """
 
     if payload.status not in VALID_STATUSES:
@@ -619,7 +646,39 @@ def patch_case_status(case_id: int, payload: StatusUpdateRequest):
             detail=f"status must be one of {VALID_STATUSES}",
         )
 
-    case = update_status(case_id, payload.status)
+    case = update_status(case_id, payload.status, note=payload.note)
+
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return case
+
+
+@app.post("/cases/{case_id}/escalate", dependencies=[Depends(require_admin_key)])
+def post_case_escalate(case_id: int, payload: EscalateRequest):
+    """
+    The "Escalate now" action: sets status to "Escalated", logs it as
+    a distinct timeline event, and returns the district's escalation
+    contact (if the case has a known district on file) so the
+    counsellor sees exactly who to notify without a separate lookup.
+    """
+
+    result = escalate_case(case_id, note=payload.note)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return result
+
+
+@app.post("/cases/{case_id}/notes", dependencies=[Depends(require_admin_key)])
+def post_case_note(case_id: int, payload: NoteRequest):
+    """
+    Add a counsellor free-text note to a case's timeline, e.g. context
+    from a follow-up call that isn't captured anywhere else.
+    """
+
+    case = add_case_note(case_id, payload.note)
 
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")

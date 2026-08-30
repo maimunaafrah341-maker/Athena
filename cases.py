@@ -17,12 +17,18 @@ it escalates?" needs to see actually exist.
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from district_contacts import DISTRICT_CONTACTS
 
-DB_PATH = "cases.db"
+# Overridable so a Railway Volume (or any other persistent mount) can
+# survive redeploys -- Railway's default container filesystem is
+# ephemeral, wiped on every fresh deploy. Point CASES_DB_PATH at a
+# mounted volume path (e.g. /data/cases.db) in production; unset
+# locally, this is unchanged from before.
+DB_PATH = os.getenv("CASES_DB_PATH", "cases.db")
 
 VALID_STATUSES = (
     "New",
@@ -150,6 +156,135 @@ def init_db():
                     f"ALTER TABLE cases ADD COLUMN {column} {column_type}"
                 )
 
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS case_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                case_id INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                note TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+
+# ============================================================
+# CASE TIMELINE
+# ============================================================
+#
+# A chronological log per case -- reported/status changes/escalations/
+# counsellor notes -- so a counsellor picking up a case mid-handoff can
+# see what already happened instead of reconstructing it from the raw
+# report text alone. Deliberately simple: one append-only table, no
+# edit/delete (a timeline that can be rewritten isn't trustworthy),
+# valid event_type values are enforced by the functions below that
+# write them, not a DB-level CHECK constraint.
+
+def _log_event(connection, case_id, event_type, note=None, created_at=None):
+    """
+    Insert one timeline event using the given open connection/cursor --
+    callers that need the event to land atomically with another write
+    (e.g. create_case's initial "reported" event) pass their own
+    in-progress connection rather than this function opening its own.
+    """
+
+    connection.execute(
+        "INSERT INTO case_events (case_id, event_type, note, created_at) "
+        "VALUES (?, ?, ?, ?)",
+        (
+            case_id,
+            event_type,
+            note,
+            created_at or datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+
+
+def get_case_timeline(case_id):
+    """
+    A case's events, oldest first -- reads top-to-bottom like a story,
+    matching how a counsellor would actually want to review what
+    happened on handoff.
+    """
+
+    with _connect() as connection:
+
+        rows = connection.execute(
+            "SELECT id, event_type, note, created_at FROM case_events "
+            "WHERE case_id = ? ORDER BY id ASC",
+            (case_id,),
+        ).fetchall()
+
+        return [
+            {
+                "id": row["id"],
+                "event_type": row["event_type"],
+                "note": row["note"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+
+def add_case_note(case_id, note):
+    """
+    A counsellor's free-text note on a case, e.g. context from a
+    follow-up call that isn't captured anywhere else. Returns the
+    updated case (with the new note in its timeline), or None if the
+    case doesn't exist.
+    """
+
+    if get_case(case_id) is None:
+        return None
+
+    with _connect() as connection:
+        _log_event(connection, case_id, "note_added", note=note)
+
+    return get_case(case_id)
+
+
+def escalate_case(case_id, note=None):
+    """
+    The "Escalate now" action: moves a case to "Escalated" status and
+    logs it as a distinct timeline event (not just a generic status
+    change) with whatever note the counsellor gave, plus resolves the
+    case's district to a real escalation contact via DISTRICT_CONTACTS
+    the same way kg.py's _resolve_escalation_contact does, so the
+    counsellor immediately sees who to actually notify. Returns None
+    if the case doesn't exist; returns {"case": ..., "escalation_contact":
+    ...} otherwise -- escalation_contact is None when the case has no
+    district on file or it doesn't match a known contact, same as
+    kg.py's lookup.
+    """
+
+    with _connect() as connection:
+
+        row = connection.execute(
+            "SELECT district FROM cases WHERE id = ?", (case_id,)
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        raw_district = row["district"]
+
+        connection.execute(
+            "UPDATE cases SET status = ? WHERE id = ?",
+            ("Escalated", case_id),
+        )
+
+        _log_event(connection, case_id, "escalated", note=note)
+
+    escalation_contact = (
+        {**DISTRICT_CONTACTS[raw_district], "source": "kg_seed"}
+        if raw_district and raw_district in DISTRICT_CONTACTS
+        else None
+    )
+
+    return {
+        "case": get_case(case_id),
+        "escalation_contact": escalation_contact,
+    }
+
 
 # ============================================================
 # CREATE
@@ -173,8 +308,15 @@ def create_case(
     Persist one pipeline result as a case row.
 
     Status defaults to "Escalated" when the pipeline flagged it for
-    human attention, "Resolved" otherwise -- a human can move it
-    from there. evidence_path is the saved path of an uploaded
+    human attention, "New" otherwise -- a human still needs to look
+    at it before it's actually resolved (see update_status()); "New"
+    used to be "Resolved" here, which meant every non-critical case
+    looked already-handled the instant it was created, indistinguishable
+    from one a counsellor had genuinely reviewed and closed out. That
+    also silently broke "cases awaiting first response" as a dashboard
+    metric, since nothing was ever really awaiting anything -- fixed
+    alongside the case-timeline/escalation work this default was found
+    during. evidence_path is the saved path of an uploaded
     screenshot/image, if this case came from OCR'd evidence rather
     than typed text. latitude/longitude, if given, should already be
     privacy-rounded by the caller (~150m) before reaching here --
@@ -251,7 +393,7 @@ def create_case(
     nhaa_docket = pipeline_result.get("nhaa_docket")
 
     escalate = bool(pipeline_result.get("escalate"))
-    status = "Escalated" if escalate else "Resolved"
+    status = "Escalated" if escalate else "New"
 
     with _connect() as connection:
 
@@ -298,7 +440,17 @@ def create_case(
             ),
         )
 
-        return cursor.lastrowid
+        new_case_id = cursor.lastrowid
+
+        _log_event(
+            connection,
+            new_case_id,
+            "reported",
+            note=f"Status set to {status} on intake.",
+            created_at=created_at,
+        )
+
+        return new_case_id
 
 
 # ============================================================
@@ -433,7 +585,9 @@ def list_case_locations():
 
 def get_case(case_id):
     """
-    Fetch one case by id, or None if it doesn't exist.
+    Fetch one case by id, or None if it doesn't exist. Includes the
+    case's timeline -- unlike list_cases(), which deliberately doesn't,
+    since a bulk list has no use for every case's full event history.
     """
 
     with _connect() as connection:
@@ -443,7 +597,13 @@ def get_case(case_id):
             (case_id,),
         ).fetchone()
 
-        return _row_to_case(row) if row else None
+        if not row:
+            return None
+
+    case = _row_to_case(row)
+    case["timeline"] = get_case_timeline(case_id)
+
+    return case
 
 
 def _count_by(connection, column):
@@ -691,11 +851,15 @@ def get_flagged_districts(days=7):
 # UPDATE
 # ============================================================
 
-def update_status(case_id, new_status):
+def update_status(case_id, new_status, note=None):
     """
     Move a case to a new status. Returns the updated case, or None
     if the case doesn't exist. Raises ValueError for an unknown
-    status rather than silently accepting a typo.
+    status rather than silently accepting a typo. Logs the transition
+    (old status -> new status, plus any counsellor-given note) as a
+    timeline event -- no-ops the log (but still returns the case) if
+    the case doesn't exist or is already at new_status, since that's
+    not a real transition.
     """
 
     if new_status not in VALID_STATUSES:
@@ -706,10 +870,25 @@ def update_status(case_id, new_status):
 
     with _connect() as connection:
 
+        row = connection.execute(
+            "SELECT status FROM cases WHERE id = ?", (case_id,)
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        old_status = row["status"]
+
         connection.execute(
             "UPDATE cases SET status = ? WHERE id = ?",
             (new_status, case_id),
         )
+
+        if old_status != new_status:
+            event_note = f"{old_status} -> {new_status}"
+            if note:
+                event_note += f": {note}"
+            _log_event(connection, case_id, "status_changed", note=event_note)
 
     return get_case(case_id)
 
@@ -835,4 +1014,5 @@ def build_escalation_brief(case_id):
             }
             for r in related
         ] if related else [],
+        "timeline": case["timeline"],
     }

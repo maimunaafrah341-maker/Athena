@@ -577,6 +577,34 @@ a {
     font-weight: 700;
 }
 
+.evidence-attach {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin: 10px 0;
+}
+
+.evidence-attach .text-button {
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    cursor: pointer;
+
+    font-size: 12px;
+}
+
+.evidence-filename {
+    font-size: 11px;
+
+    color: var(--muted);
+}
+
 
 /* =========================================================
    STATS
@@ -2662,6 +2690,96 @@ table tbody tr:hover {
 }
 
 
+.admin-gate-overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 2000;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: var(--surface-soft);
+
+}
+
+
+.admin-gate-card {
+
+    width: min(360px, 90vw);
+
+    padding: 34px 30px;
+
+    background: var(--surface);
+
+    border-radius: 22px;
+
+    box-shadow: var(--shadow);
+
+    text-align: center;
+
+}
+
+
+.admin-gate-card h2 {
+
+    margin-top: 4px;
+
+    font-size: 16px;
+
+}
+
+
+.admin-gate-card p {
+
+    margin-top: 10px;
+
+    color: var(--muted);
+
+    font-size: 10px;
+
+    line-height: 1.6;
+
+}
+
+
+.admin-gate-card input {
+
+    width: 100%;
+
+    margin-top: 18px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 9px;
+
+    padding: 11px 13px;
+
+    font-size: 11px;
+
+    font-family: inherit;
+
+    text-align: center;
+
+}
+
+
+.admin-gate-card .primary-button {
+
+    width: 100%;
+
+    margin-top: 12px;
+
+    justify-content: center;
+
+}
+
+
 .case-brief-panel {
 
     width: min(560px, 92vw);
@@ -3003,6 +3121,137 @@ table tbody tr:hover {
     padding-top: 20px;
 
     border-top: 1px solid var(--border);
+
+    color: var(--muted-light);
+
+    font-size: 8px;
+
+}
+
+
+.case-action-row {
+
+    display: flex;
+
+    gap: 8px;
+
+    margin-top: 10px;
+
+    align-items: stretch;
+
+}
+
+
+.case-action-row input[type="text"],
+.case-action-row select,
+.case-action-row textarea {
+
+    flex: 1;
+
+    border: 1px solid var(--border);
+
+    border-radius: 9px;
+
+    padding: 9px 11px;
+
+    font-size: 10px;
+
+    font-family: inherit;
+
+    color: var(--ink);
+
+}
+
+
+.case-action-row textarea {
+
+    resize: vertical;
+
+    min-height: 38px;
+
+}
+
+
+.case-action-row .primary-button,
+.case-action-row .secondary-button {
+
+    flex-shrink: 0;
+
+    white-space: nowrap;
+
+}
+
+
+.escalate-button {
+
+    background: #b23b3b;
+
+}
+
+
+.escalate-button:hover {
+
+    background: #8f2f2f;
+
+}
+
+
+.case-timeline {
+
+    margin-top: 10px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 12px;
+
+}
+
+
+.case-timeline-item {
+
+    display: flex;
+
+    gap: 10px;
+
+    font-size: 10px;
+
+}
+
+
+.case-timeline-item .timeline-dot {
+
+    flex-shrink: 0;
+
+    width: 7px;
+    height: 7px;
+
+    margin-top: 4px;
+
+    border-radius: 50%;
+
+    background: var(--sage-dark);
+
+}
+
+
+.case-timeline-item.event-escalated .timeline-dot {
+    background: #b23b3b;
+}
+
+
+.case-timeline-item .timeline-body p {
+
+    color: var(--muted);
+
+    font-size: 9px;
+
+    margin-top: 2px;
+
+}
+
+
+.case-timeline-item .timeline-body time {
 
     color: var(--muted-light);
 

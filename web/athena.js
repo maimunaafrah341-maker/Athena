@@ -16,17 +16,111 @@ const API_BASE_URL = "";
 // Never hardcode the real admin key in a shipped file -- this is a
 // public repo, so anything written here is permanently visible in git
 // history to anyone, and it gates every case endpoint (real reporter
-// text, legal guidance, SVI). Prompted once per browser (not per tab
-// -- localStorage, not sessionStorage, so opening a new tab or
-// reloading doesn't re-prompt every time) and kept only in
-// localStorage, not in source.
-const ADMIN_API_KEY =
-    localStorage.getItem("athena_admin_key") ||
-    (() => {
-        const key = prompt("Enter the admin key to open the counsellor dashboard:");
-        if (key) localStorage.setItem("athena_admin_key", key);
-        return key;
-    })();
+// text, legal guidance, SVI). Kept only in localStorage, not in
+// source, and persists per browser (not per tab -- opening a new tab
+// or reloading doesn't ask again).
+//
+// Two ways in, so a link handed to someone else (e.g. a judge, from a
+// PDF) doesn't dead-end on a raw browser prompt():
+//   1. ?key=... in the URL -- consumed into localStorage below, then
+//      stripped from the address bar so it doesn't linger visibly.
+//      Whoever controls that link controls admin access, same trust
+//      level as the key itself -- don't publish a link carrying a key
+//      you're not fine with the recipient having indefinitely.
+//   2. showAdminKeyGate() below, a proper in-page screen instead of
+//      prompt() -- shown once if neither of the above already set one.
+const _urlParams = new URLSearchParams(window.location.search);
+const _keyFromUrl = _urlParams.get("key");
+
+if (_keyFromUrl) {
+
+    localStorage.setItem("athena_admin_key", _keyFromUrl);
+
+    _urlParams.delete("key");
+
+    const _cleanQuery = _urlParams.toString();
+
+    window.history.replaceState(
+        {},
+        "",
+        window.location.pathname +
+            (_cleanQuery ? `?${_cleanQuery}` : "") +
+            window.location.hash
+    );
+
+}
+
+const ADMIN_API_KEY = localStorage.getItem("athena_admin_key");
+
+if (!ADMIN_API_KEY) {
+    showAdminKeyGate();
+}
+
+/* =========================================================
+   ADMIN KEY GATE
+========================================================= */
+
+// A full-page screen in place of prompt() -- every fetch call below
+// still fires with a null/blank key and 401s (already handled by each
+// call's existing catch block, so nothing crashes), but this overlay
+// visually blocks the rest of the UI until a key is entered. Submitting
+// reloads the page rather than trying to hot-swap ADMIN_API_KEY (a
+// const, and already captured in every closure that reads it) --
+// simplest correct fix, and this only happens once per browser.
+function showAdminKeyGate() {
+
+    const overlay = document.createElement("div");
+
+    overlay.className = "admin-gate-overlay";
+
+    overlay.innerHTML = `
+        <div class="admin-gate-card">
+
+            <div class="brand-symbol" style="margin: 0 auto 14px;">A</div>
+
+            <h2>Counsellor / Admin Access</h2>
+
+            <p>
+                This dashboard handles real reporter data, so it's
+                gated behind an access key. Enter the one you were
+                given to continue.
+            </p>
+
+            <input
+                type="password"
+                id="adminGateInput"
+                placeholder="Access key"
+                autofocus
+            />
+
+            <button type="button" id="adminGateSubmit" class="primary-button">
+                Continue
+            </button>
+
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const submit = () => {
+
+        const value = overlay.querySelector("#adminGateInput").value.trim();
+
+        if (!value) return;
+
+        localStorage.setItem("athena_admin_key", value);
+
+        window.location.reload();
+
+    };
+
+    overlay.querySelector("#adminGateSubmit").addEventListener("click", submit);
+
+    overlay.querySelector("#adminGateInput").addEventListener("keydown", event => {
+        if (event.key === "Enter") submit();
+    });
+
+}
 
 /* =========================================================
    STATE
@@ -762,7 +856,7 @@ function normalizeCase(item) {
             item.status ||
             (item.escalate
                 ? "Escalated"
-                : "Pending"),
+                : "New"),
 
         time:
             item.created_at ||
@@ -979,6 +1073,44 @@ async function openCaseBrief(caseId) {
 }
 
 /* =========================================================
+   CASE ACTIONS (escalate / status / notes)
+========================================================= */
+
+async function postCaseAction(url, body, method = "POST") {
+
+    try {
+
+        const response =
+            await fetch(url, {
+                method,
+                headers: {
+                    "X-API-Key": ADMIN_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            });
+
+        if (!response.ok) {
+            throw new Error(`Case action failed: ${response.status}`);
+        }
+
+        return await response.json();
+
+    }
+
+    catch (error) {
+
+        console.error("Case action failed:", error);
+
+        alert("That action couldn't be saved. Please try again.");
+
+        return null;
+
+    }
+
+}
+
+/* =========================================================
    SHOW CASE BRIEF
 ========================================================= */
 
@@ -1033,12 +1165,35 @@ function showCaseBrief(brief) {
         null;
 
 
+    const timeline =
+        brief.timeline ||
+        [];
+
+
     const CHANNEL_LABELS = {
         "14566_voice": "14566 Voice Call",
         "ivrs": "IVRS",
         "portal": "Integrated Portal",
         "chatbot": "Chatbot",
         "mobile_app": "Mobile App",
+    };
+
+
+    // Kept in sync with cases.py's VALID_STATUSES by hand -- that
+    // tuple isn't exposed over the API anywhere, so this is a
+    // deliberate, small duplication rather than an extra round trip
+    // just to populate a dropdown.
+    const CASE_STATUSES = [
+        "New", "Under Review", "Escalated",
+        "In Progress", "Resolved", "Closed",
+    ];
+
+
+    const TIMELINE_LABELS = {
+        reported: "Report received",
+        status_changed: "Status changed",
+        escalated: "Escalated",
+        note_added: "Note added",
     };
 
 
@@ -1268,6 +1423,63 @@ function showCaseBrief(brief) {
             </div>
 
 
+            <div class="case-brief-section">
+
+                <span class="eyebrow">
+                    ACTIONS
+                </span>
+
+                <div class="case-action-row">
+                    <input
+                        type="text"
+                        id="escalateNoteInput"
+                        placeholder="Optional note (e.g. who's being notified)"
+                    />
+                    <button
+                        type="button"
+                        id="escalateNowButton"
+                        class="primary-button escalate-button"
+                    >
+                        Escalate now
+                    </button>
+                </div>
+
+                <div class="case-action-row">
+                    <select id="statusSelect">
+                        ${
+                            CASE_STATUSES.map(status => `
+                                <option value="${status}" ${status === brief.status ? "selected" : ""}>
+                                    ${status}
+                                </option>
+                            `).join("")
+                        }
+                    </select>
+                    <button
+                        type="button"
+                        id="updateStatusButton"
+                        class="secondary-button"
+                    >
+                        Update status
+                    </button>
+                </div>
+
+                <div class="case-action-row">
+                    <textarea
+                        id="caseNoteInput"
+                        placeholder="Add a note (e.g. context from a follow-up call)"
+                    ></textarea>
+                    <button
+                        type="button"
+                        id="addNoteButton"
+                        class="secondary-button"
+                    >
+                        Add note
+                    </button>
+                </div>
+
+            </div>
+
+
             ${
                 signals.length
                     ? `
@@ -1390,6 +1602,51 @@ function showCaseBrief(brief) {
             }
 
 
+            ${
+                timeline.length
+                    ? `
+                        <div class="case-brief-section">
+
+                            <span class="eyebrow">
+                                TIMELINE
+                            </span>
+
+                            <div class="case-timeline">
+
+                                ${
+                                    timeline.map(event => `
+                                        <div class="case-timeline-item event-${escapeHTML(event.event_type)}">
+
+                                            <span class="timeline-dot"></span>
+
+                                            <div class="timeline-body">
+
+                                                <strong>
+                                                    ${escapeHTML(TIMELINE_LABELS[event.event_type] || event.event_type)}
+                                                </strong>
+
+                                                ${
+                                                    event.note
+                                                        ? `<p>${escapeHTML(event.note)}</p>`
+                                                        : ""
+                                                }
+
+                                                <time>${formatTime(event.created_at)}</time>
+
+                                            </div>
+
+                                        </div>
+                                    `).join("")
+                                }
+
+                            </div>
+
+                        </div>
+                      `
+                    : ""
+            }
+
+
             <div class="case-brief-footer">
 
                 <span>
@@ -1414,6 +1671,75 @@ function showCaseBrief(brief) {
 
 
     document.body.appendChild(overlay);
+
+
+    /* Actions: escalate / status change / add note -- each posts to
+       the backend, then reloads the case list (so the table/stats
+       reflect the change) and re-opens this same case's brief to show
+       the updated status/timeline. */
+
+    overlay
+        .querySelector("#escalateNowButton")
+        ?.addEventListener("click", async () => {
+
+            const note = overlay.querySelector("#escalateNoteInput")?.value.trim();
+
+            const result = await postCaseAction(
+                `${API_BASE_URL}/cases/${brief.case_id}/escalate`,
+                { note: note || null }
+            );
+
+            const contact = result?.escalation_contact;
+
+            if (contact) {
+                alert(
+                    `Escalated. Notify the ${contact.district} Sakhi/OSC` +
+                    (contact.contact_person ? ` (${contact.contact_person})` : "") +
+                    `: ${contact.contact_person_phone || contact.phone || "no phone on file"}`
+                );
+            } else if (result) {
+                alert("Escalated. No district contact on file for this case -- check the district contacts list manually.");
+            }
+
+            await loadCases();
+            openCaseBrief(brief.case_id);
+
+        });
+
+    overlay
+        .querySelector("#updateStatusButton")
+        ?.addEventListener("click", async () => {
+
+            const status = overlay.querySelector("#statusSelect")?.value;
+
+            await postCaseAction(
+                `${API_BASE_URL}/cases/${brief.case_id}/status`,
+                { status },
+                "PATCH"
+            );
+
+            await loadCases();
+            openCaseBrief(brief.case_id);
+
+        });
+
+    overlay
+        .querySelector("#addNoteButton")
+        ?.addEventListener("click", async () => {
+
+            const note = overlay.querySelector("#caseNoteInput")?.value.trim();
+
+            if (!note) return;
+
+            await postCaseAction(
+                `${API_BASE_URL}/cases/${brief.case_id}/notes`,
+                { note }
+            );
+
+            await loadCases();
+            openCaseBrief(brief.case_id);
+
+        });
 
 
     /* Close buttons */
@@ -1548,8 +1874,12 @@ function updateDashboardStats() {
 
     const pending =
         cases.filter(
+            // "New" is the real status a just-created, non-escalated
+            // case starts at (see cases.py's create_case()) -- this
+            // used to check for "Pending", a status that's never
+            // actually assigned, so this card silently always read 0.
             item =>
-                item.status === "Pending"
+                item.status === "New"
         ).length;
 
 
