@@ -2931,6 +2931,75 @@ table tbody tr:hover {
 }
 
 
+.ai-badge {
+
+    margin-left: 8px;
+
+    padding: 2px 7px;
+
+    background: var(--surface-soft);
+
+    border-radius: 20px;
+
+    color: var(--muted-light);
+
+    font-size: 7px;
+
+    font-weight: 700;
+
+    letter-spacing: .3px;
+
+    vertical-align: middle;
+
+}
+
+
+.case-brief-urgency {
+
+    margin-top: 14px;
+
+    padding: 10px 14px;
+
+    border-radius: 10px;
+
+    background: var(--surface-soft);
+
+    color: var(--ink);
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+}
+
+
+.case-brief-urgency.urgency-critical {
+
+    background: #ead9d9;
+
+    color: var(--critical);
+
+}
+
+
+.case-brief-urgency.urgency-watch {
+
+    background: #f1e8dc;
+
+    color: var(--moderate);
+
+}
+
+
+.case-brief-urgency.urgency-ok {
+
+    background: #e4eee7;
+
+    color: var(--low);
+
+}
+
+
 .case-summary,
 .brief-reason {
 

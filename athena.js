@@ -1170,6 +1170,64 @@ function showCaseBrief(brief) {
         [];
 
 
+    // Urgency cue: how long has this case sat since its last real
+    // action? For an Escalated case that's measured from the escalation
+    // event itself (not just "last timeline entry"), since a status
+    // change or note after escalating still leaves the underlying
+    // "has anyone actually responded to the escalation" question open.
+    const lastEvent =
+        timeline.length
+            ? timeline[timeline.length - 1]
+            : null;
+
+    const lastEscalatedEvent =
+        [...timeline].reverse().find(
+            event => event.event_type === "escalated"
+        ) ||
+        null;
+
+    const isEscalated =
+        (brief.status || "").toLowerCase() === "escalated";
+
+    const urgencyReference =
+        isEscalated && lastEscalatedEvent
+            ? lastEscalatedEvent.created_at
+            : (lastEvent ? lastEvent.created_at : brief.first_reported);
+
+    const urgencyElapsedLabel =
+        formatElapsed(urgencyReference);
+
+    const urgencyMinutes =
+        urgencyReference
+            ? (Date.now() - new Date(urgencyReference).getTime()) / 60000
+            : null;
+
+    let urgencyTier = "normal";
+
+    if (isEscalated && urgencyMinutes != null) {
+        urgencyTier =
+            urgencyMinutes >= 60
+                ? "critical"
+                : urgencyMinutes >= 15
+                    ? "watch"
+                    : "ok";
+    }
+
+    const noUpdateSinceEscalation =
+        isEscalated &&
+        lastEscalatedEvent &&
+        lastEvent &&
+        lastEscalatedEvent.id === lastEvent.id;
+
+    const urgencyText =
+        isEscalated
+            ? `Escalated ${urgencyElapsedLabel}` +
+              (noUpdateSinceEscalation ? " — no update since" : "")
+            : urgencyElapsedLabel
+                ? `Last activity: ${urgencyElapsedLabel}`
+                : null;
+
+
     const CHANNEL_LABELS = {
         "14566_voice": "14566 Voice Call",
         "ivrs": "IVRS",
@@ -1242,6 +1300,17 @@ function showCaseBrief(brief) {
                 </button>
 
             </div>
+
+
+            ${
+                urgencyText
+                    ? `
+                        <div class="case-brief-urgency urgency-${urgencyTier}">
+                            ${escapeHTML(urgencyText)}
+                        </div>
+                      `
+                    : ""
+            }
 
 
             ${
@@ -1412,6 +1481,9 @@ function showCaseBrief(brief) {
                 <span class="eyebrow">
                     AI ASSESSMENT
                 </span>
+                <span class="ai-badge">
+                    Suggested — not final
+                </span>
 
                 <p class="brief-reason">
                     ${escapeHTML(
@@ -1488,6 +1560,9 @@ function showCaseBrief(brief) {
                             <span class="eyebrow">
                                 STRESS / TRAUMA SIGNALS
                             </span>
+                            <span class="ai-badge">
+                                Suggested — not final
+                            </span>
 
                             <div class="brief-list">
 
@@ -1526,6 +1601,9 @@ function showCaseBrief(brief) {
 
                             <span class="eyebrow">
                                 LEGAL GUIDANCE
+                            </span>
+                            <span class="ai-badge">
+                                Suggested — verify before citing
                             </span>
 
                             <div class="brief-list">
@@ -1571,6 +1649,9 @@ function showCaseBrief(brief) {
 
                             <span class="eyebrow">
                                 PROCEDURAL NEXT STEPS
+                            </span>
+                            <span class="ai-badge">
+                                Suggested — counsellor discretion applies
                             </span>
 
                             <div class="brief-steps">
@@ -2661,6 +2742,49 @@ function formatTime(value) {
             minute: "2-digit"
         }
     );
+
+}
+
+
+function formatElapsed(value) {
+
+    if (!value) {
+        return null;
+    }
+
+
+    const date =
+        new Date(value);
+
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+
+    const minutes =
+        Math.floor((Date.now() - date.getTime()) / 60000);
+
+
+    if (minutes < 1) {
+        return "just now";
+    }
+
+    if (minutes < 60) {
+        return `${minutes}m ago`;
+    }
+
+    const hours =
+        Math.floor(minutes / 60);
+
+    if (hours < 24) {
+        return `${hours}h ${minutes % 60}m ago`;
+    }
+
+    const days =
+        Math.floor(hours / 24);
+
+    return `${days}d ago`;
 
 }
 
