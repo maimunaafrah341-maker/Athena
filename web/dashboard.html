@@ -489,6 +489,39 @@
                     class="page"
                 >
 
+                    <!--
+                        Persistent regardless of scroll position or which
+                        input mode (voice/text/photo) is in use -- a
+                        reporter under stress shouldn't have to hunt for
+                        the emergency number or a way out. "Quick exit"
+                        clears the form and leaves this site immediately,
+                        replacing browser history so the back button
+                        can't return here -- standard practice on DV
+                        safety sites, for someone who needs to close this
+                        the instant another person walks in.
+                    -->
+
+                    <div class="safety-bar">
+
+                        <a href="tel:112" class="safety-bar-call" data-i18n="safety.callNow">
+                            📞 In immediate danger? Call 112 now
+                        </a>
+
+                        <div class="safety-bar-actions">
+
+                            <button type="button" id="sosButton" class="safety-bar-sos">
+                                <span id="sosButtonLabel" data-i18n="safety.sos">SOS</span>
+                            </button>
+
+                            <button type="button" id="quickExitButton" class="safety-bar-exit" data-i18n="safety.quickExit">
+                                Quick exit
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
                     <div class="page-heading">
 
                         <div>
@@ -551,9 +584,19 @@
                             </div>
 
 
-                            <!-- NHAA CHANNEL -->
+                            <!--
+                                NHAA CHANNEL -- counsellor bookkeeping
+                                (which of NHAA's intake channels this
+                                report came through), not something a
+                                self-reporting citizen would know or
+                                need to answer. Shown only when
+                                ADMIN_API_KEY is present (see athena.js
+                                init); a citizen without a key never
+                                sees this and silently reports through
+                                "portal", the pre-selected default.
+                            -->
 
-                            <div class="report-language">
+                            <div class="report-language" id="channelSelectorGroup" hidden>
 
                                 <span
                                     data-i18n="channel.question"
@@ -611,9 +654,12 @@
                                 <button
                                     id="micButton"
                                     class="large-mic"
+                                    type="button"
+                                    data-i18n-aria-label="voice.tapToSpeak"
+                                    aria-label="Tap to speak"
                                 >
 
-                                    <span class="mic-symbol">
+                                    <span class="mic-symbol" aria-hidden="true">
                                         🎙
                                     </span>
 
@@ -658,8 +704,8 @@
                                     type="button"
                                     class="text-button"
                                 >
-                                    <span>📎</span>
-                                    <span data-i18n="evidence.attach">Attach evidence photo (optional)</span>
+                                    <span aria-hidden="true">📎</span>
+                                    <span data-i18n="evidence.attach">Add a photo or file (optional)</span>
                                 </button>
 
                                 <input
@@ -672,6 +718,48 @@
                                 <span id="evidenceFileName" class="evidence-filename"></span>
 
                             </div>
+
+
+                            <!--
+                                Shown before the send button, not buried in a
+                                footer link: someone deciding how much to write
+                                needs to know who can read it *while* they're
+                                deciding. <details> so the one-line summary is
+                                always visible and the detail is one keyboard-
+                                reachable toggle away, with no JS needed.
+                            -->
+                            <details class="privacy-note">
+
+                                <summary data-i18n="privacy.summary">
+                                    Only trained support staff can access your report. We will not contact you unless you choose a safe way for us to do so.
+                                </summary>
+
+                                <ul>
+                                    <li data-i18n="privacy.collected">What we keep: what you write or say, and the time you sent it.</li>
+                                    <li data-i18n="privacy.access">Who can see it: trained helpline counsellors reviewing your case. Not the public, and not the person you are reporting.</li>
+                                    <li data-i18n="privacy.location">Location: only if you tap SOS and allow it, and it is stored rounded to roughly a neighbourhood, never an exact address.</li>
+                                    <li data-i18n="privacy.contact">Contact: we only reach out the way you choose on the next screen. "Do not contact me" is a real option.</li>
+                                    <li data-i18n="privacy.risk">Please do not include anything that would put you in more danger if someone else saw this device.</li>
+                                </ul>
+
+                            </details>
+
+
+                            <!--
+                                Status text for the submit/SOS flow, announced
+                                to screen readers as it changes (role="status"
+                                is an implicit aria-live="polite" region).
+                                Replaces a bare alert() on failure, which
+                                announced nothing, blocked the page, and lost
+                                the message the moment it was dismissed.
+                            -->
+                            <p
+                                id="reportStatus"
+                                class="report-status"
+                                role="status"
+                                aria-live="polite"
+                                hidden
+                            ></p>
 
 
                             <div class="report-bottom">
@@ -765,12 +853,106 @@
                             We've received what you shared.
                         </p>
 
-                        <div class="help-box">
+                        <!--
+                            Everything below is populated by
+                            renderConfirmationDetail() in athena.js, based
+                            on what the pipeline actually decided for THIS
+                            report -- risk tier, the AI's grounded
+                            response, applicable law, response SLA, and
+                            emergency contacts. Previously this whole card
+                            was static regardless of risk tier; a Critical
+                            report and a Low one showed the identical
+                            "Help is on the way" text with none of the
+                            pipeline's actual output ever reaching the
+                            reporter. hidden by default so a direct visit
+                            (no report just submitted) doesn't show a
+                            blank/broken block.
+                        -->
+
+                        <p id="confirmReference" class="confirm-reference" hidden></p>
+
+                        <div id="confirmUrgent" class="urgent-box" hidden></div>
+
+                        <div id="confirmHelpBox" class="help-box">
                             <span>♡</span>
                             <strong data-i18n="confirm.helpTitle">
                                 Help is on the way.
                             </strong>
                         </div>
+
+                        <p id="confirmResponseText" class="confirmation-response" hidden></p>
+
+                        <div id="confirmLegal" class="confirm-legal" hidden></div>
+
+                        <div id="confirmContacts" class="confirm-contacts" hidden></div>
+
+                        <!--
+                            The reporter's own answer to how (or whether)
+                            it's safe to contact them back. "Do not
+                            contact me" is listed first and given equal
+                            weight deliberately: for some people a
+                            callback is itself the danger, so it must not
+                            read as the reluctant option. Saved via a
+                            public, write-only, one-shot endpoint -- see
+                            app.py's /cases/{id}/follow-up.
+                        -->
+
+                        <form id="confirmFollowUp" class="confirm-followup" hidden>
+
+                            <fieldset>
+
+                                <legend data-i18n="followup.title">
+                                    How is it safe to contact you?
+                                </legend>
+
+                                <label>
+                                    <input type="radio" name="followUp" value="do_not_contact" />
+                                    <span data-i18n="followup.doNotContact">Do not contact me</span>
+                                </label>
+
+                                <label>
+                                    <input type="radio" name="followUp" value="text_only" />
+                                    <span data-i18n="followup.textOnly">Text message only</span>
+                                </label>
+
+                                <label>
+                                    <input type="radio" name="followUp" value="call_only" />
+                                    <span data-i18n="followup.callOnly">Phone call only</span>
+                                </label>
+
+                                <label>
+                                    <input type="radio" name="followUp" value="either" />
+                                    <span data-i18n="followup.either">Either is safe</span>
+                                </label>
+
+                            </fieldset>
+
+                            <label class="confirm-followup-note">
+                                <span data-i18n="followup.timeLabel">
+                                    When is it safe to reach you? (optional)
+                                </span>
+                                <input
+                                    type="text"
+                                    id="followUpNote"
+                                    maxlength="120"
+                                    data-i18n-placeholder="followup.timePlaceholder"
+                                    placeholder="e.g. weekday mornings only"
+                                />
+                            </label>
+
+                            <button type="submit" class="primary-button" id="followUpSubmit">
+                                <span data-i18n="followup.save">Save my preference</span>
+                            </button>
+
+                            <p
+                                id="followUpStatus"
+                                class="report-status"
+                                role="status"
+                                aria-live="polite"
+                                hidden
+                            ></p>
+
+                        </form>
 
                         <p class="confirmation-small" data-i18n="confirm.small">
                             Your information has been sent to the support team.

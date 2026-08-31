@@ -33,6 +33,9 @@ from cases import (
     get_case,
     update_status,
     escalate_case,
+    acknowledge_case,
+    set_follow_up_preference,
+    VALID_FOLLOW_UP_PREFERENCES,
     add_case_note,
     get_stats,
     get_trend,
@@ -196,6 +199,11 @@ class EscalateRequest(BaseModel):
 
 class NoteRequest(BaseModel):
     note: str
+
+
+class FollowUpRequest(BaseModel):
+    preference: str
+    note: Optional[str] = None
 
 
 class SosRequest(BaseModel):
@@ -378,6 +386,43 @@ def sos(payload: SosRequest):
         )
 
     return _strip_counsellor_only_fields(result)
+
+
+@app.post("/cases/{case_id}/follow-up")
+def post_follow_up_preference(case_id: int, payload: FollowUpRequest):
+    """
+    The reporter's own answer to "how is it safe to contact you?",
+    submitted from the confirmation screen straight after filing.
+
+    Public on purpose -- the person answering this has just filed a
+    report and has no counsellor key -- which is why it is deliberately
+    write-only and one-shot (see cases.set_follow_up_preference for the
+    threat model). It never returns the case: echoing case content back
+    to an unauthenticated caller would turn a preference form into a
+    way to read anyone's report by guessing an id. Callers get a bare
+    acknowledgement and nothing else.
+    """
+
+    result = set_follow_up_preference(
+        case_id, payload.preference, note=payload.note
+    )
+
+    if result == "invalid":
+        raise HTTPException(
+            status_code=400,
+            detail=f"preference must be one of {VALID_FOLLOW_UP_PREFERENCES}",
+        )
+
+    if result == "not_found":
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    if result == "already_set":
+        raise HTTPException(
+            status_code=409,
+            detail="A contact preference is already recorded for this case.",
+        )
+
+    return {"status": "saved", "case_id": case_id}
 
 
 @app.get("/call-options")
@@ -669,6 +714,22 @@ def post_case_escalate(case_id: int, payload: EscalateRequest):
         raise HTTPException(status_code=404, detail="Case not found")
 
     return result
+
+
+@app.post("/cases/{case_id}/acknowledge", dependencies=[Depends(require_admin_key)])
+def post_case_acknowledge(case_id: int):
+    """
+    Marks a case as reviewed by a counsellor -- distinct from status,
+    so a stalled Escalated case that nobody has actually opened yet
+    is visible as such (see cases.acknowledge_case docstring).
+    """
+
+    case = acknowledge_case(case_id)
+
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return case
 
 
 @app.post("/cases/{case_id}/notes", dependencies=[Depends(require_admin_key)])

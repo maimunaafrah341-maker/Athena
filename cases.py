@@ -93,7 +93,35 @@ _NEW_COLUMNS = {
     # came from real GPS (this feature didn't exist yet), so a NULL
     # is safely read as "gps" by consumers, not "unknown."
     "location_source": "TEXT",
+    # Whether a counsellor has actually opened and reviewed this case,
+    # distinct from status -- a case can sit at "Escalated" for hours
+    # with nobody having looked at it, and nothing else in the schema
+    # could tell you that. NULL/0 for every existing row is correct:
+    # none of them have an explicit review recorded. See
+    # acknowledge_case().
+    "acknowledged": "INTEGER",
+    # How (and whether) the reporter wants to be contacted back, chosen
+    # by them on the confirmation screen after submitting -- one of
+    # VALID_FOLLOW_UP_PREFERENCES. NULL means they never answered, which
+    # is NOT the same as "no preference": treat it as unknown and fall
+    # back to whatever the disclosure level already allows, rather than
+    # assuming contact is welcome. See set_follow_up_preference().
+    "follow_up_preference": "TEXT",
+    # Free-text "when is it safe to reach me" note from the same screen
+    # (e.g. "only weekday mornings"). Nullable and always optional.
+    "follow_up_note": "TEXT",
 }
+
+
+# What a reporter can choose on the confirmation screen. "do_not_contact"
+# exists because for some people any callback is itself the danger --
+# it must be as easy to pick as any other option, not buried.
+VALID_FOLLOW_UP_PREFERENCES = (
+    "do_not_contact",
+    "text_only",
+    "call_only",
+    "either",
+)
 
 
 # ============================================================
@@ -284,6 +312,91 @@ def escalate_case(case_id, note=None):
         "case": get_case(case_id),
         "escalation_contact": escalation_contact,
     }
+
+
+def set_follow_up_preference(case_id, preference, note=None):
+    """
+    Records how the reporter wants to be contacted back, chosen by them
+    on the confirmation screen right after submitting.
+
+    Deliberately one-shot: this returns "already_set" rather than
+    overwriting an existing preference. The endpoint calling this is
+    necessarily public -- the reporter has just filed a report and has
+    no counsellor key -- so without that constraint, anyone who guessed
+    a case id could flip someone else's "do not contact me" to "call
+    me", which is exactly the kind of change that gets a person hurt.
+    One-shot means the worst a guesser can do is answer for a reporter
+    who never answered, and a real deployment should replace this with
+    a per-report token issued by /report. That is a known, bounded
+    limitation, written down rather than pretended away.
+
+    Returns "not_found" | "already_set" | "invalid" | the updated case.
+    """
+
+    if preference not in VALID_FOLLOW_UP_PREFERENCES:
+        return "invalid"
+
+    with _connect() as connection:
+
+        row = connection.execute(
+            "SELECT follow_up_preference FROM cases WHERE id = ?",
+            (case_id,),
+        ).fetchone()
+
+        if row is None:
+            return "not_found"
+
+        if row["follow_up_preference"]:
+            return "already_set"
+
+        connection.execute(
+            "UPDATE cases SET follow_up_preference = ?, follow_up_note = ? "
+            "WHERE id = ?",
+            (preference, note, case_id),
+        )
+
+        # Logged so a counsellor opening the case sees the reporter's
+        # own stated wishes in the timeline, not just a column they
+        # might not think to check before picking up the phone.
+        _log_event(
+            connection,
+            case_id,
+            "follow_up_preference_set",
+            note=(
+                f"Reporter's contact preference: {preference}"
+                + (f" — {note}" if note else "")
+            ),
+        )
+
+    return get_case(case_id)
+
+
+def acknowledge_case(case_id):
+    """
+    Marks a case as reviewed by a counsellor -- separate from status,
+    since a case can be Escalated for hours with nobody having
+    actually opened it, and status alone can't distinguish "seen and
+    still being worked" from "never looked at." Logs a distinct
+    "acknowledged" timeline event the same way escalate_case does, so
+    it's visible in the case history who confirmed they'd looked at
+    it and when. Idempotent: acknowledging an already-acknowledged
+    case just re-logs the event rather than erroring. Returns the
+    updated case, or None if it doesn't exist.
+    """
+
+    if get_case(case_id) is None:
+        return None
+
+    with _connect() as connection:
+
+        connection.execute(
+            "UPDATE cases SET acknowledged = 1 WHERE id = ?",
+            (case_id,),
+        )
+
+        _log_event(connection, case_id, "acknowledged")
+
+    return get_case(case_id)
 
 
 # ============================================================
@@ -519,6 +632,17 @@ def _row_to_case(row):
             row["location_source"]
             if "location_source" in row_keys and row["location_source"]
             else "gps"
+        ),
+        "acknowledged": bool(
+            "acknowledged" in row_keys and row["acknowledged"]
+        ),
+        "follow_up_preference": (
+            row["follow_up_preference"]
+            if "follow_up_preference" in row_keys else None
+        ),
+        "follow_up_note": (
+            row["follow_up_note"]
+            if "follow_up_note" in row_keys else None
         ),
     }
 

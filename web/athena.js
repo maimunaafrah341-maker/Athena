@@ -52,9 +52,15 @@ if (_keyFromUrl) {
 
 const ADMIN_API_KEY = localStorage.getItem("athena_admin_key");
 
-if (!ADMIN_API_KEY) {
-    showAdminKeyGate();
-}
+// Pages that show real case data and therefore need the key -- New
+// Report and Confirmation are deliberately absent: the README always
+// described dashboard.html as "the report form + counsellor
+// dashboard (needs ADMIN_API_KEY to unlock case data)," but the gate
+// used to block the entire document at script-load regardless of
+// page, which meant a citizen with no key couldn't even reach the
+// report form. showPage() below is what actually enforces this now;
+// the key is checked per-navigation, not once at load.
+const ADMIN_PAGES = new Set(["overview", "cases", "risk-map", "guidance", "alerts"]);
 
 /* =========================================================
    ADMIN KEY GATE
@@ -77,7 +83,18 @@ if (!ADMIN_API_KEY) {
 // doesn't know to expect real numbers. Validating up front means a
 // wrong key now visibly fails right here instead of silently degrading
 // three screens later.
-function showAdminKeyGate() {
+//
+// targetPage is remembered in sessionStorage (survives the reload
+// submit() does) so a counsellor who tapped "Cases" from Overview
+// lands back on Cases, not dumped back to the default page. A citizen
+// who reaches this by mistake (e.g. tapping the wrong nav item) isn't
+// trapped here either -- "Back to report form" just re-shows New
+// Report without touching the gate at all.
+function showAdminKeyGate(targetPage) {
+
+    if (targetPage) {
+        sessionStorage.setItem("athena_admin_redirect", targetPage);
+    }
 
     const overlay = document.createElement("div");
 
@@ -109,10 +126,20 @@ function showAdminKeyGate() {
                 Continue
             </button>
 
+            <button type="button" id="adminGateBack" class="text-button" style="margin-top: 10px;">
+                ← Back to report form
+            </button>
+
         </div>
     `;
 
     document.body.appendChild(overlay);
+
+    overlay.querySelector("#adminGateBack").addEventListener("click", () => {
+        sessionStorage.removeItem("athena_admin_redirect");
+        overlay.remove();
+        showPage("new-report");
+    });
 
     const input = overlay.querySelector("#adminGateInput");
     const errorEl = overlay.querySelector("#adminGateError");
@@ -225,6 +252,11 @@ function $$(selector) {
 ========================================================= */
 
 function showPage(pageName) {
+
+    if (ADMIN_PAGES.has(pageName) && !ADMIN_API_KEY) {
+        showAdminKeyGate(pageName);
+        return;
+    }
 
     $$(".page").forEach(page => {
         page.classList.remove("active-page");
@@ -565,7 +597,7 @@ async function sendVoiceReport(audioBlob) {
         );
 
 
-        showConfirmation();
+        showConfirmation(data);
 
     }
 
@@ -662,6 +694,50 @@ if (evidenceAttachButton && evidenceFileInput) {
 }
 
 
+// Shared status line for the submit and SOS flows. role="status" on the
+// element means anything set here is announced by a screen reader
+// without stealing focus -- which a bare alert() never did, on top of
+// blocking the page and losing the message once dismissed.
+function setReportStatus(message, isError) {
+
+    const statusEl = $("#reportStatus");
+
+    if (!statusEl) return;
+
+    if (!message) {
+        statusEl.hidden = true;
+        statusEl.textContent = "";
+        statusEl.classList.remove("is-error");
+        return;
+    }
+
+    statusEl.hidden = false;
+    statusEl.textContent = message;
+    statusEl.classList.toggle("is-error", Boolean(isError));
+
+    // On failure, offer the retry as an actual control rather than
+    // only telling someone to "try again" -- the typed text is still
+    // in the textarea untouched, so this genuinely resends it.
+    if (isError) {
+
+        const retryButton = document.createElement("button");
+
+        retryButton.type = "button";
+        retryButton.className = "status-retry";
+        retryButton.textContent = t("status.retry");
+
+        retryButton.addEventListener("click", () => {
+            setReportStatus(null);
+            submitTextReport();
+        });
+
+        statusEl.appendChild(retryButton);
+
+    }
+
+}
+
+
 async function submitTextReport() {
 
     const text =
@@ -685,6 +761,8 @@ async function submitTextReport() {
     if (submitLabel) {
         submitLabel.textContent = t("submit.sending");
     }
+
+    setReportStatus(t("status.sending"), false);
 
 
     try {
@@ -758,7 +836,9 @@ async function submitTextReport() {
         if (evidenceFileInput) evidenceFileInput.value = "";
         if (evidenceFileName) evidenceFileName.textContent = "";
 
-        showConfirmation();
+        setReportStatus(null);
+
+        showConfirmation(data);
 
     }
 
@@ -769,9 +849,10 @@ async function submitTextReport() {
             error
         );
 
-        alert(
-            t("report.submitError")
-        );
+        // Deliberately does NOT clear the textarea -- whatever was
+        // typed stays exactly where it is, so a failed send is a retry
+        // rather than asking someone in distress to type it all again.
+        setReportStatus(t("status.error"), true);
 
     }
 
@@ -789,16 +870,351 @@ async function submitTextReport() {
 
 
 /* =========================================================
+   SOS / QUICK EXIT
+========================================================= */
+
+// One-tap SOS: unlike the regular submit flow, this is meant to work
+// even when there's nothing typed -- pressing it is itself the
+// strongest possible signal (see app.py's /sos docstring, which
+// forces Critical/Escalated regardless of what the text says).
+// Geolocation is attempted but never required: a denied or
+// unavailable permission still sends the SOS, just without a
+// location attached, since real emergencies don't wait on a location
+// prompt.
+const sosButton = $("#sosButton");
+const sosButtonLabel = $("#sosButtonLabel");
+
+if (sosButton) {
+
+    sosButton.addEventListener("click", () => {
+
+        sosButton.disabled = true;
+        if (sosButtonLabel) sosButtonLabel.textContent = t("safety.sosSending");
+
+        const text = reportInput ? reportInput.value.trim() : "";
+
+        const sendSos = (latitude, longitude) => {
+
+            fetch(`${API_BASE_URL}/sos`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    text: text || null,
+                    language: state.selectedLanguage,
+                    latitude: latitude,
+                    longitude: longitude,
+                    disclosure_level: state.selectedDisclosure,
+                    channel: state.selectedChannel
+                })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showConfirmation(data);
+                })
+                .catch(error => {
+                    console.error("SOS failed:", error);
+                    alert(t("safety.sosError"));
+                })
+                .finally(() => {
+                    sosButton.disabled = false;
+                    if (sosButtonLabel) sosButtonLabel.textContent = t("safety.sos");
+                });
+
+        };
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                position => sendSos(position.coords.latitude, position.coords.longitude),
+                () => sendSos(null, null),
+                { timeout: 5000 }
+            );
+        } else {
+            sendSos(null, null);
+        }
+
+    });
+
+}
+
+
+// Quick exit: clear anything visibly typed first (synchronous, so it
+// happens even if the navigation below is slow), then leave the site
+// immediately via replace() rather than href/assign, so the browser's
+// back button lands wherever the reporter was before Athena, not on
+// this page.
+const quickExitButton = $("#quickExitButton");
+
+if (quickExitButton) {
+
+    quickExitButton.addEventListener("click", () => {
+
+        if (reportInput) reportInput.value = "";
+        state.evidenceFile = null;
+
+        window.location.replace("https://www.google.com");
+
+    });
+
+}
+
+
+/* =========================================================
    CONFIRMATION
 ========================================================= */
 
-function showConfirmation() {
+function setFollowUpStatus(message, isError) {
+
+    const statusEl = $("#followUpStatus");
+
+    if (!statusEl) return;
+
+    statusEl.hidden = !message;
+    statusEl.textContent = message || "";
+    statusEl.classList.toggle("is-error", Boolean(isError));
+
+}
+
+
+$("#confirmFollowUp")?.addEventListener("submit", async event => {
+
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const caseId = form.dataset.caseId;
+    const selected = form.querySelector("input[name='followUp']:checked");
+
+    if (!caseId || !selected) return;
+
+    const submitButton = $("#followUpSubmit");
+    const noteInput = $("#followUpNote");
+
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+
+        const response = await fetch(
+            `${API_BASE_URL}/cases/${caseId}/follow-up`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    preference: selected.value,
+                    note: (noteInput && noteInput.value.trim()) || null
+                })
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        setFollowUpStatus(t("followup.saved"), false);
+
+        // The endpoint only accepts one answer per case (see app.py) --
+        // so once it's saved, close the form rather than leaving
+        // controls that would now fail with a 409.
+        form.querySelectorAll("input, button").forEach(el => {
+            el.disabled = true;
+        });
+
+    } catch (error) {
+
+        console.error("Could not save follow-up preference:", error);
+
+        setFollowUpStatus(t("followup.error"), true);
+
+        if (submitButton) submitButton.disabled = false;
+
+    }
+
+});
+
+
+function showConfirmation(data) {
 
     showPage("confirmation");
 
 
     if (reportInput) {
         reportInput.value = "";
+    }
+
+    renderConfirmationDetail(data || null);
+
+}
+
+
+// Fills in what the pipeline actually decided for THIS report --
+// previously this card was 100% static regardless of risk tier, so a
+// Critical report and a Low one showed the identical "Help is on the
+// way" text and everything the backend computed (the AI's grounded
+// response, applicable law, response SLA, real emergency contacts)
+// was fetched, logged to the console, and thrown away. Athena never
+// actually dispatches police itself -- risk.py's RESPONSE_PROTOCOL is
+// documented as staff-facing routing metadata, not a live ERSS-112
+// integration -- so Critical/High tiers get told plainly to call 112
+// themselves rather than a false "help is on the way" promise.
+function renderConfirmationDetail(data) {
+
+    const urgentBox = $("#confirmUrgent");
+    const helpBox = $("#confirmHelpBox");
+    const responseText = $("#confirmResponseText");
+    const legalBox = $("#confirmLegal");
+    const contactsBox = $("#confirmContacts");
+    const referenceEl = $("#confirmReference");
+    const followUpForm = $("#confirmFollowUp");
+
+    if (!urgentBox || !helpBox || !responseText || !legalBox || !contactsBox) {
+        return;
+    }
+
+    if (referenceEl) {
+        referenceEl.hidden = true;
+        referenceEl.textContent = "";
+    }
+
+    if (followUpForm) {
+        followUpForm.hidden = true;
+        followUpForm.reset();
+        setFollowUpStatus(null);
+    }
+
+    urgentBox.hidden = true;
+    urgentBox.innerHTML = "";
+    helpBox.hidden = false;
+    responseText.hidden = true;
+    responseText.textContent = "";
+    legalBox.hidden = true;
+    legalBox.innerHTML = "";
+    contactsBox.hidden = true;
+    contactsBox.innerHTML = "";
+
+    if (!data) {
+        return;
+    }
+
+    const riskTier = data.risk ? data.risk.risk_tier : null;
+    const protocol = data.risk ? data.risk.response_protocol : null;
+    const isUrgent = riskTier === "Critical" || riskTier === "High";
+
+    // Something to quote when calling back. Prefers the NHAA docket id
+    // (the reference an actual helpline case is tracked under) and
+    // falls back to the internal case number when no docket was cut.
+    const referenceId =
+        (data.nhaa_docket && data.nhaa_docket.docket_id) ||
+        (data.case_id != null ? `#${data.case_id}` : null);
+
+    if (referenceEl && referenceId) {
+        referenceEl.hidden = false;
+        referenceEl.textContent = `${t("confirm.reference")}: ${referenceId}`;
+    }
+
+    // Only offered when there's a case to attach it to -- a failed or
+    // unsaved report has nothing for the preference to belong to.
+    if (followUpForm && data.case_id != null) {
+        followUpForm.hidden = false;
+        followUpForm.dataset.caseId = data.case_id;
+    }
+
+    if (isUrgent) {
+
+        helpBox.hidden = true;
+        urgentBox.hidden = false;
+
+        urgentBox.innerHTML = `
+            <a href="tel:112" class="urgent-call">
+                📞 ${escapeHTML(t("confirm.urgentCall"))}
+            </a>
+            <p>${escapeHTML(t("confirm.urgentSub"))}</p>
+            ${
+                protocol
+                    ? `<p class="urgent-sla">${escapeHTML(t("confirm.slaLabel"))}: ${escapeHTML(protocol.sla)}</p>`
+                    : ""
+            }
+        `;
+
+    }
+
+    // The AI's own grounded response, already in whatever language the
+    // report came in and already crisis-safe-filtered when suicidal
+    // ideation was detected (see response_engine.py's
+    // crisis_instructions / _filter_evidence_for_crisis) -- not run
+    // through t(), since it's the pipeline's own generated text, not a
+    // UI label.
+    if (data.response) {
+        responseText.hidden = false;
+        responseText.textContent = data.response;
+    }
+
+    // Real applicable law from kg.py's knowledge graph, shown as "may
+    // fall under" -- advisory routing information for a human, never a
+    // legal determination (see kg.get_legal_guidance's docstring).
+    const legal = data.legal_guidance;
+
+    if (legal && legal.applicable_provisions && legal.applicable_provisions.length) {
+
+        legalBox.hidden = false;
+
+        legalBox.innerHTML = `
+            <strong>${escapeHTML(t("confirm.legalTitle"))}</strong>
+            <ul>
+                ${
+                    legal.applicable_provisions.map(provision => `
+                        <li>
+                            <strong>${escapeHTML(provision.act)} — ${escapeHTML(provision.section)}</strong>
+                            <br>
+                            ${escapeHTML(provision.description)}
+                        </li>
+                    `).join("")
+                }
+            </ul>
+        `;
+
+    }
+
+    // Real contacts, not AI-generated: data.emergency_contacts is
+    // computed deterministically by emergency_contacts.py from risk/
+    // stress tier alone (pipeline.py's _finalize), so it's present
+    // even when no location was shared -- includes KIRAN automatically
+    // whenever stress tier is Critical/High, regardless of whether the
+    // report text used the word "suicide." data.nearby_help (only
+    // present when the reporter shared a location) adds real, named
+    // nearby police stations/hospitals on top.
+    const contacts = [
+        ...(data.emergency_contacts || []),
+        ...(data.nearby_help || []).slice(0, 3).map(place => ({
+            label: `${place.name} (${place.distance_km} km)`,
+            phone: place.phone
+        }))
+    ];
+
+    if (contacts.length) {
+
+        contactsBox.hidden = false;
+
+        contactsBox.innerHTML = `
+            <strong>${escapeHTML(t("confirm.contactsTitle"))}</strong>
+            <ul>
+                ${
+                    contacts.map(contact => `
+                        <li>
+                            ${escapeHTML(contact.label)}
+                            ${
+                                contact.phone
+                                    ? ` — <a href="tel:${escapeHTML(contact.phone)}">${escapeHTML(contact.phone)}</a>`
+                                    : ""
+                            }
+                        </li>
+                    `).join("")
+                }
+            </ul>
+        `;
+
     }
 
 }
@@ -917,7 +1333,17 @@ function normalizeCase(item) {
         time:
             item.created_at ||
             item.timestamp ||
-            "Recent"
+            "Recent",
+
+        acknowledged:
+            Boolean(item.acknowledged),
+
+        // Why the pipeline flagged this -- already computed and stored
+        // per case, just never surfaced in the alert list, which meant
+        // every row said "Critical priority case" and nothing about
+        // what made it critical.
+        reason:
+            item.reason || null
 
     };
 
@@ -2653,6 +3079,13 @@ function renderRiskMap() {
    ALERTS
 ========================================================= */
 
+// Critical always sorts above High, and within a tier an
+// unacknowledged case sorts above one already marked reviewed --
+// otherwise a Critical case that happened to load further down the
+// list has nothing distinguishing it from one a counsellor already
+// looked at, exactly the "buried alert" gap this was built to close.
+const ALERT_RISK_ORDER = { "Critical": 0, "High": 1 };
+
 function renderAlerts() {
 
     const container =
@@ -2668,7 +3101,17 @@ function renderAlerts() {
                 item =>
                     item.risk === "Critical" ||
                     item.risk === "High"
-            );
+            )
+            .sort((a, b) => {
+
+                const riskDiff =
+                    ALERT_RISK_ORDER[a.risk] - ALERT_RISK_ORDER[b.risk];
+
+                if (riskDiff !== 0) return riskDiff;
+
+                return Number(a.acknowledged) - Number(b.acknowledged);
+
+            });
 
 
     if (!alerts.length) {
@@ -2687,26 +3130,52 @@ function renderAlerts() {
     container.innerHTML =
         alerts.map(item => {
 
-            return `
-                <div class="alert-card">
+            const elapsed = formatElapsed(item.time);
 
-                    <div class="alert-icon">
+            return `
+                <div class="alert-card ${item.acknowledged ? "is-acknowledged" : ""}">
+
+                    <div class="alert-icon" aria-hidden="true">
                         !
                     </div>
 
-                    <div>
+                    <div class="alert-body">
 
                         <strong>
-                            ${escapeHTML(item.risk)} priority case
+                            <span class="alert-priority priority-${escapeHTML(item.risk.toLowerCase())}">
+                                ${escapeHTML(item.risk)} priority
+                            </span>
+                            <span class="alert-case-id">${escapeHTML(item.id)}</span>
                         </strong>
 
-                        <p>
-                            ${escapeHTML(item.id)}
-                            ·
+                        <p class="alert-meta">
                             ${escapeHTML(item.district)}
                             ·
                             ${escapeHTML(item.incident)}
+                            ·
+                            <span class="alert-status">${escapeHTML(item.status)}</span>
+                            ${elapsed ? `· ${escapeHTML(elapsed)}` : ""}
                         </p>
+
+                        ${
+                            item.reason
+                                ? `<p class="alert-reason">${escapeHTML(item.reason)}</p>`
+                                : ""
+                        }
+
+                    </div>
+
+                    <div class="alert-actions">
+
+                        <button type="button" class="alert-view-button" data-view-case="${escapeHTML(item.id)}">
+                            View case
+                        </button>
+
+                        ${
+                            item.acknowledged
+                                ? `<span class="alert-ack-badge">✓ Reviewed</span>`
+                                : `<button type="button" class="alert-ack-button" data-ack-case="${escapeHTML(item.id)}">Mark reviewed</button>`
+                        }
 
                     </div>
 
@@ -2716,6 +3185,69 @@ function renderAlerts() {
         }).join("");
 
 }
+
+
+$("#alertsContainer")?.addEventListener("click", async event => {
+
+    // Reuses the same case-brief panel the Cases table opens -- an
+    // alert that can't be acted on without hunting for the case in
+    // another tab isn't much of a priority queue.
+    const viewButton = event.target.closest("[data-view-case]");
+
+    if (viewButton) {
+        openCaseBrief(viewButton.dataset.viewCase);
+        return;
+    }
+
+    const button = event.target.closest("[data-ack-case]");
+
+    if (!button) return;
+
+    const caseId = button.dataset.ackCase;
+
+    button.disabled = true;
+    button.textContent = "Marking...";
+
+    try {
+
+        const response = await fetch(
+            `${API_BASE_URL}/cases/${caseId}/acknowledge`,
+            {
+                method: "POST",
+                headers: { "X-API-Key": ADMIN_API_KEY }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        const updatedCase = await response.json();
+
+        // Patch the one case in place rather than a full loadCases()
+        // round trip -- keeps the rest of the list stable for whoever
+        // is mid-review instead of jumping/reloading under them.
+        const index = state.cases.findIndex(
+            item => item.id === updatedCase.id
+        );
+
+        if (index !== -1) {
+            state.cases[index] = updatedCase;
+        }
+
+        renderAlerts();
+        renderCasesTable();
+
+    } catch (error) {
+
+        console.error("Could not acknowledge case:", error);
+
+        button.disabled = false;
+        button.textContent = "Mark reviewed";
+
+    }
+
+});
 
 
 /* =========================================================
@@ -2865,9 +3397,33 @@ document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        showPage("overview");
+        // A returning counsellor (key already in localStorage) picks
+        // up where a gate redirect left off, or lands on Overview as
+        // before. A citizen with no key yet -- the common case for
+        // dashboard.html's report-form half -- lands on New Report
+        // instead of hitting a login wall on the very first paint.
+        const redirectPage = sessionStorage.getItem("athena_admin_redirect");
+        sessionStorage.removeItem("athena_admin_redirect");
 
-        loadDashboard();
+        const initialPage =
+            redirectPage && ADMIN_API_KEY
+                ? redirectPage
+                : ADMIN_API_KEY
+                    ? "overview"
+                    : "new-report";
+
+        showPage(initialPage);
+
+        // The NHAA channel tag is counsellor bookkeeping, not a
+        // question a self-reporting citizen can meaningfully answer --
+        // only shown once a key is present (see dashboard.html's
+        // comment on #channelSelectorGroup). A key entered later
+        // reloads the page anyway (see showAdminKeyGate), so this
+        // check only ever needs to run once, here.
+        const channelSelectorGroup = document.getElementById("channelSelectorGroup");
+        if (channelSelectorGroup) {
+            channelSelectorGroup.hidden = !ADMIN_API_KEY;
+        }
 
         document.getElementById("sidebarExit")?.addEventListener(
             "click",

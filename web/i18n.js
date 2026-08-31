@@ -74,8 +74,8 @@ const TRANSLATIONS = {
         "loading.cases": "Loading cases...",
 
         "newreport.eyebrow": "NATIONAL HELPLINE · 14566",
-        "newreport.title": "Share what happened",
-        "newreport.subtitle": "Speak in your own words. We are here to listen.",
+        "newreport.title": "Tell us what happened",
+        "newreport.subtitle": "You can speak or type. Share only what feels safe.",
 
         "lang.choose": "Choose your language",
 
@@ -100,7 +100,7 @@ const TRANSLATIONS = {
 
         "submit.send": "Send report",
         "submit.sending": "Sending…",
-        "evidence.attach": "Attach evidence photo (optional)",
+        "evidence.attach": "Add a photo or file (optional)",
 
         "support.title": "You are being heard.",
         "support.body": "Your information helps trained support staff understand your situation and provide the right assistance.",
@@ -115,6 +115,40 @@ const TRANSLATIONS = {
         "confirm.small": "Your information has been sent to the support team. A trained person can help if your situation needs further attention.",
         "confirm.shareMore": "Share more",
         "confirm.callLink": "Need direct support? Call 14566",
+        "confirm.urgentCall": "In immediate danger? Call 112 now.",
+        "confirm.urgentSub": "This has also been flagged for our team to review right away.",
+        "confirm.legalTitle": "This may fall under:",
+        "confirm.contactsTitle": "Immediate contacts",
+        "confirm.slaLabel": "Review target",
+        "confirm.reference": "Reference",
+
+        "status.sending": "Sending securely… please don't close this page.",
+        "status.error": "Couldn't send your report. Nothing was lost — please try again.",
+        "status.retry": "Try again",
+
+        "privacy.summary": "Only trained support staff can access your report. We will not contact you unless you choose a safe way for us to do so.",
+        "privacy.collected": "What we keep: what you write or say, and the time you sent it.",
+        "privacy.access": "Who can see it: trained helpline counsellors reviewing your case. Not the public, and not the person you are reporting.",
+        "privacy.location": "Location: only if you tap SOS and allow it, and it is stored rounded to roughly a neighbourhood, never an exact address.",
+        "privacy.contact": "Contact: we only reach out the way you choose on the next screen. \"Do not contact me\" is a real option.",
+        "privacy.risk": "Please do not include anything that would put you in more danger if someone else saw this device.",
+
+        "followup.title": "How is it safe to contact you?",
+        "followup.doNotContact": "Do not contact me",
+        "followup.textOnly": "Text message only",
+        "followup.callOnly": "Phone call only",
+        "followup.either": "Either is safe",
+        "followup.timeLabel": "When is it safe to reach you? (optional)",
+        "followup.timePlaceholder": "e.g. weekday mornings only",
+        "followup.save": "Save my preference",
+        "followup.saved": "Saved. We will follow this.",
+        "followup.error": "Couldn't save that preference. Please try again.",
+
+        "safety.callNow": "In immediate danger? Call 112 now",
+        "safety.sos": "SOS",
+        "safety.sosSending": "Sending SOS…",
+        "safety.quickExit": "Quick exit",
+        "safety.sosError": "Could not send SOS. If you are in danger, call 112 directly.",
 
         "report.submitError": "Unable to send the report right now. Please try again.",
     },
@@ -166,8 +200,8 @@ const TRANSLATIONS = {
         "loading.cases": "मामले लोड हो रहे हैं...",
 
         "newreport.eyebrow": "राष्ट्रीय हेल्पलाइन · 14566",
-        "newreport.title": "जो हुआ उसे साझा करें",
-        "newreport.subtitle": "अपने शब्दों में बोलें। हम सुनने के लिए यहाँ हैं।",
+        "newreport.title": "हमें बताएं कि क्या हुआ",
+        "newreport.subtitle": "आप बोल सकते हैं या टाइप कर सकते हैं। सिर्फ वही साझा करें जो आपको सुरक्षित लगे।",
 
         "lang.choose": "अपनी भाषा चुनें",
 
@@ -192,7 +226,7 @@ const TRANSLATIONS = {
 
         "submit.send": "रिपोर्ट भेजें",
         "submit.sending": "भेजा जा रहा है…",
-        "evidence.attach": "सबूत की तस्वीर जोड़ें (वैकल्पिक)",
+        "evidence.attach": "फ़ोटो या फ़ाइल जोड़ें (वैकल्पिक)",
 
         "support.title": "आपकी बात सुनी जा रही है।",
         "support.body": "आपकी जानकारी प्रशिक्षित सहायता कर्मचारियों को आपकी स्थिति समझने और सही सहायता प्रदान करने में मदद करती है।",
@@ -207,6 +241,40 @@ const TRANSLATIONS = {
         "confirm.small": "आपकी जानकारी सहायता टीम को भेज दी गई है। यदि आपकी स्थिति को और ध्यान देने की आवश्यकता है, तो एक प्रशिक्षित व्यक्ति मदद कर सकता है।",
         "confirm.shareMore": "और साझा करें",
         "confirm.callLink": "सीधी सहायता चाहिए? 14566 पर कॉल करें",
+        "confirm.urgentCall": "तुरंत खतरे में हैं? अभी 112 पर कॉल करें।",
+        "confirm.urgentSub": "हमारी टीम को भी इसकी तुरंत समीक्षा के लिए सूचित कर दिया गया है।",
+        "confirm.legalTitle": "यह इसके अंतर्गत आ सकता है:",
+        "confirm.contactsTitle": "तत्काल संपर्क",
+        "confirm.slaLabel": "समीक्षा लक्ष्य",
+        "confirm.reference": "संदर्भ संख्या",
+
+        "status.sending": "सुरक्षित रूप से भेजा जा रहा है… कृपया यह पेज बंद न करें।",
+        "status.error": "आपकी रिपोर्ट भेजी नहीं जा सकी। कुछ भी खोया नहीं है — कृपया फिर से कोशिश करें।",
+        "status.retry": "फिर से कोशिश करें",
+
+        "privacy.summary": "आपकी रिपोर्ट केवल प्रशिक्षित सहायता कर्मचारी ही देख सकते हैं। जब तक आप कोई सुरक्षित तरीका नहीं चुनते, हम आपसे संपर्क नहीं करेंगे।",
+        "privacy.collected": "हम क्या रखते हैं: आपने जो लिखा या कहा, और भेजने का समय।",
+        "privacy.access": "कौन देख सकता है: आपका मामला देख रहे प्रशिक्षित काउंसलर। न आम लोग, न वह व्यक्ति जिसकी आप शिकायत कर रहे हैं।",
+        "privacy.location": "स्थान: केवल तब जब आप एसओएस दबाएँ और अनुमति दें, और वह लगभग मोहल्ले तक ही सीमित रखा जाता है, सटीक पता कभी नहीं।",
+        "privacy.contact": "संपर्क: हम केवल उसी तरीके से संपर्क करेंगे जो आप अगली स्क्रीन पर चुनेंगे। \"मुझसे संपर्क न करें\" एक वास्तविक विकल्प है।",
+        "privacy.risk": "कृपया ऐसा कुछ न लिखें जिससे कोई और यह उपकरण देखे तो आपको अधिक खतरा हो।",
+
+        "followup.title": "आपसे संपर्क करना कैसे सुरक्षित है?",
+        "followup.doNotContact": "मुझसे संपर्क न करें",
+        "followup.textOnly": "केवल संदेश (टेक्स्ट)",
+        "followup.callOnly": "केवल फ़ोन कॉल",
+        "followup.either": "दोनों सुरक्षित हैं",
+        "followup.timeLabel": "आपसे कब संपर्क करना सुरक्षित है? (वैकल्पिक)",
+        "followup.timePlaceholder": "जैसे केवल कार्यदिवस की सुबह",
+        "followup.save": "मेरी पसंद सहेजें",
+        "followup.saved": "सहेज लिया गया। हम इसका पालन करेंगे।",
+        "followup.error": "यह पसंद सहेजी नहीं जा सकी। कृपया फिर से कोशिश करें।",
+
+        "safety.callNow": "तुरंत खतरे में हैं? अभी 112 पर कॉल करें",
+        "safety.sos": "एसओएस",
+        "safety.sosSending": "एसओएस भेजा जा रहा है…",
+        "safety.quickExit": "तुरंत बाहर निकलें",
+        "safety.sosError": "एसओएस भेजा नहीं जा सका। यदि आप खतरे में हैं, तो सीधे 112 पर कॉल करें।",
 
         "report.submitError": "अभी रिपोर्ट भेजने में असमर्थ। कृपया फिर से प्रयास करें।",
     },
@@ -258,8 +326,8 @@ const TRANSLATIONS = {
         "loading.cases": "కేసులు లోడ్ అవుతున్నాయి...",
 
         "newreport.eyebrow": "జాతీయ హెల్ప్‌లైన్ · 14566",
-        "newreport.title": "ఏం జరిగిందో పంచుకోండి",
-        "newreport.subtitle": "మీ మాటల్లోనే చెప్పండి. వినడానికి మేము ఇక్కడ ఉన్నాము.",
+        "newreport.title": "ఏం జరిగిందో మాకు చెప్పండి",
+        "newreport.subtitle": "మీరు మాట్లాడవచ్చు లేదా టైప్ చేయవచ్చు. మీకు సురక్షితం అనిపించినది మాత్రమే పంచుకోండి.",
 
         "lang.choose": "మీ భాషను ఎంచుకోండి",
 
@@ -284,7 +352,7 @@ const TRANSLATIONS = {
 
         "submit.send": "ఫిర్యాదు పంపండి",
         "submit.sending": "పంపుతోంది…",
-        "evidence.attach": "సాక్ష్యం ఫోటో జోడించండి (ఐచ్ఛికం)",
+        "evidence.attach": "ఫోటో లేదా ఫైల్ జోడించండి (ఐచ్ఛికం)",
 
         "support.title": "మీ మాట వినబడుతోంది.",
         "support.body": "మీ సమాచారం శిక్షణ పొందిన సహాయ సిబ్బందికి మీ పరిస్థితిని అర్థం చేసుకోవడానికి మరియు సరైన సహాయం అందించడానికి సహాయపడుతుంది.",
@@ -299,6 +367,40 @@ const TRANSLATIONS = {
         "confirm.small": "మీ సమాచారం సహాయ బృందానికి పంపబడింది. మీ పరిస్థితికి మరింత శ్రద్ధ అవసరమైతే శిక్షణ పొందిన వ్యక్తి సహాయం చేయగలరు.",
         "confirm.shareMore": "మరింత పంచుకోండి",
         "confirm.callLink": "నేరుగా సహాయం కావాలా? 14566కి కాల్ చేయండి",
+        "confirm.urgentCall": "తక్షణ ప్రమాదంలో ఉన్నారా? వెంటనే 112కి కాల్ చేయండి.",
+        "confirm.urgentSub": "దీన్ని వెంటనే సమీక్షించమని మా బృందానికి కూడా తెలియజేయబడింది.",
+        "confirm.legalTitle": "ఇది దీని పరిధిలోకి రావచ్చు:",
+        "confirm.contactsTitle": "తక్షణ సంప్రదింపులు",
+        "confirm.slaLabel": "సమీక్షా లక్ష్యం",
+        "confirm.reference": "సూచన సంఖ్య",
+
+        "status.sending": "సురక్షితంగా పంపుతోంది… దయచేసి ఈ పేజీని మూసివేయవద్దు.",
+        "status.error": "మీ ఫిర్యాదు పంపడం సాధ్యం కాలేదు. ఏమీ పోలేదు — దయచేసి మళ్లీ ప్రయత్నించండి.",
+        "status.retry": "మళ్లీ ప్రయత్నించండి",
+
+        "privacy.summary": "మీ ఫిర్యాదును శిక్షణ పొందిన సహాయ సిబ్బంది మాత్రమే చూడగలరు. మీరు సురక్షితమైన మార్గం ఎంచుకుంటే తప్ప మేము మిమ్మల్ని సంప్రదించము.",
+        "privacy.collected": "మేము ఏమి ఉంచుతాము: మీరు రాసినది లేదా చెప్పినది, మరియు పంపిన సమయం.",
+        "privacy.access": "ఎవరు చూడగలరు: మీ కేసును సమీక్షిస్తున్న శిక్షణ పొందిన కౌన్సెలర్లు. ప్రజలు కాదు, మీరు ఫిర్యాదు చేస్తున్న వ్యక్తి అంతకంటే కాదు.",
+        "privacy.location": "స్థానం: మీరు ఎస్ఓఎస్ నొక్కి అనుమతిస్తేనే, అది సుమారు ప్రాంతం వరకే నిల్వ చేయబడుతుంది, ఖచ్చితమైన చిరునామా ఎప్పుడూ కాదు.",
+        "privacy.contact": "సంప్రదింపు: తదుపరి స్క్రీన్‌లో మీరు ఎంచుకున్న విధంగానే మేము సంప్రదిస్తాము. \"నన్ను సంప్రదించవద్దు\" నిజమైన ఎంపిక.",
+        "privacy.risk": "ఈ పరికరాన్ని వేరొకరు చూస్తే మీకు మరింత ప్రమాదం కలిగించే విషయాలను దయచేసి రాయవద్దు.",
+
+        "followup.title": "మిమ్మల్ని సంప్రదించడం ఎలా సురక్షితం?",
+        "followup.doNotContact": "నన్ను సంప్రదించవద్దు",
+        "followup.textOnly": "సందేశం (టెక్స్ట్) మాత్రమే",
+        "followup.callOnly": "ఫోన్ కాల్ మాత్రమే",
+        "followup.either": "రెండూ సురక్షితమే",
+        "followup.timeLabel": "మిమ్మల్ని ఎప్పుడు సంప్రదించడం సురక్షితం? (ఐచ్ఛికం)",
+        "followup.timePlaceholder": "ఉదా. పని దినాల ఉదయం మాత్రమే",
+        "followup.save": "నా ఎంపికను సేవ్ చేయండి",
+        "followup.saved": "సేవ్ చేయబడింది. మేము దీన్ని పాటిస్తాము.",
+        "followup.error": "ఆ ఎంపికను సేవ్ చేయడం సాధ్యం కాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.",
+
+        "safety.callNow": "తక్షణ ప్రమాదంలో ఉన్నారా? వెంటనే 112కి కాల్ చేయండి",
+        "safety.sos": "ఎస్ఓఎస్",
+        "safety.sosSending": "ఎస్ఓఎస్ పంపుతోంది…",
+        "safety.quickExit": "త్వరిత నిష్క్రమణ",
+        "safety.sosError": "ఎస్ఓఎస్ పంపడం సాధ్యం కాలేదు. మీరు ప్రమాదంలో ఉంటే, నేరుగా 112కి కాల్ చేయండి.",
 
         "report.submitError": "ప్రస్తుతం ఫిర్యాదు పంపడం సాధ్యం కాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.",
     },
@@ -357,8 +459,8 @@ const TRANSLATIONS = {
         "loading.cases": "مقدمات لوڈ ہو رہے ہیں...",
 
         "newreport.eyebrow": "قومی ہیلپ لائن · 14566",
-        "newreport.title": "جو ہوا اسے بتائیں",
-        "newreport.subtitle": "اپنے الفاظ میں بتائیں۔ ہم سننے کے لیے یہاں ہیں۔",
+        "newreport.title": "ہمیں بتائیں کہ کیا ہوا",
+        "newreport.subtitle": "آپ بول سکتے ہیں یا ٹائپ کر سکتے ہیں۔ صرف وہی بتائیں جو آپ کو محفوظ لگے۔",
 
         "lang.choose": "اپنی زبان منتخب کریں",
 
@@ -383,7 +485,7 @@ const TRANSLATIONS = {
 
         "submit.send": "رپورٹ بھیجیں",
         "submit.sending": "بھیجا جا رہا ہے…",
-        "evidence.attach": "ثبوت کی تصویر منسلک کریں (اختیاری)",
+        "evidence.attach": "تصویر یا فائل شامل کریں (اختیاری)",
 
         "support.title": "آپ کی بات سنی جا رہی ہے۔",
         "support.body": "آپ کی معلومات تربیت یافتہ سپورٹ اسٹاف کو آپ کی صورتحال سمجھنے اور صحیح مدد فراہم کرنے میں مدد دیتی ہیں۔",
@@ -398,6 +500,40 @@ const TRANSLATIONS = {
         "confirm.small": "آپ کی معلومات سپورٹ ٹیم کو بھیج دی گئی ہیں۔ اگر آپ کی صورتحال کو مزید توجہ درکار ہو تو ایک تربیت یافتہ شخص مدد کر سکتا ہے۔",
         "confirm.shareMore": "مزید بتائیں",
         "confirm.callLink": "براہ راست مدد چاہیے؟ 14566 پر کال کریں",
+        "confirm.urgentCall": "فوری خطرے میں ہیں؟ ابھی 112 پر کال کریں۔",
+        "confirm.urgentSub": "ہماری ٹیم کو بھی فوری جائزے کے لیے مطلع کر دیا گیا ہے۔",
+        "confirm.legalTitle": "یہ اس کے تحت آ سکتا ہے:",
+        "confirm.contactsTitle": "فوری رابطے",
+        "confirm.slaLabel": "جائزے کا ہدف",
+        "confirm.reference": "حوالہ نمبر",
+
+        "status.sending": "محفوظ طریقے سے بھیجا جا رہا ہے… براہ کرم یہ صفحہ بند نہ کریں۔",
+        "status.error": "آپ کی رپورٹ بھیجی نہیں جا سکی۔ کچھ ضائع نہیں ہوا — براہ کرم دوبارہ کوشش کریں۔",
+        "status.retry": "دوبارہ کوشش کریں",
+
+        "privacy.summary": "آپ کی رپورٹ صرف تربیت یافتہ معاون عملہ دیکھ سکتا ہے۔ جب تک آپ کوئی محفوظ طریقہ منتخب نہ کریں، ہم آپ سے رابطہ نہیں کریں گے۔",
+        "privacy.collected": "ہم کیا رکھتے ہیں: آپ نے جو لکھا یا کہا، اور بھیجنے کا وقت۔",
+        "privacy.access": "کون دیکھ سکتا ہے: آپ کا کیس دیکھنے والے تربیت یافتہ کونسلر۔ نہ عام لوگ، نہ وہ شخص جس کی آپ شکایت کر رہے ہیں۔",
+        "privacy.location": "مقام: صرف اس صورت میں جب آپ ایس او ایس دبائیں اور اجازت دیں، اور یہ تقریباً محلے کی سطح تک محفوظ ہوتا ہے، کبھی درست پتہ نہیں۔",
+        "privacy.contact": "رابطہ: ہم صرف اسی طریقے سے رابطہ کریں گے جو آپ اگلی اسکرین پر منتخب کریں گے۔ \"مجھ سے رابطہ نہ کریں\" ایک حقیقی آپشن ہے۔",
+        "privacy.risk": "براہ کرم ایسی کوئی بات نہ لکھیں جس سے کوئی اور یہ ڈیوائس دیکھے تو آپ کو زیادہ خطرہ ہو۔",
+
+        "followup.title": "آپ سے رابطہ کرنا کس طرح محفوظ ہے؟",
+        "followup.doNotContact": "مجھ سے رابطہ نہ کریں",
+        "followup.textOnly": "صرف پیغام (ٹیکسٹ)",
+        "followup.callOnly": "صرف فون کال",
+        "followup.either": "دونوں محفوظ ہیں",
+        "followup.timeLabel": "آپ سے کب رابطہ کرنا محفوظ ہے؟ (اختیاری)",
+        "followup.timePlaceholder": "مثلاً صرف کام کے دنوں کی صبح",
+        "followup.save": "میری ترجیح محفوظ کریں",
+        "followup.saved": "محفوظ ہو گیا۔ ہم اس پر عمل کریں گے۔",
+        "followup.error": "یہ ترجیح محفوظ نہیں ہو سکی۔ براہ کرم دوبارہ کوشش کریں۔",
+
+        "safety.callNow": "فوری خطرے میں ہیں؟ ابھی 112 پر کال کریں",
+        "safety.sos": "ایس او ایس",
+        "safety.sosSending": "ایس او ایس بھیجا جا رہا ہے…",
+        "safety.quickExit": "فوری اخراج",
+        "safety.sosError": "ایس او ایس بھیجا نہیں جا سکا۔ اگر آپ خطرے میں ہیں تو براہ راست 112 پر کال کریں۔",
 
         "report.submitError": "ابھی رپورٹ بھیجنا ممکن نہیں۔ براہ کرم دوبارہ کوشش کریں۔",
     },
@@ -449,8 +585,8 @@ const TRANSLATIONS = {
         "loading.cases": "কেস লোড হচ্ছে...",
 
         "newreport.eyebrow": "জাতীয় হেল্পলাইন · 14566",
-        "newreport.title": "কী ঘটেছে তা জানান",
-        "newreport.subtitle": "নিজের ভাষায় বলুন। আমরা শুনতে এখানে আছি।",
+        "newreport.title": "আমাদের জানান কী ঘটেছে",
+        "newreport.subtitle": "আপনি বলতে বা লিখতে পারেন। যা নিরাপদ মনে হয় শুধু তাই জানান।",
 
         "lang.choose": "আপনার ভাষা নির্বাচন করুন",
 
@@ -475,7 +611,7 @@ const TRANSLATIONS = {
 
         "submit.send": "প্রতিবেদন পাঠান",
         "submit.sending": "পাঠানো হচ্ছে…",
-        "evidence.attach": "প্রমাণের ছবি যুক্ত করুন (ঐচ্ছিক)",
+        "evidence.attach": "ছবি বা ফাইল যুক্ত করুন (ঐচ্ছিক)",
 
         "support.title": "আপনার কথা শোনা হচ্ছে।",
         "support.body": "আপনার তথ্য প্রশিক্ষিত সহায়তা কর্মীদের আপনার পরিস্থিতি বুঝতে এবং সঠিক সহায়তা প্রদান করতে সাহায্য করে।",
@@ -490,6 +626,40 @@ const TRANSLATIONS = {
         "confirm.small": "আপনার তথ্য সহায়তা দলের কাছে পাঠানো হয়েছে। আপনার পরিস্থিতিতে আরও মনোযোগ প্রয়োজন হলে একজন প্রশিক্ষিত ব্যক্তি সাহায্য করতে পারেন।",
         "confirm.shareMore": "আরও জানান",
         "confirm.callLink": "সরাসরি সহায়তা দরকার? 14566 নম্বরে কল করুন",
+        "confirm.urgentCall": "তাৎক্ষণিক বিপদে আছেন? এখনই ১১২ নম্বরে কল করুন।",
+        "confirm.urgentSub": "এটি অবিলম্বে পর্যালোচনার জন্য আমাদের দলকেও জানানো হয়েছে।",
+        "confirm.legalTitle": "এটি এর আওতায় পড়তে পারে:",
+        "confirm.contactsTitle": "তাৎক্ষণিক যোগাযোগ",
+        "confirm.slaLabel": "পর্যালোচনার লক্ষ্য",
+        "confirm.reference": "রেফারেন্স নম্বর",
+
+        "status.sending": "নিরাপদে পাঠানো হচ্ছে… অনুগ্রহ করে এই পেজটি বন্ধ করবেন না।",
+        "status.error": "আপনার প্রতিবেদন পাঠানো যায়নি। কিছুই হারায়নি — অনুগ্রহ করে আবার চেষ্টা করুন।",
+        "status.retry": "আবার চেষ্টা করুন",
+
+        "privacy.summary": "আপনার প্রতিবেদন কেবল প্রশিক্ষিত সহায়তা কর্মীরাই দেখতে পারেন। আপনি নিরাপদ কোনো উপায় বেছে না নিলে আমরা আপনার সঙ্গে যোগাযোগ করব না।",
+        "privacy.collected": "আমরা যা রাখি: আপনি যা লিখেছেন বা বলেছেন, এবং পাঠানোর সময়।",
+        "privacy.access": "কারা দেখতে পারেন: আপনার কেস দেখছেন এমন প্রশিক্ষিত কাউন্সেলররা। সাধারণ মানুষ নন, এবং যাঁর বিরুদ্ধে অভিযোগ করছেন তিনিও নন।",
+        "privacy.location": "অবস্থান: কেবল আপনি এসওএস চাপলে ও অনুমতি দিলে, এবং তা প্রায় এলাকা পর্যন্তই সংরক্ষিত হয়, কখনও নির্দিষ্ট ঠিকানা নয়।",
+        "privacy.contact": "যোগাযোগ: পরের স্ক্রিনে আপনি যেভাবে বেছে নেবেন কেবল সেভাবেই যোগাযোগ করা হবে। \"আমার সঙ্গে যোগাযোগ করবেন না\" একটি প্রকৃত বিকল্প।",
+        "privacy.risk": "অন্য কেউ এই ডিভাইস দেখলে আপনার বিপদ বাড়তে পারে, এমন কিছু অনুগ্রহ করে লিখবেন না।",
+
+        "followup.title": "আপনার সঙ্গে কীভাবে যোগাযোগ করা নিরাপদ?",
+        "followup.doNotContact": "আমার সঙ্গে যোগাযোগ করবেন না",
+        "followup.textOnly": "শুধু বার্তা (টেক্সট)",
+        "followup.callOnly": "শুধু ফোন কল",
+        "followup.either": "দুটোই নিরাপদ",
+        "followup.timeLabel": "কখন যোগাযোগ করা নিরাপদ? (ঐচ্ছিক)",
+        "followup.timePlaceholder": "যেমন কেবল কর্মদিবসের সকাল",
+        "followup.save": "আমার পছন্দ সংরক্ষণ করুন",
+        "followup.saved": "সংরক্ষিত হয়েছে। আমরা এটি মেনে চলব।",
+        "followup.error": "পছন্দটি সংরক্ষণ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+
+        "safety.callNow": "তাৎক্ষণিক বিপদে আছেন? এখনই ১১২ নম্বরে কল করুন",
+        "safety.sos": "এসওএস",
+        "safety.sosSending": "এসওএস পাঠানো হচ্ছে…",
+        "safety.quickExit": "দ্রুত প্রস্থান",
+        "safety.sosError": "এসওএস পাঠানো যায়নি। আপনি বিপদে থাকলে সরাসরি ১১২ নম্বরে কল করুন।",
 
         "report.submitError": "এই মুহূর্তে প্রতিবেদন পাঠানো সম্ভব হচ্ছে না। আবার চেষ্টা করুন।",
     },
@@ -542,6 +712,13 @@ function applyTranslations() {
         el.setAttribute("title", t(el.dataset.i18nTitle));
     });
 
+    // Icon-only controls -- the visible glyph is aria-hidden, so this
+    // label is the only thing a screen reader has to go on, and it has
+    // to switch language with everything else.
+    document.querySelectorAll("[data-i18n-aria-label]").forEach(el => {
+        el.setAttribute("aria-label", t(el.dataset.i18nAriaLabel));
+    });
+
     const select = document.getElementById("uiLanguageSelect");
     if (select) {
         select.value = getUiLanguage();
@@ -570,6 +747,18 @@ function setUiLanguage(lang) {
         // persist across reloads.
     }
 
+    // Urdu is right-to-left. Setting dir/lang on <html> is the minimum
+    // that makes text, punctuation and input caret behave correctly --
+    // a full RTL layout mirror (sidebar, tables, icon order) is a
+    // bigger change than this pass takes on, so this deliberately
+    // fixes reading direction without pretending the whole dashboard
+    // has been mirrored.
+    document.documentElement.setAttribute("lang", lang);
+    document.documentElement.setAttribute(
+        "dir",
+        lang === "ur" ? "rtl" : "ltr"
+    );
+
     applyTranslations();
 
     if (typeof window.onUiLanguageChange === "function") {
@@ -579,6 +768,16 @@ function setUiLanguage(lang) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+
+    // Re-apply the stored language's direction on load, not just when
+    // the switcher changes -- otherwise someone who chose Urdu last
+    // visit comes back to Urdu text laid out left-to-right.
+    const storedLang = getUiLanguage();
+    document.documentElement.setAttribute("lang", storedLang);
+    document.documentElement.setAttribute(
+        "dir",
+        storedLang === "ur" ? "rtl" : "ltr"
+    );
 
     applyTranslations();
 
