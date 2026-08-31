@@ -67,6 +67,16 @@ if (!ADMIN_API_KEY) {
 // reloads the page rather than trying to hot-swap ADMIN_API_KEY (a
 // const, and already captured in every closure that reads it) --
 // simplest correct fix, and this only happens once per browser.
+//
+// The submitted value is checked against the server (GET /stats, the
+// cheapest admin-gated route) before it's ever written to localStorage
+// or the overlay is dismissed. Earlier this just accepted any non-empty
+// string -- the overlay would close and the dashboard shell would
+// render (empty, since every fetch underneath 401s and quietly falls
+// back to []), which reads exactly like "it worked" to anyone who
+// doesn't know to expect real numbers. Validating up front means a
+// wrong key now visibly fails right here instead of silently degrading
+// three screens later.
 function showAdminKeyGate() {
 
     const overlay = document.createElement("div");
@@ -93,6 +103,8 @@ function showAdminKeyGate() {
                 autofocus
             />
 
+            <p class="admin-gate-error" id="adminGateError" hidden></p>
+
             <button type="button" id="adminGateSubmit" class="primary-button">
                 Continue
             </button>
@@ -102,21 +114,65 @@ function showAdminKeyGate() {
 
     document.body.appendChild(overlay);
 
-    const submit = () => {
+    const input = overlay.querySelector("#adminGateInput");
+    const errorEl = overlay.querySelector("#adminGateError");
+    const button = overlay.querySelector("#adminGateSubmit");
 
-        const value = overlay.querySelector("#adminGateInput").value.trim();
+    const showError = message => {
+        errorEl.textContent = message;
+        errorEl.hidden = false;
+    };
+
+    const submit = async () => {
+
+        const value = input.value.trim();
 
         if (!value) return;
 
-        localStorage.setItem("athena_admin_key", value);
+        errorEl.hidden = true;
+        button.disabled = true;
+        button.textContent = "Checking...";
 
-        window.location.reload();
+        try {
+
+            const response = await fetch(`${API_BASE_URL}/stats`, {
+                headers: { "X-API-Key": value }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                showError("Invalid access key -- check with your team lead.");
+                return;
+            }
+
+            if (!response.ok) {
+                showError(
+                    `Backend error (${response.status}) -- couldn't verify this key right now.`
+                );
+                return;
+            }
+
+            localStorage.setItem("athena_admin_key", value);
+
+            window.location.reload();
+
+        } catch (error) {
+
+            console.error("Admin key verification failed:", error);
+
+            showError("Couldn't reach the Athena backend -- check your connection and try again.");
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Continue";
+
+        }
 
     };
 
-    overlay.querySelector("#adminGateSubmit").addEventListener("click", submit);
+    button.addEventListener("click", submit);
 
-    overlay.querySelector("#adminGateInput").addEventListener("keydown", event => {
+    input.addEventListener("keydown", event => {
         if (event.key === "Enter") submit();
     });
 

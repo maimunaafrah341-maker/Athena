@@ -558,12 +558,26 @@
     }
   }
 
+  // Deliberately doesn't assume "backend not running on localhost" --
+  // this page is served from whatever origin loaded it (a Railway URL
+  // in production, localhost in dev), and REPORT_ENDPOINT/"/report/voice"
+  // are relative, so they always hit that same origin. A TypeError here
+  // means fetch itself failed (offline, DNS, CORS); anything else is a
+  // real HTTP error status from a backend that IS reachable, so the two
+  // need different messages or a real deployed-backend failure reads as
+  // "you forgot to start your laptop server," which is actively
+  // misleading during a live demo.
   function handlePipelineNetworkError(error) {
     console.error("Backend connection error:", error);
     removeTyping();
+
+    const isNetworkFailure = error instanceof TypeError;
+
     addIncoming(
-      "I couldn't connect to the safety intelligence system. " +
-      "Make sure the Athena backend is running on localhost:8000, then try again."
+      isNetworkFailure
+        ? `I couldn't reach the Athena backend at ${window.location.origin}. ` +
+          "It may be waking up from a cold start -- wait a few seconds and try again."
+        : `The Athena backend returned an error (${error.message}). Try again in a moment.`
     );
   }
 
@@ -580,6 +594,10 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: text, language: language || null }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       data = await response.json();
 
@@ -621,6 +639,10 @@
         method: "POST",
         body: formData,
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       data = await response.json();
 
@@ -712,6 +734,10 @@
         method: "POST",
         body: formData,
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       data = await response.json();
 
