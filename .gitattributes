@@ -1,0 +1,46 @@
+# Line endings
+# ============================================================
+#
+# Without this, git on Windows prints "LF will be replaced by CRLF"
+# on nearly every add/commit. Those are warnings, not errors -- but
+# they're noisy enough to look like something is broken, and they
+# also mean the same file can land in a diff as "every line changed"
+# depending on who committed it.
+#
+# `* text=auto` tells git to normalise text files to LF *in the
+# repository* while leaving whatever each OS wants in the working
+# copy. Binary files below are marked explicitly so git never tries
+# to "fix" line endings inside a PDF or an audio sample and corrupt
+# it.
+
+* text=auto
+
+# Source and content -- always LF in the repo
+*.py    text eol=lf
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.txt   text eol=lf
+
+# Windows-only scripts genuinely need CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Never touch these -- the knowledge-base PDFs and the demo audio
+# sample are binary and normalising them would corrupt the files.
+*.pdf   binary
+*.ogg   binary
+*.webm  binary
+*.mp3   binary
+*.wav   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pptx  binary
+*.db    binary

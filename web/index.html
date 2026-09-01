@@ -254,6 +254,45 @@
     font-size: 21px;
     color: #54656f;
     flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 4px;
+    min-width: 34px;
+    min-height: 34px;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .composer .icon:focus-visible {
+    outline: 2px solid #075e54;
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  /* Recording state: the mic turns into a stop control and the bar
+     shows a live timer, so it's never ambiguous whether the mic is
+     actually capturing -- the old button gave no feedback at all
+     because it never recorded anything in the first place. */
+  .composer .icon.recording {
+    color: #d32f2f;
+    animation: pulse-rec 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-rec {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .35; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .composer .icon.recording { animation: none; }
+  }
+
+  .rec-timer {
+    flex-shrink: 0;
+    color: #d32f2f;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   .composer input {
@@ -327,8 +366,23 @@
   <div class="disclaimer" id="disclaimer" style="display:none;"></div>
 
   <div class="composer">
-    <span class="icon">😊</span>
-    <span class="icon" onclick="document.getElementById('imageInput').click()" title="Attach a photo as evidence" style="cursor:pointer;">📎</span>
+
+    <button
+      class="icon"
+      type="button"
+      onclick="sendVoiceNote()"
+      title="Play the pre-recorded Hindi sample (works without a mic)"
+      aria-label="Send the pre-recorded Hindi sample voice note"
+    >🗂</button>
+
+    <button
+      class="icon"
+      type="button"
+      onclick="document.getElementById('imageInput').click()"
+      title="Attach a photo as evidence"
+      aria-label="Attach a photo as evidence"
+    >📎</button>
+
     <input
       id="imageInput"
       type="file"
@@ -336,14 +390,28 @@
       style="display:none;"
       onchange="sendImageEvidence(this.files[0]); this.value='';"
     />
-    <span class="icon" onclick="sendVoiceNote()" title="Send demo voice note" style="cursor:pointer;">🎤</span>
+
+    <button
+      class="icon"
+      type="button"
+      id="recBtn"
+      onclick="toggleRecording()"
+      title="Record a voice note"
+      aria-label="Record a voice note"
+    >🎤</button>
+
+    <span id="recTimer" class="rec-timer" hidden aria-hidden="true"></span>
+
     <input
       id="msgInput"
       type="text"
       placeholder="Type a message"
+      aria-label="Type a message"
       onkeydown="if(event.key==='Enter') sendMessage();"
     />
-    <button class="send-btn" onclick="sendMessage()" id="sendBtn">➤</button>
+
+    <button class="send-btn" onclick="sendMessage()" id="sendBtn" aria-label="Send message">➤</button>
+
   </div>
 
 </div>
@@ -632,8 +700,24 @@
       const audioBlob = await (await fetch(audioUrl)).blob();
 
       const formData = new FormData();
-      formData.append("file", audioBlob, "voice-note.ogg");
-      formData.append("language", language);
+
+      // Name the part after what the blob actually is -- a live
+      // MediaRecorder capture is webm, not the ogg the bundled sample
+      // is, and mislabelling it can throw off format sniffing.
+      const isWebm = (audioBlob.type || "").includes("webm");
+      formData.append(
+        "file",
+        audioBlob,
+        isWebm ? "voice-note.webm" : "voice-note.ogg"
+      );
+
+      // Only send a language when one is actually known (the bundled
+      // sample is tagged Hindi). FormData stringifies null into the
+      // literal "null", which is not a language code -- for a live
+      // recording we want the backend detecting it, not parsing that.
+      if (language) {
+        formData.append("language", language);
+      }
 
       const response = await fetch("/report/voice", {
         method: "POST",
@@ -695,6 +779,152 @@
   async function sendVoiceNote() {
     addOutgoingVoice(DEMO_VOICE_NOTE.file);
     await submitVoiceToPipeline(DEMO_VOICE_NOTE.file, DEMO_VOICE_NOTE.language);
+  }
+
+
+  /* =========================================================
+     LIVE VOICE RECORDING
+     ---------------------------------------------------------
+     The mic button used to just replay DEMO_VOICE_NOTE -- there was
+     no recording on this page at all, so "the mic doesn't work" was
+     accurate: nothing was ever captured. This is the same
+     MediaRecorder flow the main dashboard uses (see athena.js
+     startRecording), posting to the same /report/voice endpoint, so
+     a recording made here goes through real transcription rather
+     than a canned transcript.
+
+     The pre-recorded sample stays on its own button: a live mic is
+     unreliable on a stage (no permission, no device, room noise), and
+     having a guaranteed-good sample to fall back on mid-demo is worth
+     more than pretending the mic will always cooperate.
+  ========================================================= */
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let recTimerInterval = null;
+  let recStartedAt = null;
+
+  function updateRecTimer() {
+    const timer = document.getElementById("recTimer");
+    if (!timer || !recStartedAt) return;
+    const seconds = Math.floor((Date.now() - recStartedAt) / 1000);
+    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const ss = String(seconds % 60).padStart(2, "0");
+    timer.textContent = `${mm}:${ss}`;
+  }
+
+  function setRecordingUI(isRecording) {
+
+    const button = document.getElementById("recBtn");
+    const timer = document.getElementById("recTimer");
+
+    if (button) {
+      button.classList.toggle("recording", isRecording);
+      button.textContent = isRecording ? "⏹" : "🎤";
+      button.setAttribute(
+        "aria-label",
+        isRecording ? "Stop recording and send" : "Record a voice note"
+      );
+      button.title = isRecording
+        ? "Stop recording and send"
+        : "Record a voice note";
+    }
+
+    if (timer) {
+      timer.hidden = !isRecording;
+      if (!isRecording) timer.textContent = "";
+    }
+
+  }
+
+  async function toggleRecording() {
+
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      stopRecording();
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      addIncoming(
+        "This browser can't record audio. You can type instead, or use the " +
+        "sample voice note button."
+      );
+      return;
+    }
+
+    try {
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+
+        stream.getTracks().forEach(track => track.stop());
+
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+
+        // Nothing captured (instant stop, or a mic that produced no
+        // data) -- say so rather than posting an empty file and
+        // letting it fail confusingly downstream.
+        if (!audioBlob.size) {
+          addIncoming("That recording came out empty — please try again.");
+          return;
+        }
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        addOutgoingVoice(audioUrl);
+
+        // Use whatever language the person already picked in the header
+        // rather than letting the endpoint fall back to its "hi"
+        // default -- someone who switched the interface to Telugu and
+        // then spoke is almost certainly speaking Telugu.
+        await submitVoiceToPipeline(audioUrl, currentUiLang);
+
+      };
+
+      mediaRecorder.start();
+
+      recStartedAt = Date.now();
+      updateRecTimer();
+      recTimerInterval = setInterval(updateRecTimer, 500);
+
+      setRecordingUI(true);
+
+    } catch (error) {
+
+      console.error("Microphone unavailable:", error);
+
+      // Denied permission is the common case and is not an error state
+      // worth a scary message -- it just needs an alternative.
+      addIncoming(
+        "I couldn't access the microphone. Check the browser's mic permission " +
+        "for this site, or type your message instead."
+      );
+
+      setRecordingUI(false);
+
+    }
+
+  }
+
+  function stopRecording() {
+
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+
+    clearInterval(recTimerInterval);
+    recTimerInterval = null;
+    recStartedAt = null;
+
+    setRecordingUI(false);
+
   }
 
   function addOutgoingImage(imageUrl) {

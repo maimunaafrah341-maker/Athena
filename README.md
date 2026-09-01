@@ -18,7 +18,10 @@ Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a
 - **Resolves an escalation contact** from a national directory of 554 districts across 33 states/UTs, provenance-tagged (manually verified vs. machine-parsed) so nothing is presented with false confidence.
 - **Escalates to a human** on any of three independent triggers: Critical risk, Critical stress, or the system simply not being confident it understood the report at all.
 - **Binds every case to an NHAA docket** (`nhaa.py`) — channel-agnostic across 14566 voice, IVRS, the Integrated Portal, chatbot, and mobile app, so the same pipeline runs no matter which of NHAA's real entry points a report came through, and every finalized case gets a docket ID the same way a real NHAA complaint does.
-- Supports low-disclosure reporting (anonymous / partial / full, enforced at the database layer), evidence upload with OCR, an SOS endpoint, nearby police/hospital lookup, an anonymized safety map, and district-level pattern detection for week-over-week case spikes.
+- Supports low-disclosure reporting (anonymous / partial / full, enforced at the database layer), evidence upload with OCR, one-tap SOS, nearby police/hospital lookup, an anonymized safety map, and district-level pattern detection for week-over-week case spikes.
+- **Tells the reporter what actually happens next.** The confirmation screen isn't a generic thank-you: it carries a reference ID, the grounded response, the legal provisions the report may fall under, and real helpline numbers (KIRAN is attached automatically on Critical/High stress, whether or not the word "suicide" appears). Critical/High cases are told plainly to call 112 themselves — Athena flags a case for a human, it does not dispatch police, and the UI never implies otherwise.
+- **Lets the reporter set how it's safe to be contacted**, including "do not contact me", recorded against the case and shown in the counsellor's timeline.
+- **Distinguishes "nobody has looked at this" from "in progress."** Counsellors mark an alert reviewed; that's tracked separately from status, so a Critical case sitting untouched is visible instead of blending into the queue.
 - **Never shows an empty dashboard.** Realistic demo cases auto-seed on first startup if the database is empty (`seed_data.py`) — safe insurance against an ephemeral host wiping storage on redeploy, and it never touches or overwrites real report data.
 
 ## Architecture
@@ -62,6 +65,12 @@ Full request/response contract, known limitations, and field-level detail: [API_
 | Evidence OCR | EasyOCR |
 | Frontend | Static HTML/CSS/JS ([web/dashboard.html](web/dashboard.html)), plus a [WhatsApp-style demo channel](web/index.html) calling the same `/report` endpoint |
 
+### The WhatsApp-style channel
+
+[web/index.html](web/index.html) is a real channel, not a mockup with canned replies: typing, recording a voice note, or sending a photo there hits the same `/report`, `/report/voice`, and `/report/image` endpoints the dashboard uses, and the case it creates shows up in the counsellor dashboard like any other. It exists to show that the same pipeline works inside an interface a first-time user already trusts, ahead of a real WhatsApp Business API integration.
+
+Two ways to send voice, deliberately: the **mic button records live** from the browser (with a timer, and a clear message rather than a silent failure if permission is denied or there's no device), and a **separate button sends a bundled Hindi sample** — a guaranteed-good clip to fall back on when a stage mic or a noisy room won't cooperate mid-demo.
+
 ## Running it locally
 
 ```bash
@@ -77,7 +86,7 @@ Required in `.env`: `ADMIN_API_KEY`, `GROQ_API_KEY` (primary for both response g
 
 With the server running, open:
 - `http://localhost:8000/` — the WhatsApp-style citizen-facing demo
-- `http://localhost:8000/dashboard.html` — the report form + counsellor dashboard (needs `ADMIN_API_KEY` to unlock case data)
+- `http://localhost:8000/dashboard.html` — the report form + counsellor dashboard. The report form and confirmation are open to anyone; `ADMIN_API_KEY` gates the counsellor pages (Overview, Cases, Risk Map, Guidance, Alerts), and the key is verified against the server before the gate opens rather than any string being accepted.
 
 ## Known limitations
 
@@ -88,6 +97,9 @@ Stated honestly rather than discovered by a judge mid-demo — full detail in `A
 - Legal citations are deliberately scoped to the SC/ST Act only, matching 14566's actual legal remit — the detection mechanism underneath is not hardcoded to caste and can extend to other Acts as future scope.
 - Romanized-script retrieval can occasionally miss a correct smaller source document when a much larger one dominates ranking — a documented safe-failure edge case (declines rather than hallucinates), not yet fixed.
 - Admin access is a single shared API key today, not per-counsellor roles or an audit log.
+- The reporter's follow-up-contact preference is saved through a public endpoint (the person answering it has just filed a report and holds no counsellor key). It is write-only, never echoes case content back, and refuses to overwrite an answer already given — so the worst a guessed case ID can do is answer for someone who never did. A real deployment should replace this with a per-report token issued at submission.
+- Urdu switches the page to `dir="rtl"`, which fixes text direction and input behaviour. The dashboard layout itself (sidebar, tables, icon order) is not mirrored yet.
+- "Auto 112 Dispatch" in `risk.py`'s response protocol is routing metadata describing the intended real-world action — Athena does not call ERSS-112 itself, and no screen tells a reporter that help has been dispatched.
 
 ## Team
 
