@@ -76,6 +76,90 @@ def _build_translation_prompt(text, source_language=None):
     )
 
 
+LANGUAGE_NAMES = {
+    "en": "English",
+    "hi": "Hindi",
+    "te": "Telugu",
+    "ur": "Urdu",
+    "bn": "Bengali",
+}
+
+
+def _build_reply_prompt(text, target_language):
+    """
+    The reverse direction: a counsellor's own words, put into the
+    language the person who filed the report actually speaks.
+
+    Stricter than the inbound prompt in one specific way -- the model
+    must not add anything. Inbound, an invented detail corrupts a
+    counsellor's read of a case; outbound, it becomes something
+    Athena effectively said to a person in crisis on a counsellor's
+    behalf. Neither is acceptable, but only one of them reaches the
+    survivor.
+    """
+
+    language_name = LANGUAGE_NAMES.get(
+        (target_language or "").strip().lower(), target_language
+    )
+
+    return (
+        "You are translating a helpline counsellor's message so it can "
+        f"be given to a person who speaks {language_name}.\n\n"
+        "Rules:\n"
+        f"- Translate into {language_name}, in the script normally used "
+        "for that language.\n"
+        "- Translate ONLY what is written. Add no reassurance, advice, "
+        "greeting, closing, or detail that is not already there -- this "
+        "goes to someone in distress as though the counsellor said it.\n"
+        "- Keep it plain and warm. Prefer everyday words over formal or "
+        "legal register; the person reading it may be frightened, and "
+        "may not read fluently.\n"
+        "- Keep phone numbers, case reference IDs, and names exactly as "
+        "written, in their original characters.\n"
+        "- Output the translation and nothing else.\n\n"
+        "Counsellor's message:\n"
+        f"{text}"
+    )
+
+
+def translate_reply(text, target_language):
+    """
+    Translates a counsellor-written reply into the reporter's language.
+
+    Returns None when there's nothing to do (no text, no target, or the
+    target is already English) or when translation genuinely fails --
+    callers must surface that as "no translation available" rather than
+    handing a counsellor untranslated English to send as though it were
+    the reporter's language.
+
+    This produces a DRAFT for a human to read, check and use in a real
+    conversation. It sends nothing: Athena has no delivery channel to a
+    reporter, and the UI must never imply a message has been delivered.
+    """
+
+    if not text or not text.strip():
+        return None
+
+    normalized_target = (target_language or "").strip().lower()
+
+    if not normalized_target or normalized_target in SKIP_LANGUAGES:
+        return None
+
+    try:
+        translated = generate_response(
+            _build_reply_prompt(text, normalized_target)
+        )
+
+    except Exception as e:
+        print(f"[translation] reply translation failed: {type(e).__name__}: {e}")
+        return None
+
+    if not translated or not translated.strip():
+        return None
+
+    return translated.strip()
+
+
 def translate_to_english(text, source_language=None):
     """
     Returns an English translation of `text`, or None.

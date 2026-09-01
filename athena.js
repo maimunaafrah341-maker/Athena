@@ -2059,6 +2059,48 @@ function showCaseBrief(brief) {
 
 
             ${
+                // Only offered when the case is actually in another
+                // language -- on an English case this would be a box
+                // that translates English into English.
+                brief.language &&
+                !["en", "eng", "english"].includes(String(brief.language).toLowerCase())
+                    ? `
+                        <div class="case-brief-section">
+
+                            <span class="eyebrow">
+                                DRAFT A REPLY
+                                <span class="ai-badge">Machine translation — read before you use it</span>
+                            </span>
+
+                            <p class="reply-help">
+                                Write in English. This gives you the same words in
+                                ${escapeHTML(String(brief.language).toUpperCase())} to
+                                use on a call or message — Athena does not send it.
+                            </p>
+
+                            <div class="case-action-row">
+                                <textarea
+                                    id="replyDraftInput"
+                                    placeholder="e.g. A counsellor will call you tomorrow morning. You are not alone."
+                                ></textarea>
+                                <button
+                                    type="button"
+                                    id="translateReplyButton"
+                                    class="secondary-button"
+                                >
+                                    Translate
+                                </button>
+                            </div>
+
+                            <div id="replyDraftOutput" class="reply-output" hidden></div>
+
+                        </div>
+                      `
+                    : ""
+            }
+
+
+            ${
                 signals.length
                     ? `
                         <div class="case-brief-section">
@@ -2325,6 +2367,84 @@ function showCaseBrief(brief) {
 
             await loadCases();
             openCaseBrief(brief.case_id);
+
+        });
+
+
+    /* Reply drafting -- translate only, never send. Deliberately does
+       not reload the brief afterwards: the draft is not case data and
+       there is nothing new on the server to fetch. */
+
+    overlay
+        .querySelector("#translateReplyButton")
+        ?.addEventListener("click", async () => {
+
+            const button = overlay.querySelector("#translateReplyButton");
+            const input = overlay.querySelector("#replyDraftInput");
+            const output = overlay.querySelector("#replyDraftOutput");
+
+            const text = input?.value.trim();
+
+            if (!text || !output) return;
+
+            button.disabled = true;
+            button.textContent = "Translating...";
+
+            output.hidden = false;
+            output.textContent = "Translating…";
+            output.classList.remove("is-error");
+
+            try {
+
+                const response = await fetch(
+                    `${API_BASE_URL}/cases/${brief.case_id}/translate-reply`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-API-Key": ADMIN_API_KEY
+                        },
+                        body: JSON.stringify({ note: text })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.translated) {
+
+                    output.classList.add("is-error");
+                    output.textContent =
+                        data.reason === "already_english"
+                            ? "This case was reported in English — no translation needed."
+                            : "Couldn't translate that right now. Please try again.";
+
+                    return;
+
+                }
+
+                // Rendered as text, not innerHTML -- this string came
+                // back from a model and is about to sit in a
+                // counsellor's browser alongside real case data.
+                output.textContent = data.translated;
+
+            } catch (error) {
+
+                console.error("Could not translate reply:", error);
+
+                output.classList.add("is-error");
+                output.textContent =
+                    "Couldn't translate that right now. Please try again.";
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = "Translate";
+
+            }
 
         });
 

@@ -3542,6 +3542,49 @@ table tbody tr:hover {
 }
 
 
+.reply-help {
+    margin: 6px 0 12px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    line-height: 1.6;
+}
+
+.reply-output {
+    margin-top: 12px;
+
+    padding: 14px 16px;
+
+    background: var(--surface-soft);
+
+    border-left: 3px solid var(--border);
+
+    border-radius: 0 10px 10px 0;
+
+    color: var(--ink);
+
+    font-size: 12.5px;
+
+    line-height: 1.7;
+
+    white-space: pre-wrap;
+}
+
+.reply-output.is-error {
+    background: #f3e4e4;
+
+    border-left-color: var(--critical);
+
+    color: var(--critical);
+
+    font-size: 11.5px;
+
+    font-weight: 700;
+}
+
+
 /* Translation sits visually subordinate to the original -- indented,
    on its own ground, under its own heading. A counsellor should never
    be in doubt about which block is the reporter's actual words. */

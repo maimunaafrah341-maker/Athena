@@ -53,7 +53,7 @@ from voice_service import process_voice_to_text
 # Deferred into report_image() below so a deploy that never receives
 # an image upload never pays for this chain at all.
 from nearby_help import find_nearby_help, get_call_options
-from translation import translate_to_english
+from translation import translate_to_english, translate_reply, SKIP_LANGUAGES
 from consent import get_voice_recording_policy
 from nhaa import CHANNELS, DEFAULT_CHANNEL
 
@@ -736,6 +736,56 @@ def post_case_escalate(case_id: int, payload: EscalateRequest):
         raise HTTPException(status_code=404, detail="Case not found")
 
     return result
+
+
+@app.post("/cases/{case_id}/translate-reply", dependencies=[Depends(require_admin_key)])
+def post_translate_reply(case_id: int, payload: NoteRequest):
+    """
+    Translates a counsellor's drafted reply into the language the case
+    was reported in, so they can say it in a language the person
+    actually speaks.
+
+    This is a drafting aid and nothing more -- it returns text for a
+    human to read and use in a real conversation (a call, an SMS, or
+    WhatsApp once that channel exists). It does NOT deliver anything:
+    Athena has no send path to a reporter, and nothing in the response
+    or the UI may suggest the person has received a message.
+
+    Nothing is persisted. A draft a counsellor is still composing is
+    not a case record, and writing every keystroke of it into the case
+    would put unreviewed text into a file that gets handed to police
+    and courts.
+    """
+
+    case = get_case(case_id)
+
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    target_language = case.get("language")
+
+    translated = translate_reply(payload.note, target_language)
+
+    if translated is None:
+        return {
+            "translated": None,
+            "target_language": target_language,
+            # Distinguishes "this case is already in English, nothing
+            # to do" from "translation was attempted and failed", so
+            # the UI can say which rather than showing one blank box
+            # for two different situations.
+            "reason": (
+                "already_english"
+                if (target_language or "en").strip().lower() in SKIP_LANGUAGES
+                else "unavailable"
+            ),
+        }
+
+    return {
+        "translated": translated,
+        "target_language": target_language,
+        "reason": None,
+    }
 
 
 @app.post("/cases/{case_id}/acknowledge", dependencies=[Depends(require_admin_key)])
