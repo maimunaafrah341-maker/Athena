@@ -35,6 +35,7 @@ from cases import (
     escalate_case,
     acknowledge_case,
     set_follow_up_preference,
+    save_translation,
     VALID_FOLLOW_UP_PREFERENCES,
     add_case_note,
     get_stats,
@@ -52,6 +53,7 @@ from voice_service import process_voice_to_text
 # Deferred into report_image() below so a deploy that never receives
 # an image upload never pays for this chain at all.
 from nearby_help import find_nearby_help, get_call_options
+from translation import translate_to_english
 from consent import get_voice_recording_policy
 from nhaa import CHANNELS, DEFAULT_CHANNEL
 
@@ -667,12 +669,32 @@ def get_case_brief(case_id: int):
     Human-reviewer-facing escalation brief: everything known about
     the case plus any related cases, assembled into one summary
     instead of making a reviewer piece it together themselves.
+
+    If the report came in a language other than English and hasn't been
+    translated yet, an English rendering is generated here -- on first
+    open, once per case, cached on the case afterwards. Done lazily on
+    purpose: it's a counsellor-only reading aid, so making a reporter
+    in distress wait on an extra model call to produce it would be the
+    wrong trade (see translation.py). A failure is non-fatal -- the
+    brief returns with the original text alone, which is the
+    authoritative version regardless.
     """
 
     brief = build_escalation_brief(case_id)
 
     if brief is None:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    if not brief.get("summary_translated"):
+
+        translated = translate_to_english(
+            brief.get("summary"),
+            source_language=brief.get("language"),
+        )
+
+        if translated:
+            save_translation(case_id, translated)
+            brief["summary_translated"] = translated
 
     return brief
 

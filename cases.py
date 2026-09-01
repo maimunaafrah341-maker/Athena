@@ -110,6 +110,16 @@ _NEW_COLUMNS = {
     # Free-text "when is it safe to reach me" note from the same screen
     # (e.g. "only weekday mornings"). Nullable and always optional.
     "follow_up_note": "TEXT",
+    # Machine-translated English rendering of original_text, for a
+    # counsellor who doesn't read the language the report came in.
+    # Filled lazily the first time a case brief is opened (see
+    # translation.py for why not at report time) and cached here so it
+    # costs one model call per case, ever. NULL means either "not
+    # needed" (the report was already English) or "not generated yet /
+    # translation failed" -- consumers must fall back to original_text,
+    # which is always the authoritative version and is never
+    # overwritten by this.
+    "translated_text": "TEXT",
 }
 
 
@@ -369,6 +379,32 @@ def set_follow_up_preference(case_id, preference, note=None):
         )
 
     return get_case(case_id)
+
+
+def save_translation(case_id, translated_text):
+    """
+    Caches a machine translation against a case so it's generated once
+    rather than on every brief open.
+
+    Writes only translated_text -- original_text is never touched. The
+    reporter's own words stay the authoritative record; this is the
+    reading aid beside them (see translation.py). No timeline event:
+    a counsellor opening a case brief is a read, and filling a cache
+    on their behalf isn't an action on the case worth logging as if
+    something happened to it.
+    """
+
+    if not translated_text:
+        return None
+
+    with _connect() as connection:
+
+        connection.execute(
+            "UPDATE cases SET translated_text = ? WHERE id = ?",
+            (translated_text, case_id),
+        )
+
+    return translated_text
 
 
 def acknowledge_case(case_id):
@@ -643,6 +679,10 @@ def _row_to_case(row):
         "follow_up_note": (
             row["follow_up_note"]
             if "follow_up_note" in row_keys else None
+        ),
+        "translated_text": (
+            row["translated_text"]
+            if "translated_text" in row_keys else None
         ),
     }
 
@@ -1107,6 +1147,12 @@ def build_escalation_brief(case_id):
         "language": case["language"],
         "is_sos": case["is_sos"],
         "summary": case["original_text"],
+        # Machine translation of `summary`, or None when the report was
+        # already English / no translation exists yet. Always shown
+        # beside the original, never instead of it -- see
+        # translation.py. Populated by app.py's brief endpoint, which
+        # generates it on first open and caches it via save_translation().
+        "summary_translated": case["translated_text"],
         "response_given": case["response"],
         "reason": case["reason"],
         "evidence_attached": case["evidence_path"] is not None,

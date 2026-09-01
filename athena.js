@@ -1885,6 +1885,11 @@ function showCaseBrief(brief) {
 
                 <span class="eyebrow">
                     REPORT
+                    ${
+                        brief.language
+                            ? `<span class="lang-tag">${escapeHTML(brief.language)}</span>`
+                            : ""
+                    }
                 </span>
 
                 <p class="case-summary">
@@ -1893,6 +1898,25 @@ function showCaseBrief(brief) {
                         "No summary available."
                     )}
                 </p>
+
+                ${
+                    brief.summary_translated
+                        ? `
+                            <div class="case-translation">
+
+                                <span class="eyebrow">
+                                    ENGLISH TRANSLATION
+                                    <span class="ai-badge">Machine translation — original above is authoritative</span>
+                                </span>
+
+                                <p class="case-summary">
+                                    ${escapeHTML(brief.summary_translated)}
+                                </p>
+
+                            </div>
+                          `
+                        : ""
+                }
 
             </div>
 

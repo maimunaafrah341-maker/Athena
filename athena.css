@@ -3542,6 +3542,49 @@ table tbody tr:hover {
 }
 
 
+/* Translation sits visually subordinate to the original -- indented,
+   on its own ground, under its own heading. A counsellor should never
+   be in doubt about which block is the reporter's actual words. */
+.case-translation {
+    margin-top: 16px;
+
+    padding: 14px 16px;
+
+    border-left: 3px solid var(--border);
+
+    background: var(--surface-soft);
+
+    border-radius: 0 10px 10px 0;
+}
+
+.case-translation .eyebrow {
+    display: block;
+
+    margin-bottom: 8px;
+}
+
+.lang-tag {
+    margin-left: 8px;
+
+    padding: 2px 7px;
+
+    background: var(--surface-soft);
+
+    border-radius: 20px;
+
+    color: var(--muted);
+
+    font-size: 8px;
+
+    font-weight: 700;
+
+    text-transform: uppercase;
+
+    letter-spacing: .04em;
+
+    vertical-align: middle;
+}
+
 .ai-badge {
 
     margin-left: 8px;
