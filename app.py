@@ -573,34 +573,49 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 
         if num_media > 0:
 
-            # Media cannot be handled inside the webhook response.
-            # Measured on a real 14s voice note: ~24s before the
-            # pipeline even starts, almost all of it librosa extracting
-            # the pitch/pause features the SVI's voice half needs, against
-            # a ~15s Twilio timeout. Dropping those features would fit
-            # the budget but would gut the multimodal assessment this
-            # project exists to demonstrate -- so acknowledge now, and
-            # send the real answer from the background task below.
-            background_tasks.add_task(
-                _process_whatsapp_media,
-                params.get("MediaUrl0"),
-                (params.get("MediaContentType0") or "").lower(),
-                params.get("From"),
-                params.get("To"),
-            )
+            media_url = params.get("MediaUrl0")
+            declared_type = (params.get("MediaContentType0") or "").lower()
 
-            is_audio = "audio" in (params.get("MediaContentType0") or "").lower()
+            # Background tasks are only safe where the container stays
+            # alive after responding. On a host that sleeps between
+            # requests they are silently killed the moment the response
+            # is sent -- seen live 2026-09-02: the deploy log showed a
+            # full cold-start sequence at the exact second a voice note
+            # arrived, the ack was delivered, and the task never
+            # finished. No crash, no log line, because nothing crashed:
+            # the container simply went back to sleep.
+            #
+            # Without acoustic extraction the whole media path is ~5s
+            # (download + Whisper + pipeline), which fits Twilio's ~15s
+            # window comfortably -- so the default path is synchronous
+            # and reliable. The background task is kept only for the
+            # case where acoustic features ARE enabled, which is by
+            # definition a machine with the RAM to run them and no
+            # reason to sleep mid-task.
+            if ENABLE_VOICE_FEATURES:
+
+                background_tasks.add_task(
+                    _process_whatsapp_media,
+                    media_url,
+                    declared_type,
+                    params.get("From"),
+                    params.get("To"),
+                )
+
+                return Response(
+                    content=build_reply(
+                        "Got it — I'm listening to your message now. "
+                        "This takes a few seconds.\n\n"
+                        "If you are in immediate danger, call 112 "
+                        "straight away."
+                    ),
+                    media_type="application/xml",
+                )
+
+            reply_text = _handle_whatsapp_media(media_url, declared_type)
 
             return Response(
-                content=build_reply(
-                    "Got it — I'm listening to your message now. "
-                    "This takes a few seconds.\n\n"
-                    "If you are in immediate danger, call 112 straight away."
-                    if is_audio else
-                    "Got it — I'm reading what you sent. "
-                    "This takes a few seconds.\n\n"
-                    "If you are in immediate danger, call 112 straight away."
-                ),
+                content=build_reply(reply_text),
                 media_type="application/xml",
             )
 
@@ -681,21 +696,17 @@ def _extract_voice_features_if_affordable(audio_path, transcription):
         return None
 
 
-def _process_whatsapp_media(media_url, declared_type, sender, receiver):
+def _handle_whatsapp_media(media_url, declared_type):
     """
-    Runs a WhatsApp voice note or photo through the pipeline after the
-    webhook has already replied, then sends the result back via the
-    REST API.
+    Runs a WhatsApp voice note or photo through the pipeline and
+    returns the text to reply with. Shared by both the synchronous path
+    (the default) and the background-task path, so the two can never
+    drift apart in what they actually do.
 
-    Everything here is best-effort and self-contained: this runs
-    detached from any request, so an unhandled exception would
-    disappear into the server log and the person would be left with
-    only the acknowledgement. Every failure path therefore sends
-    something back rather than returning quietly.
+    Always returns something sendable. Never raises: whichever path
+    calls this, an exception escaping would leave a person who just
+    reported an assault with either silence or a delivery failure.
     """
-
-    def reply(text):
-        send_message(sender, text, from_number=receiver)
 
     try:
 
@@ -703,11 +714,10 @@ def _process_whatsapp_media(media_url, declared_type, sender, receiver):
         content_type = (content_type or declared_type).lower()
 
         if not media_bytes:
-            reply(
+            return (
                 "I couldn't open that attachment. You can type what happened "
                 "instead, or call 14566."
             )
-            return
 
         extension = ".ogg" if "audio" in content_type else ".jpg"
         saved_name = f"{uuid.uuid4().hex}{extension}"
@@ -723,7 +733,9 @@ def _process_whatsapp_media(media_url, declared_type, sender, receiver):
             # web form's selector does.
             transcription = process_voice_to_text(saved_path, None)
 
-            voice_features = _extract_voice_features_if_affordable(saved_path, transcription)
+            voice_features = _extract_voice_features_if_affordable(
+                saved_path, transcription
+            )
 
             result = run_pipeline(
                 transcription,
@@ -738,11 +750,10 @@ def _process_whatsapp_media(media_url, declared_type, sender, receiver):
             extracted = extract_text(media_bytes, language="en")
 
             if not (extracted or "").strip():
-                reply(
+                return (
                     "I couldn't read any text in that image. You can type "
                     "what happened instead, or call 14566."
                 )
-                return
 
             result = run_pipeline(
                 extracted,
@@ -750,17 +761,33 @@ def _process_whatsapp_media(media_url, declared_type, sender, receiver):
                 channel=WHATSAPP_CHANNEL,
             )
 
-        reply(format_pipeline_reply(result))
+        return format_pipeline_reply(result)
 
     except Exception as e:
 
-        print(f"[whatsapp] background processing failed: {type(e).__name__}: {e}")
+        print(f"[whatsapp] media processing failed: {type(e).__name__}: {e}")
 
-        reply(
+        return (
             "Something went wrong while processing what you sent, and I don't "
             "want to leave you waiting. If you are in danger right now, call "
             "112. To speak to a counsellor, call 14566."
         )
+
+
+def _process_whatsapp_media(media_url, declared_type, sender, receiver):
+    """
+    Background-task wrapper: does the same work as the synchronous path
+    and sends the answer via the REST API afterwards.
+
+    Only reached when ENABLE_VOICE_FEATURES is set, i.e. on a host with
+    the RAM for acoustic extraction and no reason to sleep between
+    requests -- see the note at the webhook's media branch for why this
+    is not the default.
+    """
+
+    reply_text = _handle_whatsapp_media(media_url, declared_type)
+
+    send_message(sender, reply_text, from_number=receiver)
 
 
 @app.get("/call-options")
