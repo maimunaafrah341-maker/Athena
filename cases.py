@@ -723,13 +723,14 @@ def list_case_locations():
 
         rows = connection.execute(
             "SELECT id, created_at, incident_type, risk_tier, "
-            "latitude, longitude, location, is_sos, location_source "
+            "latitude, longitude, location, is_sos, location_source, "
+            "district "
             "FROM cases "
             "WHERE latitude IS NOT NULL AND longitude IS NOT NULL "
             "ORDER BY id DESC"
         ).fetchall()
 
-        return [
+        pins = [
             {
                 "id": row["id"],
                 "created_at": row["created_at"],
@@ -742,9 +743,90 @@ def list_case_locations():
                 # See create_case()'s location_source docstring note --
                 # NULL (pre-existing GPS-only rows) reads as "gps".
                 "location_source": row["location_source"] or "gps",
+                "_district": row["district"],
             }
             for row in rows
         ]
+
+        return _suppress_sparse_locations(pins)
+
+
+# Minimum number of reports that must share an area before any of them
+# is drawn on the map. Below this, a pin stops being "a case happened
+# around here" and starts being "this specific household reported" --
+# which, for caste-atrocity reports in a small village where everyone
+# knows who complained, is the difference between a safety map and a
+# target list. 3 is the conventional k-anonymity floor.
+MAP_MIN_GROUP_SIZE = 3
+
+# ~0.1 degrees is roughly 11km. Only used for cases with coordinates
+# but no district on file, so they still get grouped with their
+# neighbours rather than being individually identifiable by default.
+_COARSE_CELL_DECIMALS = 1
+
+
+def _location_group_key(pin):
+    """
+    What counts as "the same area" for suppression. District when the
+    reporter gave one (matches how the rest of the system aggregates,
+    see get_flagged_districts), otherwise a coarse coordinate cell so a
+    district-less case is still grouped with nearby ones instead of
+    slipping past the check on a technicality.
+    """
+
+    if pin.get("_district"):
+        return ("district", pin["_district"])
+
+    return (
+        "cell",
+        round(pin["latitude"], _COARSE_CELL_DECIMALS),
+        round(pin["longitude"], _COARSE_CELL_DECIMALS),
+    )
+
+
+def _suppress_sparse_locations(pins, min_group_size=MAP_MIN_GROUP_SIZE):
+    """
+    Drops map pins from areas with too few reports to be anonymous.
+
+    Coordinates are already rounded to ~100m before they are ever
+    stored (see app.py's LOCATION_ROUNDING_DECIMALS), which stops a pin
+    resolving to a house. It does not stop the far simpler attack:
+    in a village with exactly one report, the pin IS the reporter, no
+    precision required. Rounding harder doesn't fix that -- the
+    identifying information is the count, not the accuracy.
+
+    So an area contributes pins only once at least `min_group_size`
+    reports share it. Suppressed cases are still counted and returned
+    under `suppressed`, so the map can honestly say how much it is
+    withholding rather than quietly showing a partial picture that
+    reads as "nothing happening here".
+
+    Returns {"pins": [...], "suppressed": int, "min_group_size": int}.
+    """
+
+    groups = {}
+
+    for pin in pins:
+        groups.setdefault(_location_group_key(pin), []).append(pin)
+
+    visible = []
+    suppressed = 0
+
+    for group in groups.values():
+
+        if len(group) >= min_group_size:
+            visible.extend(group)
+        else:
+            suppressed += len(group)
+
+    for pin in visible:
+        pin.pop("_district", None)
+
+    return {
+        "pins": visible,
+        "suppressed": suppressed,
+        "min_group_size": min_group_size,
+    }
 
 
 def get_case(case_id):

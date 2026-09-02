@@ -14,6 +14,8 @@ Then POST to:
     { "text": "...", "language": null }
 """
 
+import hashlib
+import hmac
 import os
 import secrets
 import uuid
@@ -102,6 +104,64 @@ def require_admin_key(x_api_key: Optional[str] = Header(None)):
 
     if not x_api_key or not secrets.compare_digest(x_api_key, ADMIN_API_KEY):
         raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key header.")
+
+
+# ============================================================
+# FOLLOW-UP TOKENS
+# ============================================================
+#
+# The follow-up-preference endpoint has to be callable by someone with
+# no counsellor key -- it's the reporter answering "how is it safe to
+# contact you?" seconds after filing. Guarding it with nothing but the
+# case id meant anyone who guessed an id could answer on a stranger's
+# behalf; the one-shot rule limited the damage but didn't remove it.
+#
+# So /report (and friends) hand back a token derived from the case id,
+# and the follow-up route requires it. HMAC rather than a stored random
+# string: it needs no new table, survives a restart or redeploy, and
+# can't be forged without the secret. Derived from ADMIN_API_KEY
+# because that's already required for the app to serve admin routes at
+# all -- one fewer env var to forget in a deploy, and HMAC is one-way,
+# so a token never leaks anything about the key it came from.
+
+FOLLOW_UP_TOKEN_LENGTH = 24
+
+
+def _follow_up_token(case_id):
+    """
+    Deterministic per-case token. Returns None when no key is
+    configured, in which case the follow-up route falls back to
+    accepting requests without one -- a local dev run with no .env
+    should not silently lose the feature, and there is nothing
+    sensitive to protect on an empty local database.
+    """
+
+    if not ADMIN_API_KEY or case_id is None:
+        return None
+
+    return hmac.new(
+        ADMIN_API_KEY.encode("utf-8"),
+        f"follow-up:{case_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()[:FOLLOW_UP_TOKEN_LENGTH]
+
+
+def _attach_follow_up_token(result):
+    """
+    Adds the follow-up token to a pipeline result on its way back to
+    whoever filed the report. Only they ever see this response, which
+    is exactly the point -- it's the one moment the token can be handed
+    over without a channel to send it through.
+    """
+
+    case_id = result.get("case_id")
+
+    if case_id is not None:
+        token = _follow_up_token(case_id)
+        if token:
+            result["follow_up_token"] = token
+
+    return result
 
 
 def _strip_counsellor_only_fields(result):
@@ -206,6 +266,7 @@ class NoteRequest(BaseModel):
 class FollowUpRequest(BaseModel):
     preference: str
     note: Optional[str] = None
+    token: Optional[str] = None
 
 
 class SosRequest(BaseModel):
@@ -325,7 +386,7 @@ def report(payload: ReportRequest):
             payload.latitude, payload.longitude
         )
 
-    return _strip_counsellor_only_fields(result)
+    return _attach_follow_up_token(_strip_counsellor_only_fields(result))
 
 
 DEFAULT_SOS_TEXT = "I need immediate help right now, I am in danger."
@@ -387,7 +448,7 @@ def sos(payload: SosRequest):
             payload.latitude, payload.longitude
         )
 
-    return _strip_counsellor_only_fields(result)
+    return _attach_follow_up_token(_strip_counsellor_only_fields(result))
 
 
 @app.post("/cases/{case_id}/follow-up")
@@ -403,7 +464,24 @@ def post_follow_up_preference(case_id: int, payload: FollowUpRequest):
     to an unauthenticated caller would turn a preference form into a
     way to read anyone's report by guessing an id. Callers get a bare
     acknowledgement and nothing else.
+
+    Requires the follow_up_token handed back with the report itself
+    (see _follow_up_token), so answering for a case means having filed
+    it rather than having guessed its number. Skipped only when the
+    server has no ADMIN_API_KEY configured at all -- a bare local dev
+    run with an empty database, where there is nothing to protect.
     """
+
+    expected_token = _follow_up_token(case_id)
+
+    if expected_token and not (
+        payload.token
+        and secrets.compare_digest(payload.token, expected_token)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Missing or invalid follow-up token for this case.",
+        )
 
     result = set_follow_up_preference(
         case_id, payload.preference, note=payload.note
@@ -503,7 +581,7 @@ async def report_image(
     result = run_pipeline(extracted_text, evidence_path=saved_path)
     result["extracted_text"] = extracted_text
 
-    return _strip_counsellor_only_fields(result)
+    return _attach_follow_up_token(_strip_counsellor_only_fields(result))
 
 
 @app.post("/report/voice")
@@ -571,7 +649,7 @@ async def report_voice(
     )
     result["transcription"] = transcription
 
-    return _strip_counsellor_only_fields(result)
+    return _attach_follow_up_token(_strip_counsellor_only_fields(result))
 
 
 @app.get("/stats", dependencies=[Depends(require_admin_key)])
@@ -630,6 +708,14 @@ def get_case_map_locations():
     list_case_locations' docstring). Registered before
     /cases/{case_id} so "map" is never swallowed as a case_id path
     param.
+
+    Pins from areas with fewer than MAP_MIN_GROUP_SIZE reports are
+    withheld entirely (k-anonymity -- see _suppress_sparse_locations).
+    The response reports how many were withheld so the map can say so
+    out loud instead of silently showing a map that reads as "no
+    atrocities reported here".
+
+    Returns {"pins": [...], "suppressed": int, "min_group_size": int}.
     """
 
     return list_case_locations()

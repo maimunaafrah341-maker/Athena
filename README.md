@@ -22,32 +22,51 @@ Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a
 - **Tells the reporter what actually happens next.** The confirmation screen isn't a generic thank-you: it carries a reference ID, the grounded response, the legal provisions the report may fall under, and real helpline numbers (KIRAN is attached automatically on Critical/High stress, whether or not the word "suicide" appears). Critical/High cases are told plainly to call 112 themselves — Athena flags a case for a human, it does not dispatch police, and the UI never implies otherwise.
 - **Lets the reporter set how it's safe to be contacted**, including "do not contact me", recorded against the case and shown in the counsellor's timeline.
 - **Distinguishes "nobody has looked at this" from "in progress."** Counsellors mark an alert reviewed; that's tracked separately from status, so a Critical case sitting untouched is visible instead of blending into the queue.
+- **Reads a case filed in a language the counsellor doesn't speak**, and drafts the reply back in the reporter's language (`translation.py`). Both directions are labelled machine translation with the original always shown; nothing is auto-sent.
+- **Won't map a reporter into danger.** Coordinates are rounded to ~100m before storage, but that alone doesn't help in a village with one report, where the pin *is* the reporter. Areas with fewer than three reports are withheld from the map entirely, and the count of withheld reports is shown — so a sparse district reads as "protected", never as "nothing happened here".
+- **Every case action is on an append-only timeline** — reported, status changes, escalation, counsellor notes, review acknowledgement, the reporter's contact preference — each timestamped, with no edit or delete path. A timeline that can be rewritten isn't evidence.
 - **Never shows an empty dashboard.** Realistic demo cases auto-seed on first startup if the database is empty (`seed_data.py`) — safe insurance against an ephemeral host wiping storage on redeploy, and it never touches or overwrites real report data.
 
 ## Architecture
 
 ```
-report text/voice
-      │
-      ▼
-understanding.py   → language, script, incident type, signals, confidence
-      │
-      ▼
-risk.py            → risk_tier + response_protocol
-      │
-      ▼
-svi.py             → Stress Vulnerability Index (svi_tier, contributing_factors)
-      │
-      ▼
-retrieval.py        → ChromaDB semantic search over verified source documents
-  + kg.py            → SC/ST Act provisions + district escalation contact
-      │
-      ▼
-response_engine.py → Gemini phrases a grounded reply from retrieved evidence only
-      │
-      ▼
-pipeline.py         → escalate decision (risk / stress / low-confidence), case record
-  + nhaa.py          → NHAA docket bound to channel + SVI/risk outcome
+ INTAKE  ── text ── voice ── photo ── SOS ────────────────────────────┐
+ (portal · WhatsApp-style channel · 14566 · IVRS · mobile)            │
+                                                                     ▼
+                    voice_service.py  →  Whisper transcript
+                    ocr.py            →  text extracted from a photo
+                    voice_features.py →  pitch variance · pause ratio · speech rate
+                                                                     │
+                                                                     ▼
+ UNDERSTAND   understanding.py  →  language · script · incident type · signals
+                                    (semantic, not keywords; romanized included)
+                                                                     │
+                              ┌──────────────────────┴───────────────┐
+                              ▼                                      ▼
+ ASSESS      risk.py                                    svi.py
+             risk_tier + response_protocol              Stress Vulnerability Index
+             (SLA · route · action)                     TEXT ⊕ VOICE fusion
+                                                        + explainability, + divergence
+                              └──────────────────────┬───────────────┘
+                                                     ▼
+ VERIFY      retrieval.py  →  ChromaDB over ingested BNS / SC-ST Act / PWDVA
+             kg.py         →  applicable provisions + district escalation contact
+                              ── confidence gate: below threshold, do not answer ──
+                                                     │
+                                                     ▼
+ ACT         response_engine.py  →  grounded reply, evidence-only, crisis-safe filtered
+             emergency_contacts.py →  real helplines by tier (KIRAN on high stress)
+             translation.py       →  English for the counsellor · reply back in-language
+                                                     │
+                                                     ▼
+ ESCALATE    pipeline.py  →  escalate on ANY of: Critical risk · Critical stress
+                             · low understanding confidence  ("escalate when unsure")
+             cases.py     →  case record + append-only timeline
+             nhaa.py      →  NHAA docket bound to channel + outcome
+                                                     │
+                                                     ▼
+ COUNSELLOR  dashboard  →  prioritised alerts · case brief · acknowledge · escalate
+             risk map    →  k-anonymised: areas under 3 reports are withheld
 ```
 
 Full request/response contract, known limitations, and field-level detail: [API_CONTRACT.md](API_CONTRACT.md).
@@ -97,7 +116,8 @@ Stated honestly rather than discovered by a judge mid-demo — full detail in `A
 - Legal citations are deliberately scoped to the SC/ST Act only, matching 14566's actual legal remit — the detection mechanism underneath is not hardcoded to caste and can extend to other Acts as future scope.
 - Romanized-script retrieval can occasionally miss a correct smaller source document when a much larger one dominates ranking — a documented safe-failure edge case (declines rather than hallucinates), not yet fixed.
 - Admin access is a single shared API key today, not per-counsellor roles or an audit log.
-- The reporter's follow-up-contact preference is saved through a public endpoint (the person answering it has just filed a report and holds no counsellor key). It is write-only, never echoes case content back, and refuses to overwrite an answer already given — so the worst a guessed case ID can do is answer for someone who never did. A real deployment should replace this with a per-report token issued at submission.
+- The reporter's follow-up-contact preference is saved through a public endpoint (the person answering it has just filed a report and holds no counsellor key). It requires a per-case token issued with the report itself, is write-only, never echoes case content back, and refuses to overwrite an answer already given. Guessing a case ID is not enough to answer on someone's behalf.
+- Counsellor actions are timestamped on the case timeline, but not attributed to an individual — there is one shared admin key, so the log records *what* happened and *when*, not *who*. Per-counsellor identity needs real accounts first.
 - Urdu switches the page to `dir="rtl"`, which fixes text direction and input behaviour. The dashboard layout itself (sidebar, tables, icon order) is not mirrored yet.
 - "Auto 112 Dispatch" in `risk.py`'s response protocol is routing metadata describing the intended real-world action — Athena does not call ERSS-112 itself, and no screen tells a reporter that help has been dispatched.
 

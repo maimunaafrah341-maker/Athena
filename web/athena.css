@@ -3542,6 +3542,24 @@ table tbody tr:hover {
 }
 
 
+.map-suppressed-note {
+    margin-top: 10px;
+
+    padding: 10px 14px;
+
+    background: var(--surface-soft);
+
+    border-left: 3px solid var(--moderate);
+
+    border-radius: 0 9px 9px 0;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    line-height: 1.6;
+}
+
 .reply-help {
     margin: 6px 0 12px;
 

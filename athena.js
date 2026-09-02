@@ -225,6 +225,11 @@ const state = {
 
     mapCases: [],
 
+    // Set from /cases/map's k-anonymity response -- how many reports
+    // were withheld, and the threshold that withheld them.
+    mapSuppressed: 0,
+    mapMinGroupSize: 0,
+
     mediaRecorder: null,
 
     audioChunks: [],
@@ -1004,7 +1009,8 @@ $("#confirmFollowUp")?.addEventListener("submit", async event => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     preference: selected.value,
-                    note: (noteInput && noteInput.value.trim()) || null
+                    note: (noteInput && noteInput.value.trim()) || null,
+                    token: form.dataset.followUpToken || null
                 })
             }
         );
@@ -1116,9 +1122,14 @@ function renderConfirmationDetail(data) {
 
     // Only offered when there's a case to attach it to -- a failed or
     // unsaved report has nothing for the preference to belong to.
+    //
+    // The token comes back with the report and is the only proof this
+    // browser is the one that filed it (see app.py's _follow_up_token),
+    // so it's carried on the form rather than re-derived or looked up.
     if (followUpForm && data.case_id != null) {
         followUpForm.hidden = false;
         followUpForm.dataset.caseId = data.case_id;
+        followUpForm.dataset.followUpToken = data.follow_up_token || "";
     }
 
     if (isUrgent) {
@@ -2860,7 +2871,20 @@ async function loadRiskMap() {
         state.mapCases =
             Array.isArray(data)
                 ? data
-                : data.cases || data.data || [];
+                : data.pins || data.cases || data.data || [];
+
+        // How many reports the backend withheld because too few share
+        // an area to be anonymous (see cases._suppress_sparse_locations).
+        // Surfaced rather than swallowed: a map quietly missing pins
+        // reads as "nothing happened here", which is the opposite of
+        // what a sparse, high-risk district means.
+        state.mapSuppressed = data && !Array.isArray(data)
+            ? (data.suppressed || 0)
+            : 0;
+
+        state.mapMinGroupSize = data && !Array.isArray(data)
+            ? (data.min_group_size || 0)
+            : 0;
 
         renderRiskMap();
 
@@ -2909,12 +2933,34 @@ function renderRiskMap() {
 
     /* Empty state */
 
+    // "Nothing to draw" and "everything there was got withheld to
+    // protect identity" are different situations and must not look
+    // identical -- the second one means there ARE reports here.
+    const suppressedNotice =
+        state.mapSuppressed
+            ? `
+                <div class="map-suppressed-note">
+                    ${escapeHTML(String(state.mapSuppressed))}
+                    ${state.mapSuppressed === 1 ? "report is" : "reports are"}
+                    hidden from this map — fewer than
+                    ${escapeHTML(String(state.mapMinGroupSize))}
+                    reports in their area, so a pin could identify who filed it.
+                    They are still counted in case totals and alerts.
+                </div>
+              `
+            : "";
+
     if (!state.mapCases.length) {
 
         mapContainer.innerHTML = `
             <div class="map-empty">
-                No district risk data available.
+                ${
+                    state.mapSuppressed
+                        ? "No pins can be shown without risking identifying a reporter."
+                        : "No district risk data available."
+                }
             </div>
+            ${suppressedNotice}
         `;
 
         return;
@@ -2929,6 +2975,7 @@ function renderRiskMap() {
             id="liveRiskMap"
             style="width:100%; height:100%; min-height:520px;"
         ></div>
+        ${suppressedNotice}
     `;
 
 
