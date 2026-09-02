@@ -639,6 +639,48 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         )
 
 
+# Acoustic feature extraction pulls in librosa -> numba -> llvmlite and
+# holds the decoded waveform in memory, on top of the embedding model
+# and ChromaDB already resident. On a memory-capped container that is
+# enough to get the process killed outright -- no exception, no log
+# line, the reply simply never arrives. Seen live 2026-09-02: the
+# webhook returned 200, then the deploy log went silent mid-task.
+#
+# Off by default in constrained deployments, on wherever the RAM
+# exists. Set ENABLE_VOICE_FEATURES=1 to force it on. This costs the
+# voice half of the SVI on that environment -- text-based assessment,
+# transcription and escalation all still work -- rather than costing
+# the reply entirely, which is the trade a person waiting on an answer
+# would choose.
+ENABLE_VOICE_FEATURES = os.getenv("ENABLE_VOICE_FEATURES", "").strip().lower() in (
+    "1", "true", "yes", "on"
+)
+
+
+def _extract_voice_features_if_affordable(audio_path, transcription):
+    """
+    Voice acoustics when the environment can afford them, None when it
+    can't. None is already a first-class value everywhere downstream --
+    svi.py treats an absent feature set as "text-only assessment", not
+    as an error -- so this degrades rather than breaks.
+    """
+
+    if not ENABLE_VOICE_FEATURES:
+        print(
+            "[whatsapp] voice features skipped (ENABLE_VOICE_FEATURES not set) "
+            "-- assessing on transcript alone"
+        )
+        return None
+
+    try:
+        from voice_features import extract_voice_features
+        return extract_voice_features(audio_path, transcript=transcription)
+
+    except Exception as e:
+        print(f"[whatsapp] voice feature extraction failed: {type(e).__name__}: {e}")
+        return None
+
+
 def _process_whatsapp_media(media_url, declared_type, sender, receiver):
     """
     Runs a WhatsApp voice note or photo through the pipeline after the
@@ -681,10 +723,7 @@ def _process_whatsapp_media(media_url, declared_type, sender, receiver):
             # web form's selector does.
             transcription = process_voice_to_text(saved_path, None)
 
-            from voice_features import extract_voice_features
-            voice_features = extract_voice_features(
-                saved_path, transcript=transcription
-            )
+            voice_features = _extract_voice_features_if_affordable(saved_path, transcription)
 
             result = run_pipeline(
                 transcription,
