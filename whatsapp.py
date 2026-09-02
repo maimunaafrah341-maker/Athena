@@ -201,6 +201,54 @@ def download_media(media_url):
     return response.content, response.headers.get("Content-Type", "")
 
 
+TWILIO_MESSAGES_URL = (
+    "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+)
+
+
+def send_message(to, body, from_number):
+    """
+    Sends a WhatsApp message through Twilio's REST API, outside the
+    webhook response.
+
+    Needed because some work cannot finish inside Twilio's ~15s webhook
+    timeout. Measured on a 14-second voice note: transcription is fast
+    (~0.5s), but librosa's acoustic feature extraction -- the pitch and
+    pause analysis the SVI's voice half is built on -- takes ~20s, so
+    the reply was never going to be sent in time. Rather than drop the
+    voice features (which would gut the multimodal assessment that is
+    the point of this project) the webhook acknowledges immediately and
+    the real answer follows through here.
+
+    Returns True on success. Never raises: a failed send is logged and
+    swallowed, because this runs in a background task where an
+    exception would vanish silently anyway.
+    """
+
+    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN):
+        print("[whatsapp] cannot send: Twilio credentials not configured")
+        return False
+
+    try:
+        response = requests.post(
+            TWILIO_MESSAGES_URL.format(sid=TWILIO_ACCOUNT_SID),
+            auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
+            data={
+                "From": from_number,
+                "To": to,
+                "Body": (body or "")[:WHATSAPP_MAX_BODY],
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+
+    except Exception as e:
+        print(f"[whatsapp] send failed: {type(e).__name__}: {e}")
+        return False
+
+    return True
+
+
 def _escape_xml(text):
     return (
         str(text)

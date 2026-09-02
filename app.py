@@ -23,6 +23,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import (
+    BackgroundTasks,
     Depends,
     FastAPI,
     File,
@@ -72,6 +73,7 @@ from whatsapp import (
     signature_is_valid,
     candidate_urls,
     download_media,
+    send_message,
     build_reply,
     format_pipeline_reply,
     TWILIO_AUTH_TOKEN,
@@ -537,7 +539,7 @@ def post_follow_up_preference(case_id: int, payload: FollowUpRequest):
 
 
 @app.post("/whatsapp/webhook")
-async def whatsapp_webhook(request: Request):
+async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Live WhatsApp intake via Twilio. Same pipeline as every other
     channel -- text, voice notes and photos all land in the same
@@ -571,84 +573,55 @@ async def whatsapp_webhook(request: Request):
 
         if num_media > 0:
 
-            media_url = params.get("MediaUrl0")
-            declared_type = (params.get("MediaContentType0") or "").lower()
+            # Media cannot be handled inside the webhook response.
+            # Measured on a real 14s voice note: ~24s before the
+            # pipeline even starts, almost all of it librosa extracting
+            # the pitch/pause features the SVI's voice half needs, against
+            # a ~15s Twilio timeout. Dropping those features would fit
+            # the budget but would gut the multimodal assessment this
+            # project exists to demonstrate -- so acknowledge now, and
+            # send the real answer from the background task below.
+            background_tasks.add_task(
+                _process_whatsapp_media,
+                params.get("MediaUrl0"),
+                (params.get("MediaContentType0") or "").lower(),
+                params.get("From"),
+                params.get("To"),
+            )
 
-            media_bytes, content_type = download_media(media_url)
-            content_type = (content_type or declared_type).lower()
-
-            if not media_bytes:
-                return Response(
-                    content=build_reply(
-                        "I couldn't open that attachment. You can type what "
-                        "happened instead, or call 14566."
-                    ),
-                    media_type="application/xml",
-                )
-
-            extension = ".ogg" if "audio" in content_type else ".jpg"
-            saved_name = f"{uuid.uuid4().hex}{extension}"
-            saved_path = os.path.join(EVIDENCE_DIR, saved_name)
-
-            with open(saved_path, "wb") as f:
-                f.write(media_bytes)
-
-            if "audio" in content_type:
-
-                # Whisper auto-detects, so no language is forced here --
-                # a WhatsApp voice note carries no language hint the way
-                # the web form's selector does.
-                transcription = process_voice_to_text(saved_path, None)
-
-                from voice_features import extract_voice_features
-                voice_features = extract_voice_features(
-                    saved_path, transcript=transcription
-                )
-
-                result = run_pipeline(
-                    transcription,
-                    evidence_path=saved_path,
-                    channel=WHATSAPP_CHANNEL,
-                    voice_features=voice_features,
-                )
-
-            else:
-
-                from ocr import extract_text  # deferred, same reason as report_image
-                extracted = extract_text(media_bytes, language="en")
-
-                if not (extracted or "").strip():
-                    return Response(
-                        content=build_reply(
-                            "I couldn't read any text in that image. You can "
-                            "type what happened instead, or call 14566."
-                        ),
-                        media_type="application/xml",
-                    )
-
-                result = run_pipeline(
-                    extracted,
-                    evidence_path=saved_path,
-                    channel=WHATSAPP_CHANNEL,
-                )
-
-        elif body:
-
-            result = run_pipeline(body, channel=WHATSAPP_CHANNEL)
-
-        else:
+            is_audio = "audio" in (params.get("MediaContentType0") or "").lower()
 
             return Response(
                 content=build_reply(
-                    "Tell me what happened — you can type it, send a voice "
-                    "note, or send a photo. If you are in immediate danger, "
-                    "call 112."
+                    "Got it — I'm listening to your message now. "
+                    "This takes a few seconds.\n\n"
+                    "If you are in immediate danger, call 112 straight away."
+                    if is_audio else
+                    "Got it — I'm reading what you sent. "
+                    "This takes a few seconds.\n\n"
+                    "If you are in immediate danger, call 112 straight away."
                 ),
                 media_type="application/xml",
             )
 
+        if body:
+
+            # Text comfortably fits the webhook window (~3s measured in
+            # production), so it stays synchronous -- one message back
+            # instead of two, which reads better for the common case.
+            result = run_pipeline(body, channel=WHATSAPP_CHANNEL)
+
+            return Response(
+                content=build_reply(format_pipeline_reply(result)),
+                media_type="application/xml",
+            )
+
         return Response(
-            content=build_reply(format_pipeline_reply(result)),
+            content=build_reply(
+                "Tell me what happened — you can type it, send a voice "
+                "note, or send a photo. If you are in immediate danger, "
+                "call 112."
+            ),
             media_type="application/xml",
         )
 
@@ -663,6 +636,91 @@ async def whatsapp_webhook(request: Request):
                 "To speak to a counsellor, call 14566."
             ),
             media_type="application/xml",
+        )
+
+
+def _process_whatsapp_media(media_url, declared_type, sender, receiver):
+    """
+    Runs a WhatsApp voice note or photo through the pipeline after the
+    webhook has already replied, then sends the result back via the
+    REST API.
+
+    Everything here is best-effort and self-contained: this runs
+    detached from any request, so an unhandled exception would
+    disappear into the server log and the person would be left with
+    only the acknowledgement. Every failure path therefore sends
+    something back rather than returning quietly.
+    """
+
+    def reply(text):
+        send_message(sender, text, from_number=receiver)
+
+    try:
+
+        media_bytes, content_type = download_media(media_url)
+        content_type = (content_type or declared_type).lower()
+
+        if not media_bytes:
+            reply(
+                "I couldn't open that attachment. You can type what happened "
+                "instead, or call 14566."
+            )
+            return
+
+        extension = ".ogg" if "audio" in content_type else ".jpg"
+        saved_name = f"{uuid.uuid4().hex}{extension}"
+        saved_path = os.path.join(EVIDENCE_DIR, saved_name)
+
+        with open(saved_path, "wb") as f:
+            f.write(media_bytes)
+
+        if "audio" in content_type:
+
+            # Whisper auto-detects, so no language is forced here -- a
+            # WhatsApp voice note carries no language hint the way the
+            # web form's selector does.
+            transcription = process_voice_to_text(saved_path, None)
+
+            from voice_features import extract_voice_features
+            voice_features = extract_voice_features(
+                saved_path, transcript=transcription
+            )
+
+            result = run_pipeline(
+                transcription,
+                evidence_path=saved_path,
+                channel=WHATSAPP_CHANNEL,
+                voice_features=voice_features,
+            )
+
+        else:
+
+            from ocr import extract_text  # deferred, same reason as report_image
+            extracted = extract_text(media_bytes, language="en")
+
+            if not (extracted or "").strip():
+                reply(
+                    "I couldn't read any text in that image. You can type "
+                    "what happened instead, or call 14566."
+                )
+                return
+
+            result = run_pipeline(
+                extracted,
+                evidence_path=saved_path,
+                channel=WHATSAPP_CHANNEL,
+            )
+
+        reply(format_pipeline_reply(result))
+
+    except Exception as e:
+
+        print(f"[whatsapp] background processing failed: {type(e).__name__}: {e}")
+
+        reply(
+            "Something went wrong while processing what you sent, and I don't "
+            "want to leave you waiting. If you are in danger right now, call "
+            "112. To speak to a counsellor, call 14566."
         )
 
 
