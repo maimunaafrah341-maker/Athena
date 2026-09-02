@@ -23,6 +23,14 @@ CHANNELS = (
     "portal",
     "chatbot",
     "mobile_app",
+    # Not one of NHAA's existing intake channels -- it's the one this
+    # project proposes adding, and reports really do arrive through it
+    # (see whatsapp.py). Kept distinct from "chatbot" rather than
+    # folded into it: they are different front doors with different
+    # reach, and a docket that can't tell them apart can't answer
+    # "did opening WhatsApp actually bring people in who weren't
+    # calling?" -- which is the whole argument for building it.
+    "whatsapp",
 )
 
 DEFAULT_CHANNEL = "portal"

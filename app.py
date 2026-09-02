@@ -22,7 +22,17 @@ import uuid
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -58,6 +68,16 @@ from nearby_help import find_nearby_help, get_call_options
 from translation import translate_to_english, translate_reply, SKIP_LANGUAGES
 from consent import get_voice_recording_policy
 from nhaa import CHANNELS, DEFAULT_CHANNEL
+from whatsapp import (
+    signature_is_valid,
+    public_url_for,
+    download_media,
+    build_reply,
+    format_pipeline_reply,
+    TWILIO_AUTH_TOKEN,
+)
+
+WHATSAPP_CHANNEL = "whatsapp"
 
 EVIDENCE_DIR = "evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
@@ -214,6 +234,17 @@ def _seed_on_startup():
     import seed_data
 
     seed_data.seed_demo_cases()
+
+    # Without an auth token, /whatsapp/webhook can't verify that a
+    # request actually came from Twilio -- meaning anyone who finds the
+    # URL can create real cases in the counsellor queue. Fine on a
+    # laptop, not fine on a deployment, so say so rather than failing
+    # silently open.
+    if not TWILIO_AUTH_TOKEN:
+        print(
+            "[startup] TWILIO_AUTH_TOKEN not set -- /whatsapp/webhook will "
+            "accept unsigned requests. Set it before exposing this publicly."
+        )
 
 
 # ============================================================
@@ -503,6 +534,136 @@ def post_follow_up_preference(case_id: int, payload: FollowUpRequest):
         )
 
     return {"status": "saved", "case_id": case_id}
+
+
+@app.post("/whatsapp/webhook")
+async def whatsapp_webhook(request: Request):
+    """
+    Live WhatsApp intake via Twilio. Same pipeline as every other
+    channel -- text, voice notes and photos all land in the same
+    understand -> assess -> verify -> respond -> escalate path and
+    produce a normal case, visible in the counsellor dashboard
+    alongside portal and IVRS reports.
+
+    Returns TwiML, which is how Twilio wants a synchronous reply.
+
+    Always answers 200 with a usable message, even when something
+    inside failed. A 500 here means Twilio shows the person a delivery
+    failure and Athena says nothing at all -- for someone who has just
+    described an assault, silence is the worst possible response, so
+    every failure path still returns a reply pointing at 112/14566.
+    """
+
+    form = await request.form()
+    params = {key: form[key] for key in form.keys()}
+
+    if not signature_is_valid(
+        public_url_for(request),
+        params,
+        request.headers.get("X-Twilio-Signature"),
+    ):
+        raise HTTPException(status_code=403, detail="Invalid Twilio signature.")
+
+    body = (params.get("Body") or "").strip()
+    num_media = int(params.get("NumMedia") or 0)
+
+    try:
+
+        if num_media > 0:
+
+            media_url = params.get("MediaUrl0")
+            declared_type = (params.get("MediaContentType0") or "").lower()
+
+            media_bytes, content_type = download_media(media_url)
+            content_type = (content_type or declared_type).lower()
+
+            if not media_bytes:
+                return Response(
+                    content=build_reply(
+                        "I couldn't open that attachment. You can type what "
+                        "happened instead, or call 14566."
+                    ),
+                    media_type="application/xml",
+                )
+
+            extension = ".ogg" if "audio" in content_type else ".jpg"
+            saved_name = f"{uuid.uuid4().hex}{extension}"
+            saved_path = os.path.join(EVIDENCE_DIR, saved_name)
+
+            with open(saved_path, "wb") as f:
+                f.write(media_bytes)
+
+            if "audio" in content_type:
+
+                # Whisper auto-detects, so no language is forced here --
+                # a WhatsApp voice note carries no language hint the way
+                # the web form's selector does.
+                transcription = process_voice_to_text(saved_path, None)
+
+                from voice_features import extract_voice_features
+                voice_features = extract_voice_features(
+                    saved_path, transcript=transcription
+                )
+
+                result = run_pipeline(
+                    transcription,
+                    evidence_path=saved_path,
+                    channel=WHATSAPP_CHANNEL,
+                    voice_features=voice_features,
+                )
+
+            else:
+
+                from ocr import extract_text  # deferred, same reason as report_image
+                extracted = extract_text(media_bytes, language="en")
+
+                if not (extracted or "").strip():
+                    return Response(
+                        content=build_reply(
+                            "I couldn't read any text in that image. You can "
+                            "type what happened instead, or call 14566."
+                        ),
+                        media_type="application/xml",
+                    )
+
+                result = run_pipeline(
+                    extracted,
+                    evidence_path=saved_path,
+                    channel=WHATSAPP_CHANNEL,
+                )
+
+        elif body:
+
+            result = run_pipeline(body, channel=WHATSAPP_CHANNEL)
+
+        else:
+
+            return Response(
+                content=build_reply(
+                    "Tell me what happened — you can type it, send a voice "
+                    "note, or send a photo. If you are in immediate danger, "
+                    "call 112."
+                ),
+                media_type="application/xml",
+            )
+
+        return Response(
+            content=build_reply(format_pipeline_reply(result)),
+            media_type="application/xml",
+        )
+
+    except Exception as e:
+
+        print(f"[whatsapp] pipeline failed: {type(e).__name__}: {e}")
+
+        return Response(
+            content=build_reply(
+                "Something went wrong on our side, and I don't want to leave "
+                "you waiting. If you are in danger right now, call 112. "
+                "To speak to a counsellor, call 14566."
+            ),
+            media_type="application/xml",
+        )
 
 
 @app.get("/call-options")
