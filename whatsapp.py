@@ -289,6 +289,111 @@ def build_reply(body_text):
     )
 
 
+# The wrapper around the AI's answer -- urgency warning, contact list
+# header, reference label -- was English regardless of what language
+# the person wrote in. On a report filed in Hindi that meant a reply
+# that was part Hindi, part English, which is precisely the barrier
+# this project exists to remove: someone who writes in Hindi because
+# that is the language they are comfortable in should not have to read
+# English to find out they should call 112.
+#
+# Only these fixed strings are translated here -- the AI's own answer
+# already comes back in the reporter's language from response_engine,
+# and helpline NAMES stay as they are, because they are what a person
+# will hear and see when they actually call.
+REPLY_STRINGS = {
+    "en": {
+        "urgent": "⚠️ If you are in immediate danger, call 112 now. "
+                  "This report has been flagged for urgent human review.",
+        "contacts": "Numbers you can call:",
+        "reference": "Your reference",
+        "received": "Thank you for telling us. A trained counsellor will review this.",
+    },
+    "hi": {
+        "urgent": "⚠️ अगर आप अभी खतरे में हैं, तो तुरंत 112 पर कॉल करें। "
+                  "यह रिपोर्ट तत्काल मानवीय समीक्षा के लिए भेज दी गई है।",
+        "contacts": "आप इन नंबरों पर कॉल कर सकते हैं:",
+        "reference": "आपका संदर्भ नंबर",
+        "received": "हमें बताने के लिए धन्यवाद। एक प्रशिक्षित काउंसलर इसे देखेंगे।",
+    },
+    "te": {
+        "urgent": "⚠️ మీరు ఇప్పుడు ప్రమాదంలో ఉంటే, వెంటనే 112కి కాల్ చేయండి. "
+                  "ఈ ఫిర్యాదు తక్షణ మానవ సమీక్ష కోసం పంపబడింది.",
+        "contacts": "మీరు ఈ నంబర్లకు కాల్ చేయవచ్చు:",
+        "reference": "మీ సూచన నంబర్",
+        "received": "మాకు తెలియజేసినందుకు ధన్యవాదాలు. శిక్షణ పొందిన కౌన్సెలర్ దీన్ని సమీక్షిస్తారు.",
+    },
+    "ur": {
+        "urgent": "⚠️ اگر آپ اس وقت خطرے میں ہیں تو فوراً 112 پر کال کریں۔ "
+                  "یہ رپورٹ فوری انسانی جائزے کے لیے بھیج دی گئی ہے۔",
+        "contacts": "آپ ان نمبروں پر کال کر سکتے ہیں:",
+        "reference": "آپ کا حوالہ نمبر",
+        "received": "بتانے کے لیے شکریہ۔ ایک تربیت یافتہ کونسلر اسے دیکھے گا۔",
+    },
+    "bn": {
+        "urgent": "⚠️ আপনি যদি এখন বিপদে থাকেন, অবিলম্বে ১১২ নম্বরে কল করুন। "
+                  "এই প্রতিবেদনটি জরুরি মানবিক পর্যালোচনার জন্য পাঠানো হয়েছে।",
+        "contacts": "আপনি এই নম্বরগুলিতে কল করতে পারেন:",
+        "reference": "আপনার রেফারেন্স নম্বর",
+        "received": "জানানোর জন্য ধন্যবাদ। একজন প্রশিক্ষিত কাউন্সেলর এটি দেখবেন।",
+    },
+}
+
+
+# Romanized variants, used when the reporter typed in Latin letters.
+# Someone writing "mujhe dar lag raha hai" rather than Devanagari
+# often does so because they don't read the native script comfortably
+# -- response_engine already replies in whatever script the person
+# wrote in for exactly this reason, and answering them in Devanagari
+# here would undo that in the part of the message that matters most.
+ROMANIZED_REPLY_STRINGS = {
+    "hi": {
+        "urgent": "⚠️ Agar aap abhi khatre mein hain, to turant 112 par call karein. "
+                  "Yeh report turant maanviya sameeksha ke liye bhej di gayi hai.",
+        "contacts": "Aap in numbers par call kar sakte hain:",
+        "reference": "Aapka reference number",
+        "received": "Hamein batane ke liye dhanyavaad. Ek prashikshit counsellor ise dekhenge.",
+    },
+    "te": {
+        "urgent": "⚠️ Meeru ippudu pramadam lo unte, ventane 112 ki call cheyandi. "
+                  "Ee phiryadu takshana manava sameeksha kosam pampabadindi.",
+        "contacts": "Meeru ee numbers ki call cheyavachu:",
+        "reference": "Mee reference number",
+        "received": "Maaku teliyajesinanduku dhanyavaadalu. Shikshana pondina counsellor deenni sameekshistaru.",
+    },
+    "ur": {
+        "urgent": "⚠️ Agar aap is waqt khatre mein hain to foran 112 par call karein. "
+                  "Yeh report fori insani jaaize ke liye bhej di gayi hai.",
+        "contacts": "Aap in numbers par call kar sakte hain:",
+        "reference": "Aap ka reference number",
+        "received": "Batane ke liye shukriya. Ek tarbiyat yafta counsellor ise dekhega.",
+    },
+    "bn": {
+        "urgent": "⚠️ Apni jodi ekhon bipode thaken, obilombe 112 nombore call korun. "
+                  "Ei protibedonti joruri manobik porjalochonar jonno pathano hoyeche.",
+        "contacts": "Apni ei nombor gulite call korte paren:",
+        "reference": "Apnar reference number",
+        "received": "Janano jonno dhonnobad. Ekjon proshikkhito counsellor eti dekhben.",
+    },
+}
+
+
+def _strings_for(result):
+    """
+    Reply strings in the language AND script the report was actually
+    written in, falling back to English for anything unrecognised.
+    """
+
+    incident = result.get("incident") or {}
+    language = (incident.get("language") or "en").strip().lower()
+    script = (incident.get("script") or "").strip().lower()
+
+    if script == "romanized" and language in ROMANIZED_REPLY_STRINGS:
+        return ROMANIZED_REPLY_STRINGS[language]
+
+    return REPLY_STRINGS.get(language, REPLY_STRINGS["en"])
+
+
 def format_pipeline_reply(result):
     """
     Turns a pipeline result into what actually gets sent back on
@@ -301,6 +406,8 @@ def format_pipeline_reply(result):
     RESPONSE_PROTOCOL note).
     """
 
+    strings = _strings_for(result)
+
     parts = []
 
     response_text = (result.get("response") or "").strip()
@@ -308,18 +415,13 @@ def format_pipeline_reply(result):
     if response_text:
         parts.append(response_text)
     elif result.get("reason"):
-        parts.append(
-            "Thank you for telling us. A trained counsellor will review this."
-        )
+        parts.append(strings["received"])
 
     risk = result.get("risk") or {}
     risk_tier = risk.get("risk_tier")
 
     if risk_tier in ("Critical", "High"):
-        parts.append(
-            "⚠️ If you are in immediate danger, call 112 now. "
-            "This report has been flagged for urgent human review."
-        )
+        parts.append(strings["urgent"])
 
     contacts = result.get("emergency_contacts") or []
 
@@ -328,12 +430,12 @@ def format_pipeline_reply(result):
             f"• {contact['label']}: {contact['phone']}"
             for contact in contacts[:4]
         )
-        parts.append(f"Numbers you can call:\n{lines}")
+        parts.append(f"{strings['contacts']}\n{lines}")
 
     docket = result.get("nhaa_docket") or {}
     reference = docket.get("docket_id") or result.get("case_id")
 
     if reference:
-        parts.append(f"Your reference: {reference}")
+        parts.append(f"{strings['reference']}: {reference}")
 
     return "\n\n".join(parts)

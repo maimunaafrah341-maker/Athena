@@ -143,6 +143,25 @@ LANGUAGE_EXAMPLES = {
         "Yeh Hindi mein mahila hinsa se sambandhit ghatna ki report hai.",
         "Main khatre mein hoon aur mujhe madad chahiye.",
         "Koi mujhe dhamki de raha hai.",
+
+        # Wider romanized coverage. The three anchors above were all
+        # short and structurally alike, so a longer real sentence with
+        # different vocabulary could land closer to the Telugu bank than
+        # to these. Found live 2026-09-02: "Mujhe meri jaati ke naam par
+        # dhamki di ja rahi hai aur ghar ke bahar bheed khadi hai" --
+        # unambiguous romanized Hindi -- was detected as Telugu and
+        # answered in Telugu.
+        #
+        # These lean on the function words that actually separate
+        # romanized Hindi from romanized Telugu (hai/hain, raha-rahi-rahe,
+        # mujhe/meri, ke-ki-ka, aur, nahi) rather than on topic words,
+        # which the two share freely.
+        "Mujhe meri jaati ke naam par dhamki di ja rahi hai.",
+        "Ghar ke bahar bheed khadi hai aur woh log andar aane ki koshish kar rahe hain.",
+        "Mere pati mujhe roz maarte hain aur main kuch nahi kar sakti.",
+        "Woh log mujhe school jaane nahi de rahe hain.",
+        "Mujhe samajh nahi aa raha hai ki main kya karoon, bahut dar lag raha hai.",
+        "Mere saath jo hua hai uske baare mein main kisi se baat nahi kar payi.",
     ],
 
     "te": [
@@ -154,6 +173,19 @@ LANGUAGE_EXAMPLES = {
         "Idi mahilapai hinsaku sambandhinchina Telugu ghatana nivedika.",
         "Nenu pramadamlo unnanu mariyu naaku sahayam kavali.",
         "Evaro nannu bediristunnaru.",
+
+        # Widened alongside the Hindi bank above, and for the same
+        # reason -- adding anchors to only one side would just move the
+        # boundary rather than sharpen it, trading Hindi misses for
+        # Telugu ones. These lean on the endings that actually mark
+        # romanized Telugu (undi, unnanu, unnaru, unnaru, naaku, naa,
+        # mariyu, ledu, cheyyandi) rather than on shared topic words.
+        "Naa kulam peruto nannu bedirinchutunnaru.",
+        "Maa intiki bayata janalu gumigudi unnaru.",
+        "Naa bharta rojoo nannu kodutunnadu, nenu emi cheyaleka unnanu.",
+        "Vaallu nannu badiki vellanivvatam ledu.",
+        "Naaku em cheyalo ardham kavatam ledu, chala bhayam ga undi.",
+        "Naaku jarigina daani gurinchi nenu evvarito matladalekapoyanu.",
     ],
 
     "ur": [
