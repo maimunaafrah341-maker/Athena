@@ -70,7 +70,7 @@ from consent import get_voice_recording_policy
 from nhaa import CHANNELS, DEFAULT_CHANNEL
 from whatsapp import (
     signature_is_valid,
-    public_url_for,
+    candidate_urls,
     download_media,
     build_reply,
     format_pipeline_reply,
@@ -558,7 +558,7 @@ async def whatsapp_webhook(request: Request):
     params = {key: form[key] for key in form.keys()}
 
     if not signature_is_valid(
-        public_url_for(request),
+        candidate_urls(request),
         params,
         request.headers.get("X-Twilio-Signature"),
     ):

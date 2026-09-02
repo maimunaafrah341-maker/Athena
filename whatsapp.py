@@ -46,14 +46,33 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 WHATSAPP_MAX_BODY = 1500
 
 
-def signature_is_valid(url, form_params, signature_header):
+def _signature_for(url, form_params):
     """
-    Verifies Twilio's X-Twilio-Signature over the exact request.
+    Twilio's scheme: the full webhook URL, then every POST parameter
+    appended in alphabetical order (name then value, no separators),
+    HMAC-SHA1 with the auth token, base64.
+    """
 
-    Twilio builds the signature from the full webhook URL with every
-    POST parameter appended in alphabetical order (key then value, no
-    separators), HMAC-SHA1'd with the account's auth token and
-    base64'd.
+    payload = url
+    for key in sorted(form_params):
+        payload += key + str(form_params[key])
+
+    return base64.b64encode(
+        hmac.new(
+            TWILIO_AUTH_TOKEN.encode("utf-8"),
+            payload.encode("utf-8"),
+            hashlib.sha1,
+        ).digest()
+    ).decode("utf-8")
+
+
+def signature_is_valid(urls, form_params, signature_header):
+    """
+    Verifies X-Twilio-Signature against any of the candidate URLs this
+    request could have been signed as (see candidate_urls).
+
+    Accepts a single URL string too, so the documented single-URL case
+    and the tests read naturally.
 
     Returns True when no auth token is configured -- a local run
     without credentials should still be testable -- so deployments
@@ -66,38 +85,91 @@ def signature_is_valid(url, form_params, signature_header):
     if not signature_header:
         return False
 
-    payload = url
-    for key in sorted(form_params):
-        payload += key + str(form_params[key])
+    if isinstance(urls, str):
+        urls = [urls]
 
-    expected = base64.b64encode(
-        hmac.new(
-            TWILIO_AUTH_TOKEN.encode("utf-8"),
-            payload.encode("utf-8"),
-            hashlib.sha1,
-        ).digest()
-    ).decode("utf-8")
+    for url in urls:
+        if hmac.compare_digest(
+            _signature_for(url, form_params), signature_header
+        ):
+            return True
 
-    return hmac.compare_digest(expected, signature_header)
+    # Logged because a signature failure is otherwise invisible: Twilio
+    # just sees a 403 and the reporter sees silence. Never logs the
+    # signature or any message content.
+    print(
+        "[whatsapp] signature did not match any candidate URL: "
+        f"{urls} -- if this is a real Twilio request, set "
+        "TWILIO_WEBHOOK_URL to the exact URL configured in the console."
+    )
+
+    return False
 
 
-def public_url_for(request):
+def candidate_urls(request):
     """
-    The URL Twilio signed, which is the one it was configured with --
-    not necessarily the one the app sees. Behind Railway's proxy the
-    app sees http:// internally while Twilio called https://, and
-    signing over the wrong scheme fails every request. Rebuilds from
-    X-Forwarded-Proto when the proxy sets it.
+    Every URL this request could plausibly have been signed as.
+
+    Twilio signs the URL it was *configured* with. Behind a TLS-
+    terminating proxy (Railway, Render, Fly, anything with a load
+    balancer) the app sees something different: usually http:// where
+    the caller used https://, sometimes an internal hostname entirely.
+    Signing over the wrong one fails every legitimate request, which
+    looks identical to an attack and is miserable to debug -- the
+    webhook simply goes quiet.
+
+    Rather than guessing which rewrite a given host performs, this
+    returns the plausible candidates and the caller accepts a match on
+    any. That is not a weakening: an attacker still cannot produce a
+    valid HMAC for any of them without the auth token.
+
+    TWILIO_WEBHOOK_URL short-circuits the guessing entirely. Set it to
+    the exact URL configured in the Twilio console and the ambiguity
+    disappears.
     """
+
+    configured = os.getenv("TWILIO_WEBHOOK_URL")
+
+    if configured:
+        return [configured.strip()]
 
     raw = str(request.url)
-    forwarded_proto = request.headers.get("x-forwarded-proto")
-
-    if not forwarded_proto:
-        return raw
+    urls = [raw]
 
     parts = urlparse(raw)
-    return urlunparse(parts._replace(scheme=forwarded_proto))
+
+    # Whatever the proxy says the original scheme was.
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    if forwarded_proto:
+        urls.append(urlunparse(parts._replace(scheme=forwarded_proto)))
+
+    # Twilio webhooks are configured over https in practice; include it
+    # explicitly in case no proxy header is set at all.
+    if parts.scheme != "https":
+        urls.append(urlunparse(parts._replace(scheme="https")))
+
+    # The proxy may also rewrite the host -- rebuild from the original
+    # Host/X-Forwarded-Host as well.
+    forwarded_host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+    )
+    if forwarded_host and forwarded_host != parts.netloc:
+        urls.append(
+            urlunparse(
+                parts._replace(scheme="https", netloc=forwarded_host)
+            )
+        )
+
+    # De-duplicate, preserving order.
+    seen = set()
+    unique = []
+    for url in urls:
+        if url not in seen:
+            seen.add(url)
+            unique.append(url)
+
+    return unique
 
 
 def download_media(media_url):
