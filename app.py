@@ -576,46 +576,38 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             media_url = params.get("MediaUrl0")
             declared_type = (params.get("MediaContentType0") or "").lower()
 
-            # Background tasks are only safe where the container stays
-            # alive after responding. On a host that sleeps between
-            # requests they are silently killed the moment the response
-            # is sent -- seen live 2026-09-02: the deploy log showed a
-            # full cold-start sequence at the exact second a voice note
-            # arrived, the ack was delivered, and the task never
-            # finished. No crash, no log line, because nothing crashed:
-            # the container simply went back to sleep.
+            # Media is always handled off the request. Measured on
+            # Railway 2026-09-02: the same work that takes ~3s on a
+            # laptop takes 14s+ there -- Twilio gave up and closed the
+            # connection (HTTP 499) every time. Not cold-start latency:
+            # /health answered in 9ms one minute before a 14s webhook,
+            # so the container was demonstrably awake. A throttled
+            # shared CPU plus external round trips to Twilio's media
+            # store and Whisper is simply slower than the ~15s webhook
+            # window allows.
             #
-            # Without acoustic extraction the whole media path is ~5s
-            # (download + Whisper + pipeline), which fits Twilio's ~15s
-            # window comfortably -- so the default path is synchronous
-            # and reliable. The background task is kept only for the
-            # case where acoustic features ARE enabled, which is by
-            # definition a machine with the RAM to run them and no
-            # reason to sleep mid-task.
-            if ENABLE_VOICE_FEATURES:
-
-                background_tasks.add_task(
-                    _process_whatsapp_media,
-                    media_url,
-                    declared_type,
-                    params.get("From"),
-                    params.get("To"),
-                )
-
-                return Response(
-                    content=build_reply(
-                        "Got it — I'm listening to your message now. "
-                        "This takes a few seconds.\n\n"
-                        "If you are in immediate danger, call 112 "
-                        "straight away."
-                    ),
-                    media_type="application/xml",
-                )
-
-            reply_text = _handle_whatsapp_media(media_url, declared_type)
+            # This REQUIRES the container to stay alive between
+            # requests, because a background task is killed the moment
+            # a sleeping host decides it is idle -- which is what
+            # happened here before an uptime pinger was added. If voice
+            # notes ever start acknowledging and then going quiet
+            # again, check that the pinger is still running before
+            # touching this code.
+            background_tasks.add_task(
+                _process_whatsapp_media,
+                media_url,
+                declared_type,
+                params.get("From"),
+                params.get("To"),
+            )
 
             return Response(
-                content=build_reply(reply_text),
+                content=build_reply(
+                    "Got it — I'm listening to your message now. "
+                    "This takes a few seconds.\n\n"
+                    "If you are in immediate danger, call 112 "
+                    "straight away."
+                ),
                 media_type="application/xml",
             )
 
