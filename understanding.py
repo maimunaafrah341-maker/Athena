@@ -759,6 +759,28 @@ SIGNAL_EXAMPLES = {
         "I am being threatened.",
         "Someone is threatening me.",
         "He threatened to hurt me.",
+
+        # Anonymous perpetrator + death threat. Found live 2026-09-02:
+        # "Someone hit me and threatened to kill me" scored 19.6% on
+        # this signal and 0% on immediate_danger, while the identical
+        # event written as "My husband hit me and threatened to kill
+        # me" scored 100% and Critical. The classifier was leaning on a
+        # named relationship to recognise violence at all.
+        #
+        # The likely pull: this signal's hard-negative bank is entirely
+        # "Someone is following me everywhere" stalking phrasing, so a
+        # report that opens with "Someone" sits close to the negatives.
+        # Plenty of real reports never name who did it -- because the
+        # person doesn't know, or isn't ready to say -- and those
+        # reports must not score lower for it.
+        "Someone hit me and threatened to kill me.",
+        "Someone threatened to kill me.",
+        "They said they would kill me.",
+        "I was threatened with death.",
+        "किसी ने मुझे मारा और जान से मारने की धमकी दी।",
+        "ఎవరో నన్ను కొట్టి చంపేస్తానని బెదిరించారు.",
+        "Kisi ne mujhe mara aur jaan se maarne ki dhamki di.",
+        "Evaro nannu kotti champestanani bedirincharu.",
         "मुझे धमकी दी जा रही है।",
         "वह मुझे धमकी दे रहा है।",
         "నన్ను బెదిరిస్తున్నారు.",
@@ -810,6 +832,14 @@ SIGNAL_EXAMPLES = {
         "I have been physically hurt.",
         "Someone is beating me.",
         "I have injuries.",
+
+        # Anonymous perpetrator -- same gap as threat_present above.
+        "Someone hit me.",
+        "Someone hit me and I am hurt.",
+        "I was beaten by someone I cannot name.",
+        "किसी ने मुझे मारा और मुझे चोट आई है।",
+        "ఎవరో నన్ను కొట్టారు, నాకు గాయాలు అయ్యాయి.",
+        "Kisi ne mujhe mara aur mujhe chot aayi hai.",
         "मुझे शारीरिक चोट लगी है।",
         "मुझे मारा जा रहा है।",
         "నాకు శారీరక గాయాలు అయ్యాయి.",
@@ -871,6 +901,17 @@ SIGNAL_EXAMPLES = {
         "I am in immediate danger.",
         "I am afraid I will be hurt right now.",
         "He is attacking me right now.",
+
+        # A death threat IS immediate danger, whoever made it. This
+        # scored 0.0 on the live case that prompted these anchors --
+        # not low, zero -- for a report that said someone had just hit
+        # the person and threatened to kill them.
+        "Someone hit me and threatened to kill me.",
+        "I was just attacked and I am scared for my life.",
+        "Someone threatened to kill me and I do not know what to do.",
+        "किसी ने मुझे मारा और जान से मारने की धमकी दी, मुझे डर लग रहा है।",
+        "ఎవరో నన్ను కొట్టారు, చంపేస్తానన్నారు, నాకు భయంగా ఉంది.",
+        "Kisi ne mujhe mara aur jaan se maarne ki dhamki di, mujhe dar lag raha hai.",
         "मुझे अभी खतरा है।",
         "वह अभी मुझ पर हमला कर रहा है।",
         "నాకు ఇప్పుడు ప్రమాదం ఉంది.",
@@ -1060,6 +1101,26 @@ SIGNAL_HARD_NEGATIVES = {
     # some of these hard negatives did). This set is what actually
     # does the discriminating work for this signal.
     "suicidal_ideation": [
+        # A threat made against you is not a wish to die. Found live
+        # 2026-09-02: "He hit me and said he will kill me tonight"
+        # fired suicidal_ideation. Both sentences contain "kill me",
+        # and the embedding does not by itself distinguish who is doing
+        # the killing -- so the difference has to be taught here.
+        #
+        # Getting this wrong in this direction is not harmless even
+        # though it escalates: it routes a physical-danger case down a
+        # mental-health path, and it tells someone reporting a threat
+        # on their life that the system heard them wanting to end it.
+        "He said he will kill me tonight.",
+        "He hit me and said he will kill me.",
+        "They threatened to kill me.",
+        "Someone threatened to kill me and I am scared.",
+        "My husband said he would kill me if I told anyone.",
+        "उसने कहा कि वह मुझे मार डालेगा।",
+        "అతను నన్ను చంపేస్తానని అన్నాడు.",
+        "Usne kaha ki woh mujhe maar dalega.",
+        "Atanu nannu champestanani annadu.",
+
         "I had a really hard, exhausting day at work today and I am tired.",
         "I feel really down and stressed about my exams this week.",
         "My husband is very controlling and it makes me sad sometimes.",

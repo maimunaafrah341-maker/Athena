@@ -189,6 +189,12 @@
   .tag.Medium   { background: #fff6cc; color: #8a6d00; }
   .tag.Low      { background: #dff5df; color: #2e7d32; }
 
+  /* Deliberately NOT green. This badge means the system could not
+     classify the report, which is a reason for a human to look -- not
+     a reassurance. Colouring it like "Low" would tell a frightened
+     person the opposite of what it means. */
+  .tag.Uncertain { background: #e8eaf0; color: #43506b; }
+
   .voice-bubble {
     display: flex;
     align-items: center;
@@ -534,7 +540,9 @@
     row.className = "row in";
 
     const tag = riskTier
-      ? `<div class="tag ${riskTier}">${riskTier} risk</div>`
+      ? (riskTier === "Uncertain"
+          ? `<div class="tag Uncertain">Not confidently understood — sent for human review</div>`
+          : `<div class="tag ${riskTier}">${riskTier} risk</div>`)
       : "";
 
     const note = escalateNote
@@ -592,7 +600,22 @@
 
     const riskTier = data.risk ? data.risk.risk_tier : null;
 
-    addIncoming(data.response, riskTier);
+    // A tier computed from a report the system didn't confidently
+    // understand is not a finding, and showing it as one is worse than
+    // showing nothing: "Low risk" next to "flagged for human review" is
+    // a contradiction, and the reassuring half is the half a frightened
+    // person will believe. pipeline.py escalates on low understanding
+    // confidence precisely because the classification can't be trusted
+    // -- so when that's why this escalated, the badge says so instead.
+    const understoodConfidently =
+      !data.incident ||
+      data.incident.confidence == null ||
+      data.incident.confidence >= 60;
+
+    const badgeTier =
+      understoodConfidently ? riskTier : "Uncertain";
+
+    addIncoming(data.response, badgeTier);
 
     if (data.case_id) {
       addSystemPill(
