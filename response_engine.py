@@ -260,6 +260,43 @@ def build_prompt(
         retrieved_documents
     )
 
+    # Retrieval has no geographic filter, so a report from anywhere can
+    # surface a factsheet chunk about whichever states happen to be
+    # written up in the knowledge base. Found live 2026-09-02: a Telugu
+    # report over WhatsApp came back recommending domestic-violence
+    # helplines in Maharashtra and Odisha -- faithfully grounded in
+    # retrieved text, and useless to someone ~1500km away. Not a
+    # hallucination; a relevance failure, which is why the fix is a
+    # constraint on what may be recommended rather than a retrieval
+    # change. When no district was resolved for this report, the model
+    # is told to stay national -- the deterministic layer
+    # (emergency_contacts.py) already attaches real national numbers,
+    # so nothing is lost by declining to guess at a state.
+    district = incident.get("district") or incident.get("location")
+
+    if district:
+        location_instructions = (
+            f"- The reporter's location is given as: {district}.\n"
+            "- Only recommend a state- or district-specific service if "
+            "the evidence ties it to that location. If the evidence "
+            "names services in other states, do NOT offer them -- they "
+            "are not reachable for this person."
+        )
+    else:
+        location_instructions = (
+            "- The reporter's location is NOT known.\n"
+            "- Therefore do NOT name any state-specific or "
+            "district-specific service, shelter, or helpline, even if "
+            "the evidence mentions one. Recommending a service in the "
+            "wrong state is worse than recommending none: it sends "
+            "someone in danger somewhere they cannot reach, and costs "
+            "them the time they most need.\n"
+            "- Speak only about nationally available options and what "
+            "the law provides. The system separately attaches verified "
+            "national helpline numbers, so you do not need to supply "
+            "any."
+        )
+
     # relationship has no dedicated anchor-confidence gate upstream the
     # way incident_type (60) and caste_based_motive (80, kg.py) do --
     # found 2026-08-26 via a live low-confidence English report ("Yusra
@@ -398,6 +435,22 @@ If the risk tier is Critical or High:
   emergency procedure, state that it could not be
   verified from the available sources.
 {crisis_instructions}
+============================================================
+GEOGRAPHIC RELEVANCE
+============================================================
+{location_instructions}
+- NEVER tell someone to "go to a shelter home" or "contact a
+  helpline" without naming a specific one they can actually
+  reach. An unnamed service is not an instruction -- it is a
+  person in danger being told to go and find something
+  themselves. If you cannot name one from the evidence, say
+  that the helpline staff will identify the nearest one, and
+  leave it there.
+- Do NOT write "(Evidence 1)", "Evidence 5", or any similar
+  reference marker in your reply. Those labels exist for this
+  prompt only. The person reading your answer is in distress
+  and did not ask for footnotes -- source tracking is handled
+  separately and shown to counsellors, not to them.
 ============================================================
 EXAMPLES (illustrative only)
 ============================================================
