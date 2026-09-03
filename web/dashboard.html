@@ -1290,6 +1290,53 @@
                     </div>
 
 
+                    <!--
+                        Filters over the alert queue. "Needs review" is
+                        the default because that is the question this
+                        page exists to answer -- a reviewed case is one
+                        somebody already picked up, and leaving it in
+                        the way of unreviewed work is how a real case
+                        gets missed.
+                    -->
+                    <div class="alerts-filters">
+
+                        <label>
+                            <span>Show</span>
+                            <select id="alertReviewFilter">
+                                <option value="unreviewed" selected>Needs review</option>
+                                <option value="all">All</option>
+                                <option value="reviewed">Reviewed</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Priority</span>
+                            <select id="alertPriorityFilter">
+                                <option value="escalating" selected>Critical &amp; High</option>
+                                <option value="all">All priorities</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Category</span>
+                            <select id="alertCategoryFilter">
+                                <option value="all" selected>All categories</option>
+                            </select>
+                        </label>
+
+                        <button type="button" id="alertResetFilters" class="text-button">
+                            Reset
+                        </button>
+
+                        <span id="alertResultCount" class="alerts-count"></span>
+
+                    </div>
+
+
                     <div
                         id="alertsContainer"
                         class="alerts-container"

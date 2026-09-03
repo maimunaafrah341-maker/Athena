@@ -3270,12 +3270,59 @@ function renderRiskMap() {
    ALERTS
 ========================================================= */
 
-// Critical always sorts above High, and within a tier an
-// unacknowledged case sorts above one already marked reviewed --
-// otherwise a Critical case that happened to load further down the
-// list has nothing distinguishing it from one a counsellor already
-// looked at, exactly the "buried alert" gap this was built to close.
-const ALERT_RISK_ORDER = { "Critical": 0, "High": 1 };
+// Review state outranks severity here, which is the opposite of what
+// this sort did first. A reviewed Critical case has already been
+// picked up by somebody; an unreviewed High case has not been seen at
+// all. Sorting purely by tier pushed handled work above unhandled
+// work, which is precisely how the case nobody has looked at gets
+// missed -- the thing this queue exists to prevent.
+//
+// So: everything needing review first, ordered by severity, then
+// everything already reviewed, also ordered by severity.
+const ALERT_RISK_ORDER = { "Critical": 0, "High": 1, "Medium": 2, "Low": 3 };
+
+function alertRank(item) {
+    return ALERT_RISK_ORDER[item.risk] ?? 99;
+}
+
+// Categories come from the cases actually present rather than a fixed
+// list, so a new incident_type from understanding.py shows up here
+// without anyone remembering to add it.
+function populateAlertCategories(normalizedCases) {
+
+    const select = $("#alertCategoryFilter");
+
+    if (!select) return;
+
+    const categories =
+        [...new Set(normalizedCases.map(item => item.incident).filter(Boolean))]
+            .sort();
+
+    const current = select.value;
+
+    const wanted =
+        ["all", ...categories].join("|");
+
+    // Only rebuild when the option set actually changed -- otherwise
+    // every refresh would reset the counsellor's current selection
+    // mid-triage.
+    if (select.dataset.builtFor === wanted) return;
+
+    select.innerHTML =
+        `<option value="all">All categories</option>` +
+        categories.map(
+            category =>
+                `<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`
+        ).join("");
+
+    select.dataset.builtFor = wanted;
+
+    if (current && [...select.options].some(o => o.value === current)) {
+        select.value = current;
+    }
+
+}
+
 
 function renderAlerts() {
 
@@ -3285,31 +3332,64 @@ function renderAlerts() {
     if (!container) return;
 
 
+    const reviewFilter = $("#alertReviewFilter")?.value || "unreviewed";
+    const priorityFilter = $("#alertPriorityFilter")?.value || "escalating";
+    const categoryFilter = $("#alertCategoryFilter")?.value || "all";
+
+    const normalized = state.cases.map(normalizeCase);
+
+    populateAlertCategories(normalized);
+
     const alerts =
-        state.cases
-            .map(normalizeCase)
-            .filter(
-                item =>
-                    item.risk === "Critical" ||
-                    item.risk === "High"
-            )
+        normalized
+            .filter(item => {
+
+                if (priorityFilter === "escalating") {
+                    if (item.risk !== "Critical" && item.risk !== "High") return false;
+                } else if (priorityFilter !== "all") {
+                    if (item.risk !== priorityFilter) return false;
+                }
+
+                if (reviewFilter === "unreviewed" && item.acknowledged) return false;
+                if (reviewFilter === "reviewed" && !item.acknowledged) return false;
+
+                if (categoryFilter !== "all" && item.incident !== categoryFilter) return false;
+
+                return true;
+
+            })
             .sort((a, b) => {
 
-                const riskDiff =
-                    ALERT_RISK_ORDER[a.risk] - ALERT_RISK_ORDER[b.risk];
+                // Unreviewed before reviewed, severity within each.
+                const reviewDiff =
+                    Number(a.acknowledged) - Number(b.acknowledged);
 
-                if (riskDiff !== 0) return riskDiff;
+                if (reviewDiff !== 0) return reviewDiff;
 
-                return Number(a.acknowledged) - Number(b.acknowledged);
+                return alertRank(a) - alertRank(b);
 
             });
+
+
+    const countEl = $("#alertResultCount");
+
+    if (countEl) {
+        countEl.textContent =
+            alerts.length === 1
+                ? "1 case"
+                : `${alerts.length} cases`;
+    }
 
 
     if (!alerts.length) {
 
         container.innerHTML = `
             <div class="empty-alert">
-                No priority alerts right now.
+                ${
+                    reviewFilter === "unreviewed"
+                        ? "Nothing waiting for review with these filters."
+                        : "No cases match these filters."
+                }
             </div>
         `;
 
@@ -3324,7 +3404,7 @@ function renderAlerts() {
             const elapsed = formatElapsed(item.time);
 
             return `
-                <div class="alert-card ${item.acknowledged ? "is-acknowledged" : ""}">
+                <div class="alert-card tier-${escapeHTML(String(item.risk).toLowerCase())} ${item.acknowledged ? "is-acknowledged" : ""}">
 
                     <div class="alert-icon" aria-hidden="true">
                         !
@@ -3376,6 +3456,27 @@ function renderAlerts() {
         }).join("");
 
 }
+
+
+["#alertReviewFilter", "#alertPriorityFilter", "#alertCategoryFilter"].forEach(
+    selector => {
+        $(selector)?.addEventListener("change", renderAlerts);
+    }
+);
+
+$("#alertResetFilters")?.addEventListener("click", () => {
+
+    const review = $("#alertReviewFilter");
+    const priority = $("#alertPriorityFilter");
+    const category = $("#alertCategoryFilter");
+
+    if (review) review.value = "unreviewed";
+    if (priority) priority.value = "escalating";
+    if (category) category.value = "all";
+
+    renderAlerts();
+
+});
 
 
 $("#alertsContainer")?.addEventListener("click", async event => {
