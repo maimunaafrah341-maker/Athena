@@ -3439,13 +3439,13 @@ function renderAlerts() {
                     <div class="alert-actions">
 
                         <button type="button" class="alert-view-button" data-view-case="${escapeHTML(item.id)}">
-                            View case
+                            ${escapeHTML(t("alerts.viewCase"))}
                         </button>
 
                         ${
                             item.acknowledged
-                                ? `<span class="alert-ack-badge">✓ Reviewed</span>`
-                                : `<button type="button" class="alert-ack-button" data-ack-case="${escapeHTML(item.id)}">Mark reviewed</button>`
+                                ? `<span class="alert-ack-badge">✓ ${escapeHTML(t("alerts.reviewedBadge"))}</span>`
+                                : `<button type="button" class="alert-ack-button" data-ack-case="${escapeHTML(item.id)}">${escapeHTML(t("alerts.markReviewed"))}</button>`
                         }
 
                     </div>

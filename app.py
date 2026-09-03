@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import threading
 import uuid
 from typing import Optional
 
@@ -593,13 +594,26 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             # notes ever start acknowledging and then going quiet
             # again, check that the pinger is still running before
             # touching this code.
-            background_tasks.add_task(
-                _process_whatsapp_media,
-                media_url,
-                declared_type,
-                params.get("From"),
-                params.get("To"),
-            )
+            # A real non-daemon thread rather than FastAPI's
+            # BackgroundTasks. Background tasks run as part of the
+            # request lifecycle, so a host that tears that down as soon
+            # as the response is written can drop them with no error
+            # anywhere -- which is consistent with what was observed:
+            # the ack delivered, the work logged as started, and no
+            # reply ever sent. A non-daemon thread keeps the process
+            # from exiting until it finishes and does not depend on the
+            # server's request handling at all.
+            threading.Thread(
+                target=_process_whatsapp_media,
+                args=(
+                    media_url,
+                    declared_type,
+                    params.get("From"),
+                    params.get("To"),
+                ),
+                daemon=False,
+                name=f"whatsapp-media-{uuid.uuid4().hex[:8]}",
+            ).start()
 
             return Response(
                 content=build_reply(
@@ -771,15 +785,20 @@ def _process_whatsapp_media(media_url, declared_type, sender, receiver):
     Background-task wrapper: does the same work as the synchronous path
     and sends the answer via the REST API afterwards.
 
-    Only reached when ENABLE_VOICE_FEATURES is set, i.e. on a host with
-    the RAM for acoustic extraction and no reason to sleep between
-    requests -- see the note at the webhook's media branch for why this
-    is not the default.
+    Logs on entry and exit deliberately. This runs detached from any
+    request, so when it fails to produce a reply the only evidence
+    available is what it printed -- and "started but never finished"
+    versus "never started" point at completely different causes. That
+    ambiguity cost several wrong diagnoses.
     """
+
+    print(f"[whatsapp] media task started ({declared_type or 'unknown type'})")
 
     reply_text = _handle_whatsapp_media(media_url, declared_type)
 
-    send_message(sender, reply_text, from_number=receiver)
+    sent = send_message(sender, reply_text, from_number=receiver)
+
+    print(f"[whatsapp] media task finished, reply sent: {sent}")
 
 
 @app.get("/call-options")

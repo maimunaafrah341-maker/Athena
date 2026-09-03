@@ -994,15 +994,15 @@
                     <div class="page-heading">
 
                         <div>
-                            <span class="eyebrow">
+                            <span class="eyebrow" data-i18n="cases.eyebrow">
                                 CASE MANAGEMENT
                             </span>
 
-                            <h1>
+                            <h1 data-i18n="cases.title">
                                 Cases
                             </h1>
 
-                            <p>
+                            <p data-i18n="cases.subtitle">
                                 Review incoming reports and prioritise support.
                             </p>
                         </div>
@@ -1026,12 +1026,12 @@
                                 <input
                                     id="caseSearch"
                                     type="text"
-                                    placeholder="Search cases..."
+                                    placeholder="Search cases..." data-i18n-placeholder="cases.search"
                                 >
                             </div>
 
                             <select id="riskFilter">
-                                <option value="all">All risk levels</option>
+                                <option value="all" data-i18n="cases.allRisk">All risk levels</option>
                                 <option value="Critical">Critical</option>
                                 <option value="High">High</option>
                                 <option value="Moderate">Moderate</option>
@@ -1047,12 +1047,12 @@
 
                                 <thead>
                                     <tr>
-                                        <th>Case</th>
-                                        <th>Incident</th>
-                                        <th>District</th>
-                                        <th>Risk</th>
-                                        <th>Status</th>
-                                        <th>Time</th>
+                                        <th data-i18n="table.case">Case</th>
+                                        <th data-i18n="table.incident">Incident</th>
+                                        <th data-i18n="table.district">District</th>
+                                        <th data-i18n="table.risk">Risk</th>
+                                        <th data-i18n="table.status">Status</th>
+                                        <th data-i18n="table.time">Time</th>
                                     </tr>
                                 </thead>
 
@@ -1082,15 +1082,15 @@
                     <div class="page-heading">
 
                         <div>
-                            <span class="eyebrow">
+                            <span class="eyebrow" data-i18n="riskmap.eyebrow">
                                 NATIONAL COVERAGE
                             </span>
 
-                            <h1>
+                            <h1 data-i18n="riskmap.title">
                                 Risk map
                             </h1>
 
-                            <p>
+                            <p data-i18n="riskmap.subtitle">
                                 Monitor case concentration across districts.
                             </p>
                         </div>
@@ -1164,15 +1164,15 @@
                     <div class="page-heading">
 
                         <div>
-                            <span class="eyebrow">
+                            <span class="eyebrow" data-i18n="guidance.eyebrow">
                                 STAFF SUPPORT
                             </span>
 
-                            <h1>
+                            <h1 data-i18n="guidance.title">
                                 Guidance
                             </h1>
 
-                            <p>
+                            <p data-i18n="guidance.subtitle">
                                 Plain-language support guidance for counsellors.
                             </p>
                         </div>
@@ -1188,11 +1188,11 @@
                                 01
                             </span>
 
-                            <h3>
+                            <h3 data-i18n="guidance.c1t">
                                 Listen first
                             </h3>
 
-                            <p>
+                            <p data-i18n="guidance.c1b">
                                 Allow the complainant to explain their
                                 situation in their own words without
                                 interrupting unnecessarily.
@@ -1207,11 +1207,11 @@
                                 02
                             </span>
 
-                            <h3>
+                            <h3 data-i18n="guidance.c2t">
                                 Check immediate safety
                             </h3>
 
-                            <p>
+                            <p data-i18n="guidance.c2b">
                                 If the case indicates immediate danger,
                                 prioritise connecting the person with
                                 appropriate human support.
@@ -1226,11 +1226,11 @@
                                 03
                             </span>
 
-                            <h3>
+                            <h3 data-i18n="guidance.c3t">
                                 Protect information
                             </h3>
 
-                            <p>
+                            <p data-i18n="guidance.c3b">
                                 Handle personal information carefully
                                 and only access information needed for
                                 the support process.
@@ -1245,11 +1245,11 @@
                                 04
                             </span>
 
-                            <h3>
+                            <h3 data-i18n="guidance.c4t">
                                 Escalate when necessary
                             </h3>
 
-                            <p>
+                            <p data-i18n="guidance.c4b">
                                 High-priority situations should be
                                 reviewed promptly by trained personnel.
                             </p>
@@ -1274,15 +1274,15 @@
                     <div class="page-heading">
 
                         <div>
-                            <span class="eyebrow">
+                            <span class="eyebrow" data-i18n="alerts.eyebrow">
                                 PRIORITY MONITORING
                             </span>
 
-                            <h1>
+                            <h1 data-i18n="alerts.title">
                                 Alerts
                             </h1>
 
-                            <p>
+                            <p data-i18n="alerts.subtitle">
                                 Cases requiring closer attention.
                             </p>
                         </div>
@@ -1301,19 +1301,19 @@
                     <div class="alerts-filters">
 
                         <label>
-                            <span>Show</span>
+                            <span data-i18n="alerts.show">Show</span>
                             <select id="alertReviewFilter">
-                                <option value="unreviewed" selected>Needs review</option>
-                                <option value="all">All</option>
-                                <option value="reviewed">Reviewed</option>
+                                <option value="unreviewed" selected data-i18n="alerts.needsReview">Needs review</option>
+                                <option value="all" data-i18n="alerts.allOpt">All</option>
+                                <option value="reviewed" data-i18n="alerts.reviewedOpt">Reviewed</option>
                             </select>
                         </label>
 
                         <label>
-                            <span>Priority</span>
+                            <span data-i18n="alerts.priority">Priority</span>
                             <select id="alertPriorityFilter">
-                                <option value="escalating" selected>Critical &amp; High</option>
-                                <option value="all">All priorities</option>
+                                <option value="escalating" selected data-i18n="alerts.criticalHigh">Critical &amp; High</option>
+                                <option value="all" data-i18n="alerts.allPriorities">All priorities</option>
                                 <option value="Critical">Critical</option>
                                 <option value="High">High</option>
                                 <option value="Medium">Medium</option>
@@ -1322,13 +1322,13 @@
                         </label>
 
                         <label>
-                            <span>Category</span>
+                            <span data-i18n="alerts.category">Category</span>
                             <select id="alertCategoryFilter">
-                                <option value="all" selected>All categories</option>
+                                <option value="all" selected data-i18n="alerts.allCategories">All categories</option>
                             </select>
                         </label>
 
-                        <button type="button" id="alertResetFilters" class="text-button">
+                        <button type="button" id="alertResetFilters" class="text-button" data-i18n="alerts.reset">
                             Reset
                         </button>
 
