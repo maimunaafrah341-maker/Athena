@@ -229,21 +229,52 @@ def send_message(to, body, from_number):
         print("[whatsapp] cannot send: Twilio credentials not configured")
         return False
 
+    # Twilio reports *why* a send was rejected in the response body -- a
+    # numeric error code plus a human-readable message -- not in the status
+    # line. Calling raise_for_status() and logging the resulting HTTPError
+    # threw that body away and left "400 Bad Request", which is barely more
+    # informative than no log at all: it cost a whole debugging round on
+    # 2026-09-03. Log the body, and the three inputs most likely to be the
+    # cause, so the next failure is diagnosed in one attempt instead of six.
+
+    body_text = (body or "").strip()
+
+    if not body_text:
+        # Twilio rejects an empty Body with 400 (error 21602). Catching it
+        # here says "the pipeline produced nothing" instead of blaming the
+        # HTTP call, which is a different bug in a different file.
+        print("[whatsapp] not sending: reply body is empty", flush=True)
+        return False
+
+    payload = {
+        "From": from_number,
+        "To": to,
+        "Body": body_text[:WHATSAPP_MAX_BODY],
+    }
+
     try:
         response = requests.post(
             TWILIO_MESSAGES_URL.format(sid=TWILIO_ACCOUNT_SID),
             auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
-            data={
-                "From": from_number,
-                "To": to,
-                "Body": (body or "")[:WHATSAPP_MAX_BODY],
-            },
+            data=payload,
             timeout=20,
         )
-        response.raise_for_status()
 
     except Exception as e:
-        print(f"[whatsapp] send failed: {type(e).__name__}: {e}")
+        print(
+            f"[whatsapp] send failed, no response: {type(e).__name__}: {e}",
+            flush=True,
+        )
+        return False
+
+    if response.status_code >= 400:
+        print(
+            f"[whatsapp] send failed: HTTP {response.status_code} "
+            f"From={from_number!r} To={to!r} "
+            f"body_chars={len(payload['Body'])} "
+            f"twilio_said={response.text[:400]}",
+            flush=True,
+        )
         return False
 
     return True
