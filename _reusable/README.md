@@ -12,6 +12,7 @@ Copy the folder. There is nothing to un-wire.
 |---|---|---|
 | `language.py` | Language + script detection, 5 languages, two tiers | ~430 |
 | `llm.py` | Multi-provider LLM caller with failover | ~236 |
+| `translation.py` | Translation between languages, via `llm.py` | ~160 |
 | `EVAL.md` | Measured latency, memory, and every known edge case | — |
 
 ---
@@ -77,6 +78,37 @@ with different rate limits, and a demo that dies because one provider is
 throttling you looks exactly like a demo that is broken.
 
 Measured 2026-09-03: import 1.5 s, live round trip 0.7 s.
+
+---
+
+## `translation.py`
+
+```python
+from translation import translate, translate_to_english
+
+translate("I need help", "hi")              # -> "मुझे मदद चाहिए"
+translate_to_english("मुझे मदद चाहिए", "hi")  # -> "I need help"
+```
+
+Returns `None` -- never a partial or untranslated string -- when there
+is nothing to do (empty text, no target, source already in the target
+language) or when the provider failed. `None` means *no translation
+available*, so a caller can always fall back to the original and label
+it honestly. Never raises.
+
+The prompt forbids the model from softening, summarising, adding
+commentary, or guessing: anything unreadable comes back as `[unclear]`
+rather than a plausible invention, and numbers, dates, reference IDs,
+URLs and proper names are preserved in their original characters.
+
+Verified 2026-09-03: `NHAA-2026-27F9A605` and `14566` both survived a
+round trip into Devanagari byte-exact. Live translation ~0.6-0.9 s;
+every no-op case returns in under a millisecond without an API call.
+
+Rewritten from Athena's version, whose prompts named a helpline
+counsellor and a person in crisis in every instruction -- framing that
+does not just read oddly in another project, it steers the register the
+model translates into. The discipline survived; the domain did not.
 
 ---
 
