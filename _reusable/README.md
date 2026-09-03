@@ -13,7 +13,10 @@ Copy the folder. There is nothing to un-wire.
 | `language.py` | Language + script detection, 5 languages, two tiers | ~430 |
 | `llm.py` | Multi-provider LLM caller with failover | ~236 |
 | `translation.py` | Translation between languages, via `llm.py` | ~160 |
+| `api.py` | FastAPI layer over the three modules | ~290 |
+| `API_CONTRACT.md` | Endpoints, shapes, errors — build against this | — |
 | `EVAL.md` | Measured latency, memory, and every known edge case | — |
+| `Dockerfile` | Script tier by default; `--build-arg SEMANTIC_TIER=1` for the model | — |
 
 ---
 
@@ -134,9 +137,38 @@ behaviour.
 
 ---
 
-## What is *not* here yet
+## Running it
 
-The HTTP layer. These are libraries — no FastAPI app, no endpoints, no
-request/response schemas, no auth. That is the next piece to build on
-top, and the API contract doc should be written against it once the
-endpoint shapes actually exist rather than ahead of them.
+```
+pip install -r requirements.txt
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+Or in Docker, script tier only (~17 MB, fits a 512 MB free instance):
+
+```
+docker build -t multilingual .
+docker run -p 8000:8000 --env-file .env multilingual
+```
+
+With the semantic tier (romanized Hindi/Telugu, needs ~1 GB):
+
+```
+docker build --build-arg SEMANTIC_TIER=1 -t multilingual .
+```
+
+Three endpoints: `GET /health`, `POST /detect`, `POST /translate`.
+Full shapes, every error status, and the two things a client author
+will get wrong are in **`API_CONTRACT.md`** — hand that over, not this
+file.
+
+Optional `API_KEY` in the environment gates everything except
+`/health` behind an `X-API-Key` header. Unset means open, which is
+right for a public demo.
+
+## What is *not* here
+
+No database, no auth beyond the single shared key, no rate limiting,
+no per-caller identity. Add those where they belong in the consuming
+project rather than here — this stays a library plus a thin HTTP
+wrapper, and every one of those decisions depends on the project.
