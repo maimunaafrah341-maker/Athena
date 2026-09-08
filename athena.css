@@ -4154,3 +4154,48 @@ table tbody tr:hover {
     }
 
 }
+/* =========================================================
+   NEEDS-ACTION QUEUE
+========================================================= */
+
+.overview-case-why {
+    font-size: 10.5px;
+
+    color: #6b7c85;
+}
+
+.overview-case-more {
+    padding: 8px 4px 2px;
+
+    font-size: 11px;
+
+    color: #6b7c85;
+
+    text-align: center;
+}
+
+/* An empty triage queue is good news and should read like it, rather
+   than looking identical to a panel that failed to load. */
+.empty-state-good {
+    padding: 18px 14px;
+
+    text-align: center;
+}
+
+.empty-state-good .empty-state-title {
+    font-size: 13px;
+
+    font-weight: 600;
+
+    color: #2f6b4f;
+
+    margin-bottom: 4px;
+}
+
+.empty-state-good .empty-state-hint {
+    font-size: 11px;
+
+    color: #6b7c85;
+
+    line-height: 1.45;
+}

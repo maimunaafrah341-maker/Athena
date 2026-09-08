@@ -2500,17 +2500,52 @@ function renderOverviewCases() {
     if (!container) return;
 
 
-    const cases =
+    // This panel used to show the five most recent cases, which
+    // answered "what happened lately" -- a question nobody opens a
+    // triage dashboard to ask. It now answers "what is waiting for
+    // me", which is the only question that matters at the top of a
+    // shift.
+    //
+    // Waiting means: assessed Critical or High, and not yet
+    // acknowledged by a counsellor. Both fields already exist per case
+    // and were already being fetched; nothing new is computed here.
+    //
+    // Ordered by severity first and then by age, so the oldest
+    // unreviewed Critical sits at the top. That is deliberately not
+    // newest-first: on this queue, the longer something has gone
+    // unanswered the more urgent it is, not the less.
+    const waiting =
         state.cases
             .map(normalizeCase)
-            .slice(0, 5);
+            .filter(item =>
+                !item.acknowledged &&
+                (item.risk === "Critical" || item.risk === "High")
+            )
+            .sort((a, b) => {
+                const severity = alertRank(a) - alertRank(b);
+                if (severity !== 0) return severity;
+                return String(a.time).localeCompare(String(b.time));
+            });
+
+    const cases = waiting.slice(0, 5);
+    const overflow = waiting.length - cases.length;
 
 
     if (!cases.length) {
 
+        // An empty queue is good news, and should read like it. The
+        // hint says what would appear here, so an empty panel is not
+        // mistaken for a panel that failed to load -- which is exactly
+        // how a silent empty state gets read on a dashboard whose
+        // other cards are full of numbers.
         container.innerHTML = `
-            <div class="empty-state">
-                No recent cases.
+            <div class="empty-state empty-state-good">
+                <div class="empty-state-title">
+                    ${escapeHTML(t("needsAction.allClear"))}
+                </div>
+                <div class="empty-state-hint">
+                    ${escapeHTML(t("needsAction.allClearHint"))}
+                </div>
             </div>
         `;
 
@@ -2519,14 +2554,16 @@ function renderOverviewCases() {
     }
 
 
-    container.innerHTML =
+    const rows =
         cases.map(item => {
 
-            const riskClass =
-                item.risk
-                    .toLowerCase()
-                    .replace(" ", "-");
-
+            // Why this row is in the queue, rather than leaving a
+            // counsellor to infer it from the badge. The stored reason
+            // is used when the pipeline recorded one; otherwise the
+            // membership rule itself is the honest answer.
+            const why =
+                item.reason ||
+                `${t("risk." + item.risk.toLowerCase())} · ${t("needsAction.notReviewed")}`;
 
             return `
                 <div class="overview-case">
@@ -2547,10 +2584,26 @@ function renderOverviewCases() {
                         ${riskBadge(item.risk)}
                     </span>
 
+                    <span class="overview-case-why">
+                        ${escapeHTML(why)}
+                    </span>
+
                 </div>
             `;
 
         }).join("");
+
+
+    // Say how many did not fit. Truncating a triage queue silently at
+    // five is how a counsellor concludes there are five.
+    const more =
+        overflow > 0
+            ? `<div class="overview-case-more">
+                   ${escapeHTML(t("needsAction.more").replace("{n}", overflow))}
+               </div>`
+            : "";
+
+    container.innerHTML = rows + more;
 
 }
 
