@@ -4243,3 +4243,170 @@ table tbody tr:hover {
 
     color: #6b7c85;
 }
+
+/* =========================================================
+   SCENARIO PLAYBOOKS (GUIDANCE)
+========================================================= */
+
+.playbooks {
+    margin-top: 26px;
+}
+
+.playbooks-heading {
+    margin-bottom: 12px;
+}
+
+/* <details> rather than a scripted accordion: it opens with the
+   keyboard, is announced correctly by screen readers, and survives
+   JavaScript failing to load -- which on a page a counsellor opens
+   mid-call is the difference between guidance and a blank box. */
+.playbook {
+    background: #fff;
+
+    border: 1px solid #eeece7;
+
+    border-radius: 10px;
+
+    margin-bottom: 9px;
+}
+
+.playbook-summary {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 13px 16px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    color: #2c3a42;
+
+    cursor: pointer;
+
+    list-style: none;
+
+    min-height: 44px;
+}
+
+.playbook-summary::-webkit-details-marker {
+    display: none;
+}
+
+.playbook-summary:focus-visible {
+    outline: 2px solid #1f6f4a;
+
+    outline-offset: -2px;
+
+    border-radius: 10px;
+}
+
+.playbook-number {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 22px;
+
+    height: 22px;
+
+    border-radius: 50%;
+
+    background: #eef3f0;
+
+    font-size: 11px;
+
+    color: #2f6b4f;
+
+    flex-shrink: 0;
+}
+
+.playbook[open] .playbook-summary {
+    border-bottom: 1px solid #f2f0eb;
+}
+
+.playbook-body {
+    padding: 4px 16px 16px 48px;
+}
+
+.playbook-when {
+    font-size: 11.5px;
+
+    color: #6b7c85;
+
+    margin: 8px 0 14px;
+}
+
+.playbook-section {
+    margin-bottom: 12px;
+}
+
+.playbook-label {
+    display: block;
+
+    font-size: 9.5px;
+
+    font-weight: 700;
+
+    letter-spacing: .8px;
+
+    text-transform: uppercase;
+
+    color: #2f6b4f;
+
+    margin-bottom: 4px;
+}
+
+.playbook-label-avoid {
+    color: #a8332f;
+}
+
+.playbook-section p,
+.playbook-section li {
+    font-size: 12px;
+
+    line-height: 1.5;
+
+    color: #3b4a52;
+}
+
+.playbook-section ul {
+    margin: 0;
+
+    padding-left: 17px;
+}
+
+.playbook-section li {
+    margin-bottom: 4px;
+}
+
+.playbook-say {
+    font-style: italic;
+
+    color: #2c3a42;
+}
+
+/* The boundary statement is not decoration. It is the sentence that
+   keeps every playbook above it honest about what Athena is. */
+.playbook-boundary {
+    margin-top: 16px;
+
+    padding: 11px 14px;
+
+    background: #f4f6f5;
+
+    border-left: 3px solid #2f6b4f;
+
+    border-radius: 6px;
+
+    font-size: 11.5px;
+
+    line-height: 1.5;
+
+    color: #45585f;
+}
