@@ -166,3 +166,73 @@ def test_unsupported_script_falls_back_to_english_not_a_guess():
 def test_empty_input_is_safe():
     for text in ("", "   ", "\n"):
         assert detect_language(text) == "en"
+
+
+# ------------------------------------------------------------------
+# A hostile crowd outside the home.
+#
+# SIH26093's background names social boycott and displacement as
+# atrocities. Before 2026-09-08 a caste temple-entry denial with a
+# crowd outside the house scored Low in Hindi and English and Critical
+# in Telugu, Bengali and Urdu -- one event, and the two languages most
+# likely to be used gave the safest-sounding answer.
+# ------------------------------------------------------------------
+
+CROWD_REPORTS = [
+    ("en", "Because of my caste I was not allowed into the temple and I was "
+           "humiliated. A crowd is standing outside my house."),
+    ("hi", "मेरी जाति के कारण मुझे मंदिर में घुसने नहीं दिया गया और मुझे अपमानित "
+           "किया गया। मेरे घर के बाहर भीड़ खड़ी है।"),
+    ("te", "నా కులం కారణంగా నన్ను గుడిలోకి రానివ్వలేదు, అవమానించారు. మా ఇంటి బయట "
+           "గుంపు గుమిగూడింది."),
+    ("bn", "আমার জাতের কারণে আমাকে মন্দিরে ঢুকতে দেওয়া হয়নি এবং অপমান করা হয়েছে। "
+           "আমার বাড়ির বাইরে ভিড় জমেছে।"),
+    ("ur", "میری ذات کی وجہ سے مجھے مندر میں داخل نہیں ہونے دیا گیا اور میری بے عزتی "
+           "کی گئی۔ میرے گھر کے باہر بھیڑ کھڑی ہے۔"),
+]
+
+
+@pytest.mark.parametrize("language,text", CROWD_REPORTS)
+def test_crowd_outside_the_home_reads_as_danger(language, text):
+    incident = understand(text)
+
+    assert incident["immediate_danger"] is True, (
+        "%s did not read a crowd gathered outside the home as immediate "
+        "danger; that is how a social boycott begins" % language
+    )
+
+
+@pytest.mark.parametrize("language,text", CROWD_REPORTS)
+def test_crowd_report_still_carries_the_caste_motive(language, text):
+    """The danger anchors must not crowd out the caste signal."""
+
+    incident = understand(text)
+
+    assert incident["caste_based_motive"] is True
+    assert incident["confidence_breakdown"]["caste_based_motive"] >= CASTE_FLOOR
+
+
+def test_confidence_breakdown_keys_match_their_signals():
+    """
+    Six of eight keys were named like the boolean they explain and two
+    were not, so looking up "threat_present" returned None -- which
+    reads as zero confidence in a signal that fired.
+    """
+
+    incident = understand("My husband hit me and threatened to kill me.")
+    breakdown = incident["confidence_breakdown"]
+
+    for signal in (
+        "threat_present",
+        "injury_present",
+        "immediate_danger",
+        "caste_based_motive",
+        "suicidal_ideation",
+    ):
+        assert breakdown.get(signal) is not None, (
+            "confidence_breakdown has no entry for %s" % signal
+        )
+
+    # The short keys svi.py and API_CONTRACT.md depend on must survive.
+    assert breakdown["threat"] == breakdown["threat_present"]
+    assert breakdown["injury"] == breakdown["injury_present"]

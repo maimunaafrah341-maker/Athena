@@ -998,7 +998,56 @@ SIGNAL_EXAMPLES = {
 
         # Romanized Bengali
         "Ami ekhoni bipode achi.",
-        "Se ekhon amar upor akromon korche."
+        "Se ekhon amar upor akromon korche.",
+
+        # ------------------------------------------------------------
+        # A hostile group gathered outside the home. Added 2026-09-08.
+        #
+        # SIH26093's background names social boycott and displacement
+        # as atrocities in their own right, and a crowd assembling
+        # outside a Scheduled Caste family's house after a caste
+        # incident is how both begin -- and is the most common
+        # precursor to the violence this helpline exists for.
+        #
+        # Measured before this change, on a caste temple-entry denial
+        # with a crowd outside the house: immediate_danger scored 24%
+        # in Hindi and 27% in English, both under threshold, so the
+        # whole report came out Low with a score of 10. The Telugu,
+        # Bengali and Urdu versions of the same sentence scored 50-54%
+        # and came out Critical at 100. One event, five languages, and
+        # the two most likely to be used gave the safest-sounding
+        # answer.
+        # ------------------------------------------------------------
+        "A crowd has gathered outside my house and they will not leave.",
+        "A mob is standing at my door and I am afraid to come out.",
+
+        "मेरे घर के बाहर भीड़ जमा है और वे जा नहीं रहे।",
+        "लोग मेरे दरवाज़े पर इकट्ठा हैं और मैं बाहर निकलने से डर रहा हूँ।",
+
+        # Romanized Hindi
+        "Mere ghar ke bahar bheed jama hai aur ve ja nahi rahe.",
+        "Log mere darwaze par ikattha hain aur main bahar nikalne se dar raha hoon.",
+
+        "మా ఇంటి బయట గుంపు గుమిగూడింది, వాళ్ళు వెళ్ళడం లేదు.",
+        "నా ఇంటి ముందు జనం గుమిగూడారు, బయటకు రావాలంటే భయంగా ఉంది.",
+
+        # Romanized Telugu
+        "Maa inti bayata gumpu gumigudindi, vaallu vellatam ledu.",
+        "Naa inti mundu janam gumigudaru, bayataku ravalante bhayanga undi.",
+
+        "میرے گھر کے باہر بھیڑ جمع ہے اور وہ جا نہیں رہے۔",
+        "لوگ میرے دروازے پر جمع ہیں اور میں باہر نکلنے سے ڈر رہا ہوں۔",
+
+        # Romanized Urdu
+        "Mere ghar ke bahar bheed jama hai aur wo ja nahi rahe.",
+        "Log mere darwaze par jama hain aur main bahar nikalne se dar raha hoon.",
+
+        "আমার বাড়ির বাইরে ভিড় জমেছে এবং তারা যাচ্ছে না।",
+        "লোকজন আমার দরজার সামনে জড়ো হয়েছে, আমি বাইরে বেরোতে ভয় পাচ্ছি।",
+
+        # Romanized Bengali
+        "Amar barir baire bhir jomeche ebong tara jacche na.",
+        "Lokjon amar dorjar samne joro hoyeche, ami baire berote bhoy pacchi."
     ],
 
     # Examples grounded directly in the enumerated offences under the
@@ -1934,6 +1983,21 @@ def understand(text, language=None):
         "incident_type": confidence,
         "threat": round(threat_score * 100, 2),
         "injury": round(injury_score * 100, 2),
+
+        # Aliases. Six of the eight keys here are named exactly like
+        # the boolean they explain -- immediate_danger,
+        # caste_based_motive, suicidal_ideation -- and two are not, so
+        # a caller looking up the confidence for "threat_present" gets
+        # None and reasonably reads it as zero confidence in a signal
+        # that did fire. That happened during testing on 2026-09-08
+        # and cost a wrong diagnosis.
+        #
+        # Aliased rather than renamed: the short keys are what svi.py
+        # reads and what API_CONTRACT.md documents, so renaming would
+        # break a live consumer and a published contract to fix a
+        # naming inconsistency.
+        "threat_present": round(threat_score * 100, 2),
+        "injury_present": round(injury_score * 100, 2),
         "immediate_danger": round(danger_score * 100, 2),
         "relationship": round(relationship_score * 100, 2),
         "location": round(location_score * 100, 2),
