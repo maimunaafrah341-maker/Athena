@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import asyncio
 import threading
 import uuid
 from typing import Optional
@@ -603,17 +604,62 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             # reply ever sent. A non-daemon thread keeps the process
             # from exiting until it finishes and does not depend on the
             # server's request handling at all.
-            threading.Thread(
-                target=_process_whatsapp_media,
-                args=(
-                    media_url,
-                    declared_type,
-                    params.get("From"),
-                    params.get("To"),
-                ),
-                daemon=False,
-                name=f"whatsapp-media-{uuid.uuid4().hex[:8]}",
-            ).start()
+            # Do the work with a deadline and answer in the SAME
+            # response, rather than acknowledging now and sending the
+            # real reply afterwards through the REST API.
+            #
+            # The REST path is not available to us. Twilio rejects it
+            # with 21654 "ContentSid Required" -- outbound messages
+            # created through the Messages API must reference an
+            # approved Content Template, and a template is static text
+            # with variable slots. Athena's reply is generated per
+            # case, runs to several paragraphs, and comes back in five
+            # languages, so there is no template that could carry it.
+            # Measured live 2026-09-08: ack delivered, work finished in
+            # 2 seconds, send rejected 400.
+            #
+            # A TwiML reply is not subject to that rule at all. It is
+            # the response to the person's own message rather than a
+            # business-initiated send, so it never touches the
+            # Messages API.
+            #
+            # That only works if the work fits Twilio's ~15s webhook
+            # window. It does now: 2s measured on the live deployment
+            # with ENABLE_VOICE_FEATURES off. The budget below leaves
+            # headroom for TLS and Twilio's own overhead.
+            #
+            # asyncio.to_thread keeps the event loop free while we
+            # wait, and on timeout the thread is NOT killed -- Python
+            # cannot kill threads -- so the pipeline still finishes and
+            # the case is still recorded in the counsellor dashboard.
+            # The person just gets the acknowledgement alone, which is
+            # exactly the behaviour they get today.
+            print(f"[whatsapp] media task started ({declared_type or 'unknown type'})")
+
+            try:
+                reply_text = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        _handle_whatsapp_media, media_url, declared_type
+                    ),
+                    timeout=WHATSAPP_REPLY_BUDGET_SECONDS,
+                )
+
+            except asyncio.TimeoutError:
+                print(
+                    "[whatsapp] media task exceeded the %ss reply budget -- "
+                    "case will still be recorded, but only the "
+                    "acknowledgement was delivered"
+                    % WHATSAPP_REPLY_BUDGET_SECONDS,
+                    flush=True,
+                )
+
+            else:
+                print("[whatsapp] media task finished, replying inline", flush=True)
+
+                return Response(
+                    content=build_reply(reply_text),
+                    media_type="application/xml",
+                )
 
             return Response(
                 content=build_reply(
@@ -673,6 +719,15 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 # transcription and escalation all still work -- rather than costing
 # the reply entirely, which is the trade a person waiting on an answer
 # would choose.
+# How long the webhook will wait for a voice note or photo to finish
+# before giving up on replying inline. Twilio drops the connection at
+# roughly 15 seconds, so this has to be comfortably under that: the
+# response still has to be built and sent back over TLS afterwards.
+# 11s measured against a 2s real workload, i.e. five times the headroom
+# actually needed today, which is the margin for a slow cold start.
+WHATSAPP_REPLY_BUDGET_SECONDS = 11
+
+
 ENABLE_VOICE_FEATURES = os.getenv("ENABLE_VOICE_FEATURES", "").strip().lower() in (
     "1", "true", "yes", "on"
 )
@@ -778,29 +833,6 @@ def _handle_whatsapp_media(media_url, declared_type):
             "want to leave you waiting. If you are in danger right now, call "
             "112. To speak to a counsellor, call 14566."
         )
-
-
-def _process_whatsapp_media(media_url, declared_type, sender, receiver):
-    """
-    Background-task wrapper: does the same work as the synchronous path
-    and sends the answer via the REST API afterwards.
-
-    Logs on entry and exit deliberately. This runs detached from any
-    request, so when it fails to produce a reply the only evidence
-    available is what it printed -- and "started but never finished"
-    versus "never started" point at completely different causes. That
-    ambiguity cost several wrong diagnoses.
-    """
-
-    print(f"[whatsapp] media task started ({declared_type or 'unknown type'})")
-
-    reply_text = _handle_whatsapp_media(media_url, declared_type)
-
-    sent = send_message(sender, reply_text, from_number=receiver)
-
-    print(f"[whatsapp] media task finished, reply sent: {sent}")
-
-
 @app.get("/call-options")
 def call_options(latitude: Optional[float] = None, longitude: Optional[float] = None):
     """
