@@ -336,6 +336,127 @@
     padding: 4px 30px 2px;
     background: #e5ddd5;
   }
+
+  /* Persistent demo bar. Previously the demo disclaimer was the first
+     message in the chat, which meant it scrolled out of view the moment
+     a conversation started -- exactly when a viewer most needs to know
+     this is not a real service. */
+  .demo-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #fff4d6;
+    border-bottom: 1px solid #e8d9a8;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #6b5a1e;
+  }
+  .demo-bar .demo-text { flex: 1; min-width: 0; }
+  .demo-link {
+    flex-shrink: 0;
+    background: #6b5a1e;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 32px;
+  }
+  .demo-link:focus-visible { outline: 2px solid #1f6f4a; outline-offset: 2px; }
+
+  /* One escalation block instead of three overlapping ones. Order is
+     deliberate: what happened, what it means, what to do now. */
+  .escalation-card {
+    max-width: 85%;
+    background: #fff;
+    border-left: 3px solid #c77d17;
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #3b4a52;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+  }
+  .escalation-card .esc-title {
+    font-weight: 600;
+    color: #8a5a0b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+  .escalation-card .esc-case {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #6b7c85;
+  }
+  .escalation-card .esc-monitor {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #ececec;
+    font-size: 11px;
+    color: #54656f;
+  }
+
+  /* Emergency numbers as real one-tap links. 112 is visually primary
+     because in a crisis it is the only one that matters first. */
+  .emergency {
+    max-width: 85%;
+    background: #fff;
+    border-radius: 8px;
+    padding: 9px 11px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+  }
+  .emergency .em-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #54656f;
+    margin-bottom: 7px;
+  }
+  .em-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 46px;
+    background: #c62828;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 7px;
+  }
+  .em-primary:focus-visible { outline: 3px solid #1f6f4a; outline-offset: 2px; }
+  .em-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .em-item {
+    flex: 1 1 45%;
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5px 8px;
+    background: #f2f5f6;
+    border-radius: 7px;
+    text-decoration: none;
+    color: #1f2c33;
+  }
+  .em-item:focus-visible { outline: 2px solid #1f6f4a; outline-offset: 2px; }
+  .em-item .em-label { font-size: 10.5px; color: #54656f; }
+  .em-item .em-number { font-size: 14px; font-weight: 600; }
+
+  /* Which language the reporter is writing in, next to where they
+     type it rather than buried in the header. */
+  .composer-lang {
+    font-size: 10px;
+    color: #6b7c85;
+    text-align: center;
+    padding: 2px 0 4px;
+    background: #f0f2f5;
+  }
 </style>
 </head>
 <body>
@@ -350,26 +471,49 @@
       <div class="header-status" id="headerStatus">online</div>
     </div>
     <div class="header-icons">
-      <select id="langToggle" title="Interface language" style="font-size:13px;border:none;border-radius:6px;background:rgba(255,255,255,0.15);color:#fff;padding:2px 4px;">
-        <option value="en">EN</option>
-        <option value="hi">हिं</option>
-        <option value="te">తె</option>
+      <select
+        id="langToggle"
+        aria-label="Interface language"
+        style="font-size:13px;border:none;border-radius:6px;background:rgba(255,255,255,0.15);color:#fff;padding:4px;min-height:32px;"
+      >
+        <option value="en">English</option>
+        <option value="hi">हिंदी</option>
+        <option value="te">తెలుగు</option>
         <option value="ur">اردو</option>
-        <option value="bn">বাং</option>
+        <option value="bn">বাংলা</option>
       </select>
-      <span>📹</span>
-      <span>📞</span>
-      <span onclick="window.location.href='/dashboard.html'" title="Open counsellor dashboard" style="cursor:pointer;">⋮</span>
+
+      <!-- The video icon was a bare <span> with no handler: a dead
+           control on a crisis screen, which someone in danger will tap
+           and get silence from. Removed. The phone icon now opens the
+           real emergency numbers from /call-options instead of doing
+           nothing. -->
+      <button
+        type="button"
+        id="headerCallButton"
+        onclick="showEmergencyNumbers()"
+        aria-label="Show emergency phone numbers"
+        style="background:none;border:none;color:#fff;font-size:17px;cursor:pointer;min-width:32px;min-height:32px;"
+      >📞</button>
     </div>
   </div>
 
-  <div class="chat" id="chat">
-    <div class="row sys">
-      <div class="sys-pill" id="sysDisclaimer"></div>
-    </div>
+  <div class="demo-bar">
+    <span aria-hidden="true">🔒</span>
+    <span class="demo-text" id="demoBarText"></span>
+    <button
+      type="button"
+      class="demo-link"
+      id="counsellorViewButton"
+      onclick="window.location.href='/dashboard.html'"
+    ></button>
   </div>
+
+  <div class="chat" id="chat"></div>
 
   <div class="disclaimer" id="disclaimer" style="display:none;"></div>
+
+  <div class="composer-lang" id="composerLang"></div>
 
   <div class="composer">
 
@@ -445,6 +589,18 @@
       typing: "typing…",
       disclaimer: "🔒 This is a concept demo. Messages are sent to Athena's safety pipeline — the same one the main app uses — not a real WhatsApp number.",
       placeholder: "Type a message",
+      statusLine: "Automated · replies in seconds",
+      demoBar: "Concept demo — real safety pipeline, not a real WhatsApp number.",
+      counsellorView: "Counsellor view",
+      uncertainTitle: "Sent for human review",
+      uncertainBody: "Athena wasn't confident it understood this, so a counsellor will read it.",
+      escalatedTitle: "Flagged for a counsellor",
+      escalatedBody: "This was assessed as needing urgent human attention.",
+      caseLogged: "Case #{id} logged",
+      noMonitor: "Nobody is monitoring this demo right now. If you need help today, call 14566 — or 112 if you are in danger.",
+      emergencyTitle: "If you need help now",
+      callEmergency: "Call 112 · Emergency",
+      writingIn: "Writing in English",
     },
     hi: {
       headerName: "एथेना हेल्पलाइन",
@@ -452,6 +608,18 @@
       typing: "टाइप कर रहे हैं…",
       disclaimer: "🔒 यह एक कॉन्सेप्ट डेमो है। संदेश एथेना की सुरक्षा प्रणाली को भेजे जाते हैं — वही जो मुख्य ऐप उपयोग करता है — यह असली व्हाट्सऐप नंबर नहीं है।",
       placeholder: "संदेश टाइप करें",
+      statusLine: "स्वचालित · कुछ ही सेकंड में उत्तर",
+      demoBar: "कॉन्सेप्ट डेमो — असली सुरक्षा प्रणाली, पर असली व्हाट्सऐप नंबर नहीं।",
+      counsellorView: "काउंसलर व्यू",
+      uncertainTitle: "मानवीय समीक्षा के लिए भेजा गया",
+      uncertainBody: "एथेना इसे पूरी तरह नहीं समझ पाई, इसलिए एक काउंसलर इसे पढ़ेंगे।",
+      escalatedTitle: "काउंसलर के लिए चिह्नित",
+      escalatedBody: "इसे तत्काल मानवीय ध्यान की आवश्यकता के रूप में आँका गया है।",
+      caseLogged: "केस #{id} दर्ज",
+      noMonitor: "अभी इस डेमो को कोई नहीं देख रहा है। आज मदद चाहिए तो 14566 पर कॉल करें — या खतरे में हों तो 112।",
+      emergencyTitle: "अगर अभी मदद चाहिए",
+      callEmergency: "112 पर कॉल करें · आपातकाल",
+      writingIn: "हिंदी में लिख रहे हैं",
     },
     te: {
       headerName: "ఎథీనా హెల్ప్‌లైన్",
@@ -459,6 +627,18 @@
       typing: "టైప్ చేస్తున్నారు…",
       disclaimer: "🔒 ఇది ఒక కాన్సెప్ట్ డెమో. సందేశాలు ఎథీనా భద్రతా వ్యవస్థకు పంపబడతాయి — ప్రధాన యాప్ ఉపయోగించే అదే వ్యవస్థ — ఇది నిజమైన WhatsApp నంబర్ కాదు.",
       placeholder: "సందేశం టైప్ చేయండి",
+      statusLine: "స్వయంచాలకం · సెకన్లలో సమాధానం",
+      demoBar: "కాన్సెప్ట్ డెమో — నిజమైన భద్రతా వ్యవస్థ, కానీ నిజమైన WhatsApp నంబర్ కాదు.",
+      counsellorView: "కౌన్సెలర్ వ్యూ",
+      uncertainTitle: "మానవ సమీక్షకు పంపబడింది",
+      uncertainBody: "ఎథీనా దీన్ని పూర్తిగా అర్థం చేసుకోలేకపోయింది, కాబట్టి ఒక కౌన్సెలర్ చదువుతారు.",
+      escalatedTitle: "కౌన్సెలర్ కోసం గుర్తించబడింది",
+      escalatedBody: "దీనికి తక్షణ మానవ శ్రద్ధ అవసరమని అంచనా వేయబడింది.",
+      caseLogged: "కేసు #{id} నమోదైంది",
+      noMonitor: "ప్రస్తుతం ఈ డెమోను ఎవరూ పర్యవేక్షించడం లేదు. ఈ రోజు సహాయం కావాలంటే 14566కు కాల్ చేయండి — ప్రమాదంలో ఉంటే 112.",
+      emergencyTitle: "ఇప్పుడే సహాయం కావాలంటే",
+      callEmergency: "112కు కాల్ చేయండి · అత్యవసరం",
+      writingIn: "తెలుగులో రాస్తున్నారు",
     },
     ur: {
       headerName: "ایتھینا ہیلپ لائن",
@@ -466,6 +646,18 @@
       typing: "ٹائپ کر رہے ہیں…",
       disclaimer: "🔒 یہ ایک تصوراتی ڈیمو ہے۔ پیغامات ایتھینا کے حفاظتی نظام کو بھیجے جاتے ہیں — وہی جو مرکزی ایپ استعمال کرتی ہے — یہ حقیقی واٹس ایپ نمبر نہیں ہے۔",
       placeholder: "پیغام ٹائپ کریں",
+      statusLine: "خودکار · چند سیکنڈ میں جواب",
+      demoBar: "تصوراتی ڈیمو — اصل حفاظتی نظام، مگر اصل واٹس ایپ نمبر نہیں۔",
+      counsellorView: "کونسلر ویو",
+      uncertainTitle: "انسانی جائزے کے لیے بھیجا گیا",
+      uncertainBody: "ایتھینا اسے پوری طرح نہیں سمجھ سکی، اس لیے ایک کونسلر اسے پڑھے گا۔",
+      escalatedTitle: "کونسلر کے لیے نشان زد",
+      escalatedBody: "اسے فوری انسانی توجہ کی ضرورت کے طور پر جانچا گیا ہے۔",
+      caseLogged: "کیس #{id} درج",
+      noMonitor: "ابھی اس ڈیمو کو کوئی نہیں دیکھ رہا۔ آج مدد چاہیے تو 14566 پر کال کریں — یا خطرے میں ہوں تو 112۔",
+      emergencyTitle: "اگر ابھی مدد چاہیے",
+      callEmergency: "112 پر کال کریں · ہنگامی",
+      writingIn: "اردو میں لکھ رہے ہیں",
     },
     bn: {
       headerName: "এথীনা হেল্পলাইন",
@@ -473,11 +665,25 @@
       typing: "টাইপ করছে…",
       disclaimer: "🔒 এটি একটি ধারণাগত ডেমো। বার্তাগুলি এথীনার নিরাপত্তা ব্যবস্থায় পাঠানো হয় — মূল অ্যাপ যা ব্যবহার করে সেটিই — এটি প্রকৃত হোয়াটসঅ্যাপ নম্বর নয়।",
       placeholder: "বার্তা লিখুন",
+      statusLine: "স্বয়ংক্রিয় · কয়েক সেকেন্ডে উত্তর",
+      demoBar: "ধারণাগত ডেমো — প্রকৃত নিরাপত্তা ব্যবস্থা, তবে আসল হোয়াটসঅ্যাপ নম্বর নয়।",
+      counsellorView: "কাউন্সেলর ভিউ",
+      uncertainTitle: "মানব পর্যালোচনার জন্য পাঠানো হয়েছে",
+      uncertainBody: "এথীনা এটি সম্পূর্ণ বুঝতে পারেনি, তাই একজন কাউন্সেলর এটি পড়বেন।",
+      escalatedTitle: "কাউন্সেলরের জন্য চিহ্নিত",
+      escalatedBody: "এটির জরুরি মানবিক মনোযোগ প্রয়োজন বলে মূল্যায়ন করা হয়েছে।",
+      caseLogged: "কেস #{id} নথিভুক্ত",
+      noMonitor: "এই মুহূর্তে কেউ এই ডেমো পর্যবেক্ষণ করছে না। আজ সাহায্য দরকার হলে 14566-এ কল করুন — বিপদে থাকলে 112।",
+      emergencyTitle: "এখনই সাহায্য দরকার হলে",
+      callEmergency: "112-এ কল করুন · জরুরি",
+      writingIn: "বাংলায় লিখছেন",
     },
   };
 
   const langToggle = document.getElementById("langToggle");
-  const sysDisclaimer = document.getElementById("sysDisclaimer");
+  const demoBarText = document.getElementById("demoBarText");
+  const counsellorViewButton = document.getElementById("counsellorViewButton");
+  const composerLang = document.getElementById("composerLang");
 
   let currentUiLang = "en";
 
@@ -486,9 +692,17 @@
     const strings = UI_STRINGS[currentUiLang];
     document.querySelector(".header-name").textContent = strings.headerName;
     headerStatus.textContent =
-      headerStatus.dataset.state === "typing" ? strings.typing : strings.online;
-    sysDisclaimer.textContent = strings.disclaimer;
+      headerStatus.dataset.state === "typing" ? strings.typing : strings.statusLine;
+    demoBarText.textContent = strings.demoBar;
+    counsellorViewButton.textContent = strings.counsellorView;
+    counsellorViewButton.setAttribute("aria-label", strings.counsellorView);
+    composerLang.textContent = strings.writingIn;
     input.placeholder = strings.placeholder;
+
+    // Urdu is right-to-left. Without this the composer, the demo bar
+    // and every system message read in the wrong direction.
+    document.documentElement.lang = currentUiLang;
+    document.documentElement.dir = currentUiLang === "ur" ? "rtl" : "ltr";
     try {
       localStorage.setItem("athena_ui_lang", currentUiLang);
     } catch (error) {
@@ -561,6 +775,101 @@
     scrollChat();
   }
 
+  // One block instead of three. Previously an uncertain, escalated
+  // case produced a badge inside the bubble, a separate "Case #N
+  // logged - Escalated - flagged for human review" pill, and a third
+  // pill of run-together phone numbers -- the same fact told three
+  // ways in three visual styles, for someone in distress to decode.
+  //
+  // Order here is deliberate: what happened, then what it means, then
+  // what to do right now.
+  function addEscalationCard(data, understoodConfidently) {
+    const strings = UI_STRINGS[currentUiLang];
+
+    const uncertain = !understoodConfidently;
+    const title = uncertain ? strings.uncertainTitle : strings.escalatedTitle;
+    const body = uncertain ? strings.uncertainBody : strings.escalatedBody;
+
+    const caseLine = data.case_id
+      ? `<div class="esc-case">${escapeHTML(
+          strings.caseLogged.replace("{id}", data.case_id)
+        )}</div>`
+      : "";
+
+    const row = document.createElement("div");
+    row.className = "row sys";
+    row.innerHTML =
+      `<div class="escalation-card" role="status">` +
+        `<div class="esc-title"><span aria-hidden="true">&#9873;</span>` +
+        `${escapeHTML(title)}</div>` +
+        `<div>${escapeHTML(body)}</div>` +
+        caseLine +
+        `<div class="esc-monitor">${escapeHTML(strings.noMonitor)}</div>` +
+      `</div>`;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  // Real one-tap tel: links with 44px+ targets, rather than four
+  // numbers flattened into a single line of unclickable text. 112 is
+  // primary because in a crisis it is the only one that matters first.
+  function renderEmergencyBlock(options) {
+    const strings = UI_STRINGS[currentUiLang];
+
+    const primary =
+      options.find((option) => String(option.phone).trim() === "112") || options[0];
+    const rest = options.filter((option) => option !== primary);
+
+    const items = rest
+      .map(
+        (option) =>
+          `<a class="em-item" href="tel:${encodeURIComponent(option.phone)}" ` +
+          `aria-label="${escapeHTML(option.label)}, ${escapeHTML(option.phone)}">` +
+          `<span class="em-label">${escapeHTML(option.label)}</span>` +
+          `<span class="em-number">${escapeHTML(option.phone)}</span></a>`
+      )
+      .join("");
+
+    const row = document.createElement("div");
+    row.className = "row sys";
+    row.innerHTML =
+      `<div class="emergency">` +
+        `<div class="em-title">${escapeHTML(strings.emergencyTitle)}</div>` +
+        (primary
+          ? `<a class="em-primary" href="tel:${encodeURIComponent(primary.phone)}" ` +
+            `aria-label="${escapeHTML(strings.callEmergency)}">` +
+            `<span aria-hidden="true">&#128222;</span>` +
+            `${escapeHTML(strings.callEmergency)}</a>`
+          : "") +
+        `<div class="em-list">${items}</div>` +
+      `</div>`;
+    chat.appendChild(row);
+    scrollChat();
+  }
+
+  // Wired to the header phone icon, which previously did nothing at
+  // all. /call-options is a hardcoded, always-available real source --
+  // it never depends on what retrieval happened to find.
+  async function showEmergencyNumbers() {
+    try {
+      const response = await fetch("/call-options");
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const options = await response.json();
+      if (options && options.length) {
+        renderEmergencyBlock(options);
+        return;
+      }
+    } catch (error) {
+      console.error("Could not load call options:", error);
+    }
+    // Never leave the tap unanswered. 112 and 14566 are constants, not
+    // something this endpoint has to be reachable to know.
+    renderEmergencyBlock([
+      { label: "Emergency", phone: "112" },
+      { label: "NHAA helpline", phone: "14566" },
+    ]);
+  }
+
   function addSystemPill(text) {
     const row = document.createElement("div");
     row.className = "row sys";
@@ -588,7 +897,7 @@
     const row = document.getElementById("typingRow");
     if (row) row.remove();
     headerStatus.dataset.state = "online";
-    headerStatus.textContent = UI_STRINGS[currentUiLang].online;
+    headerStatus.textContent = UI_STRINGS[currentUiLang].statusLine;
   }
 
   // Shared response handling for both the typed-message flow and the
@@ -617,10 +926,11 @@
 
     addIncoming(data.response, badgeTier);
 
-    if (data.case_id) {
+    if (data.escalate || !understoodConfidently) {
+      addEscalationCard(data, understoodConfidently);
+    } else if (data.case_id) {
       addSystemPill(
-        `Case #${data.case_id} logged — ${data.case_status}` +
-        (data.escalate ? " · flagged for human review" : "")
+        UI_STRINGS[currentUiLang].caseLogged.replace("{id}", data.case_id)
       );
     } else if (data.reason) {
       addSystemPill(data.reason);
@@ -633,19 +943,8 @@
     // exist. Surface those separately here from /call-options (a
     // hardcoded, always-available, real source) rather than loosening
     // what the AI itself is allowed to claim.
-    if (riskTier === "Critical" || riskTier === "High") {
-      try {
-        const callOptionsResponse = await fetch("/call-options");
-        const callOptions = await callOptionsResponse.json();
-        if (callOptions && callOptions.length) {
-          const lines = callOptions
-            .map((option) => `${option.label}: ${option.phone}`)
-            .join(" · ");
-          addSystemPill(`📞 ${lines}`);
-        }
-      } catch (error) {
-        console.error("Could not load call options:", error);
-      }
+    if (riskTier === "Critical" || riskTier === "High" || !understoodConfidently) {
+      await showEmergencyNumbers();
     }
   }
 
