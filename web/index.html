@@ -450,6 +450,39 @@
 
   /* Which language the reporter is writing in, next to where they
      type it rather than buried in the header. */
+  .em-confirm {
+    margin-top: 8px;
+    padding: 9px;
+    background: #fff6f6;
+    border: 1px solid #f0c9c9;
+    border-radius: 8px;
+  }
+  .em-confirm .em-confirm-q {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #8c1f1f;
+    margin-bottom: 8px;
+  }
+  .em-confirm-actions { display: flex; gap: 7px; }
+  .em-confirm-actions > * {
+    flex: 1;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-family: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+  }
+  .em-confirm-yes { background: #c62828; color: #fff; }
+  .em-confirm-no { background: #eceff1; color: #37474f; }
+  .em-confirm-yes:focus-visible,
+  .em-confirm-no:focus-visible { outline: 3px solid #1f6f4a; outline-offset: 2px; }
+
   .composer-lang {
     font-size: 10px;
     color: #6b7c85;
@@ -589,6 +622,9 @@
       typing: "typing…",
       disclaimer: "🔒 This is a concept demo. Messages are sent to Athena's safety pipeline — the same one the main app uses — not a real WhatsApp number.",
       placeholder: "Type a message",
+      confirmCallTitle: "Call {label} on {phone}?",
+      confirmCallNow: "Yes, call now",
+      confirmCallCancel: "Cancel",
       statusLine: "Automated · replies in seconds",
       demoBar: "Concept demo — real safety pipeline, not a real WhatsApp number.",
       counsellorView: "Counsellor view",
@@ -608,6 +644,9 @@
       typing: "टाइप कर रहे हैं…",
       disclaimer: "🔒 यह एक कॉन्सेप्ट डेमो है। संदेश एथेना की सुरक्षा प्रणाली को भेजे जाते हैं — वही जो मुख्य ऐप उपयोग करता है — यह असली व्हाट्सऐप नंबर नहीं है।",
       placeholder: "संदेश टाइप करें",
+      confirmCallTitle: "{label} को {phone} पर कॉल करें?",
+      confirmCallNow: "हाँ, अभी कॉल करें",
+      confirmCallCancel: "रद्द करें",
       statusLine: "स्वचालित · कुछ ही सेकंड में उत्तर",
       demoBar: "कॉन्सेप्ट डेमो — असली सुरक्षा प्रणाली, पर असली व्हाट्सऐप नंबर नहीं।",
       counsellorView: "काउंसलर व्यू",
@@ -627,6 +666,9 @@
       typing: "టైప్ చేస్తున్నారు…",
       disclaimer: "🔒 ఇది ఒక కాన్సెప్ట్ డెమో. సందేశాలు ఎథీనా భద్రతా వ్యవస్థకు పంపబడతాయి — ప్రధాన యాప్ ఉపయోగించే అదే వ్యవస్థ — ఇది నిజమైన WhatsApp నంబర్ కాదు.",
       placeholder: "సందేశం టైప్ చేయండి",
+      confirmCallTitle: "{label}కు {phone} నంబర్‌లో కాల్ చేయాలా?",
+      confirmCallNow: "అవును, ఇప్పుడే కాల్ చేయండి",
+      confirmCallCancel: "రద్దు చేయండి",
       statusLine: "స్వయంచాలకం · సెకన్లలో సమాధానం",
       demoBar: "కాన్సెప్ట్ డెమో — నిజమైన భద్రతా వ్యవస్థ, కానీ నిజమైన WhatsApp నంబర్ కాదు.",
       counsellorView: "కౌన్సెలర్ వ్యూ",
@@ -646,6 +688,9 @@
       typing: "ٹائپ کر رہے ہیں…",
       disclaimer: "🔒 یہ ایک تصوراتی ڈیمو ہے۔ پیغامات ایتھینا کے حفاظتی نظام کو بھیجے جاتے ہیں — وہی جو مرکزی ایپ استعمال کرتی ہے — یہ حقیقی واٹس ایپ نمبر نہیں ہے۔",
       placeholder: "پیغام ٹائپ کریں",
+      confirmCallTitle: "{label} کو {phone} پر کال کریں؟",
+      confirmCallNow: "ہاں، ابھی کال کریں",
+      confirmCallCancel: "منسوخ کریں",
       statusLine: "خودکار · چند سیکنڈ میں جواب",
       demoBar: "تصوراتی ڈیمو — اصل حفاظتی نظام، مگر اصل واٹس ایپ نمبر نہیں۔",
       counsellorView: "کونسلر ویو",
@@ -665,6 +710,9 @@
       typing: "টাইপ করছে…",
       disclaimer: "🔒 এটি একটি ধারণাগত ডেমো। বার্তাগুলি এথীনার নিরাপত্তা ব্যবস্থায় পাঠানো হয় — মূল অ্যাপ যা ব্যবহার করে সেটিই — এটি প্রকৃত হোয়াটসঅ্যাপ নম্বর নয়।",
       placeholder: "বার্তা লিখুন",
+      confirmCallTitle: "{label}-কে {phone} নম্বরে কল করবেন?",
+      confirmCallNow: "হ্যাঁ, এখনই কল করুন",
+      confirmCallCancel: "বাতিল করুন",
       statusLine: "স্বয়ংক্রিয় · কয়েক সেকেন্ডে উত্তর",
       demoBar: "ধারণাগত ডেমো — প্রকৃত নিরাপত্তা ব্যবস্থা, তবে আসল হোয়াটসঅ্যাপ নম্বর নয়।",
       counsellorView: "কাউন্সেলর ভিউ",
@@ -823,10 +871,13 @@
     const items = rest
       .map(
         (option) =>
-          `<a class="em-item" href="tel:${encodeURIComponent(option.phone)}" ` +
+          `<button type="button" class="em-item" ` +
+          `onclick="confirmCall(this, ${JSON.stringify(
+            escapeHTML(option.label)
+          )}, ${JSON.stringify(escapeHTML(option.phone))})" ` +
           `aria-label="${escapeHTML(option.label)}, ${escapeHTML(option.phone)}">` +
           `<span class="em-label">${escapeHTML(option.label)}</span>` +
-          `<span class="em-number">${escapeHTML(option.phone)}</span></a>`
+          `<span class="em-number">${escapeHTML(option.phone)}</span></button>`
       )
       .join("");
 
@@ -836,14 +887,59 @@
       `<div class="emergency">` +
         `<div class="em-title">${escapeHTML(strings.emergencyTitle)}</div>` +
         (primary
-          ? `<a class="em-primary" href="tel:${encodeURIComponent(primary.phone)}" ` +
+          ? `<button type="button" class="em-primary" ` +
+            `onclick="confirmCall(this, ${JSON.stringify(
+              escapeHTML(primary.label)
+            )}, ${JSON.stringify(escapeHTML(primary.phone))})" ` +
             `aria-label="${escapeHTML(strings.callEmergency)}">` +
             `<span aria-hidden="true">&#128222;</span>` +
-            `${escapeHTML(strings.callEmergency)}</a>`
+            `${escapeHTML(strings.callEmergency)}</button>`
           : "") +
         `<div class="em-list">${items}</div>` +
+        `<div class="em-confirm-slot"></div>` +
       `</div>`;
     chat.appendChild(row);
+    scrollChat();
+  }
+
+  // Ask before dialling.
+  //
+  // /call-options' own contract says so, in as many words: "This
+  // endpoint only returns numbers -- it never places a call. The
+  // frontend should always show an explicit confirmation step before
+  // turning any of these into a `tel:` link, so a live demo never
+  // accidentally dials a real number." A bare tel: link ignored that,
+  // and 112 reaches real emergency services -- a judge tapping it
+  // during a demo places a real call to the police.
+  //
+  // So the numbers are buttons, and the tel: link only exists after
+  // someone has confirmed they meant it. The confirmation is a real
+  // anchor rather than a scripted dial, so it still works for keyboard
+  // and screen-reader users and still shows the number it will call.
+  function confirmCall(button, label, phone) {
+    const strings = UI_STRINGS[currentUiLang];
+    const block = button.closest(".emergency");
+    const slot = block ? block.querySelector(".em-confirm-slot") : null;
+    if (!slot) return;
+
+    const question = strings.confirmCallTitle
+      .replace("{label}", label)
+      .replace("{phone}", phone);
+
+    slot.innerHTML =
+      `<div class="em-confirm" role="alertdialog" aria-live="assertive">` +
+        `<div class="em-confirm-q">${escapeHTML(question)}</div>` +
+        `<div class="em-confirm-actions">` +
+          `<a class="em-confirm-yes" href="tel:${encodeURIComponent(phone)}">` +
+            `${escapeHTML(strings.confirmCallNow)}</a>` +
+          `<button type="button" class="em-confirm-no" ` +
+            `onclick="this.closest('.em-confirm-slot').innerHTML='';">` +
+            `${escapeHTML(strings.confirmCallCancel)}</button>` +
+        `</div>` +
+      `</div>`;
+
+    const confirmButton = slot.querySelector(".em-confirm-yes");
+    if (confirmButton) confirmButton.focus();
     scrollChat();
   }
 
