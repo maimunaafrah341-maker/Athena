@@ -982,7 +982,64 @@ SIGNAL_EXAMPLES = {
 
         # Romanized Bengali
         "Keu amar jater karone jonoshommukhe amake opoman koreche.",
-        "Amar jater karone amake dhukte deya hoyni."
+        "Amar jater karone amake dhukte deya hoyni.",
+
+        # ------------------------------------------------------------
+        # Caste slur COMBINED WITH physical violence. Added 2026-09-03
+        # after live testing showed this whole class failing in every
+        # language except English.
+        #
+        # The anchors above cover two situations -- public humiliation
+        # and denial of entry -- in all five languages. Neither
+        # involves being hit. But SIGNAL_HARD_NEGATIVES for this
+        # signal deliberately contains "my husband is beating me" in
+        # all five languages, to stop domestic violence pulling SC/ST
+        # citations onto itself. Net result: a report of a caste slur
+        # AND a beating matched the violence negative more strongly
+        # than any caste positive, and the signal lost.
+        #
+        # Measured before this change: "My neighbour abused me using
+        # my caste name and beat me" fired caste_based_motive in
+        # English and in no other language -- so kg.py attached no
+        # SC/ST Act provisions to exactly the scenario this project
+        # exists for, unless the reporter happened to write in English.
+        #
+        # What these anchors teach is not "was there violence" --
+        # both classes have violence -- but "was caste named as the
+        # reason for it". Written as paraphrases rather than the
+        # sentences that found the bug, so the fix has to generalise
+        # instead of memorising the test.
+        # ------------------------------------------------------------
+        "They hurled casteist abuse at me and then assaulted me.",
+        "Upper caste men attacked me and used caste slurs while beating me.",
+
+        "उन्होंने मुझे जातिसूचक गाली दी और मारपीट की।",
+        "गाँव वालों ने मेरी जाति को लेकर अपशब्द कहे और मुझ पर हमला किया।",
+
+        # Romanized Hindi
+        "Unhone mujhe jaati suchak gaali di aur maarpeet ki.",
+        "Gaon walon ne meri jaati ko lekar apshabd kahe aur hamla kiya.",
+
+        "వాళ్ళు నా కులం పేరుతో తిట్టి నన్ను కొట్టారు.",
+        "అగ్రవర్ణాల వాళ్ళు కుల దూషణ చేస్తూ నాపై దాడి చేశారు.",
+
+        # Romanized Telugu
+        "Vaallu naa kulam peruto titti nannu kottaru.",
+        "Agravarnala vaallu kula dushana chestu naapai daadi chesaru.",
+
+        "انہوں نے مجھے ذات کا طعنہ دے کر گالیاں دیں اور مارا۔",
+        "اونچی ذات والوں نے ذات کے نام پر گالی دی اور مجھ پر حملہ کیا۔",
+
+        # Romanized Urdu
+        "Unhone mujhe zaat ka taana de kar gaaliyan deen aur maara.",
+        "Oonchi zaat walon ne zaat ke naam par gaali di aur mujh par hamla kiya.",
+
+        "তারা আমাকে জাত তুলে গালাগালি করেছে এবং মারধর করেছে।",
+        "উঁচু জাতের লোকেরা জাত নিয়ে গালি দিয়ে আমার উপর হামলা করেছে।",
+
+        # Romanized Bengali
+        "Tara amake jaat tule galagali koreche ebong mardhor koreche.",
+        "Unchu jater lokera jaat niye gali diye amar upor hamla koreche."
     ],
 
     # Deliberately kept to direct, unambiguous statements of wanting
@@ -1706,15 +1763,31 @@ def detect_script(text, language):
     types/reads it in Latin letters (common on phone keyboards).
     """
 
-    if language == "hi":
-        has_native = any(0x0900 <= ord(char) <= 0x097F for char in text)
-        return "native" if has_native else "romanized"
+    # Urdu and Bengali reached detect_language() later than Hindi and
+    # Telugu and this function was never extended with them, so plainly
+    # native Perso-Arabic and Bengali text reported as "latin" and
+    # every Bengali or Urdu case record carried the wrong script.
+    # Confirmed live 2026-09-03.
+    NATIVE_RANGES = {
+        "hi": [(0x0900, 0x097F)],                      # Devanagari
+        "te": [(0x0C00, 0x0C7F)],                      # Telugu
+        "bn": [(0x0980, 0x09FF)],                      # Bengali
+        "ur": [(0x0600, 0x06FF), (0x0750, 0x077F),     # Perso-Arabic,
+               (0xFB50, 0xFDFF), (0xFE70, 0xFEFF)],    # + Urdu forms
+    }
 
-    if language == "te":
-        has_native = any(0x0C00 <= ord(char) <= 0x0C7F for char in text)
-        return "native" if has_native else "romanized"
+    ranges = NATIVE_RANGES.get(language)
 
-    return "latin"
+    if not ranges:
+        return "latin"
+
+    has_native = any(
+        low <= ord(char) <= high
+        for char in text
+        for low, high in ranges
+    )
+
+    return "native" if has_native else "romanized"
 
 
 def understand(text, language=None):
