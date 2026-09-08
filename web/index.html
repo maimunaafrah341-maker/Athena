@@ -431,6 +431,17 @@
     margin-bottom: 7px;
   }
   .em-primary:focus-visible { outline: 3px solid #1f6f4a; outline-offset: 2px; }
+  /* The helpline this project is for. Same weight as 112 but not
+     the same colour -- one is an emergency, the other is support. */
+  .em-helpline {
+    background: #1f6f4a;
+  }
+  .em-hint {
+    margin: 9px 0 0;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: #6b7c85;
+  }
   .em-list { display: flex; flex-wrap: wrap; gap: 6px; }
   .em-item {
     flex: 1 1 45%;
@@ -622,6 +633,8 @@
       typing: "typing…",
       disclaimer: "🔒 This is a concept demo. Messages are sent to Athena's safety pipeline — the same one the main app uses — not a real WhatsApp number.",
       placeholder: "Type a message",
+      dialHint: "Tapping a number opens your phone's dialler. Nothing is dialled until you confirm.",
+      callHelpline: "Call 14566 · Helpline",
       confirmCallTitle: "Call {label} on {phone}?",
       confirmCallNow: "Yes, call now",
       confirmCallCancel: "Cancel",
@@ -644,6 +657,8 @@
       typing: "टाइप कर रहे हैं…",
       disclaimer: "🔒 यह एक कॉन्सेप्ट डेमो है। संदेश एथेना की सुरक्षा प्रणाली को भेजे जाते हैं — वही जो मुख्य ऐप उपयोग करता है — यह असली व्हाट्सऐप नंबर नहीं है।",
       placeholder: "संदेश टाइप करें",
+      dialHint: "किसी नंबर को दबाने पर आपका फ़ोन डायलर खुलेगा। पुष्टि करने तक कोई कॉल नहीं लगेगी।",
+      callHelpline: "14566 पर कॉल करें · हेल्पलाइन",
       confirmCallTitle: "{label} को {phone} पर कॉल करें?",
       confirmCallNow: "हाँ, अभी कॉल करें",
       confirmCallCancel: "रद्द करें",
@@ -666,6 +681,8 @@
       typing: "టైప్ చేస్తున్నారు…",
       disclaimer: "🔒 ఇది ఒక కాన్సెప్ట్ డెమో. సందేశాలు ఎథీనా భద్రతా వ్యవస్థకు పంపబడతాయి — ప్రధాన యాప్ ఉపయోగించే అదే వ్యవస్థ — ఇది నిజమైన WhatsApp నంబర్ కాదు.",
       placeholder: "సందేశం టైప్ చేయండి",
+      dialHint: "నంబర్‌ను నొక్కితే మీ ఫోన్ డయలర్ తెరుచుకుంటుంది. మీరు నిర్ధారించే వరకు కాల్ వెళ్ళదు.",
+      callHelpline: "14566కు కాల్ చేయండి · హెల్ప్‌లైన్",
       confirmCallTitle: "{label}కు {phone} నంబర్‌లో కాల్ చేయాలా?",
       confirmCallNow: "అవును, ఇప్పుడే కాల్ చేయండి",
       confirmCallCancel: "రద్దు చేయండి",
@@ -688,6 +705,8 @@
       typing: "ٹائپ کر رہے ہیں…",
       disclaimer: "🔒 یہ ایک تصوراتی ڈیمو ہے۔ پیغامات ایتھینا کے حفاظتی نظام کو بھیجے جاتے ہیں — وہی جو مرکزی ایپ استعمال کرتی ہے — یہ حقیقی واٹس ایپ نمبر نہیں ہے۔",
       placeholder: "پیغام ٹائپ کریں",
+      dialHint: "کسی نمبر کو دبانے پر آپ کا فون ڈائلر کھلے گا۔ تصدیق تک کوئی کال نہیں لگے گی۔",
+      callHelpline: "14566 پر کال کریں · ہیلپ لائن",
       confirmCallTitle: "{label} کو {phone} پر کال کریں؟",
       confirmCallNow: "ہاں، ابھی کال کریں",
       confirmCallCancel: "منسوخ کریں",
@@ -710,6 +729,8 @@
       typing: "টাইপ করছে…",
       disclaimer: "🔒 এটি একটি ধারণাগত ডেমো। বার্তাগুলি এথীনার নিরাপত্তা ব্যবস্থায় পাঠানো হয় — মূল অ্যাপ যা ব্যবহার করে সেটিই — এটি প্রকৃত হোয়াটসঅ্যাপ নম্বর নয়।",
       placeholder: "বার্তা লিখুন",
+      dialHint: "নম্বরে চাপ দিলে আপনার ফোনের ডায়ালার খুলবে। নিশ্চিত না করা পর্যন্ত কল যাবে না।",
+      callHelpline: "14566-এ কল করুন · হেল্পলাইন",
       confirmCallTitle: "{label}-কে {phone} নম্বরে কল করবেন?",
       confirmCallNow: "হ্যাঁ, এখনই কল করুন",
       confirmCallCancel: "বাতিল করুন",
@@ -864,9 +885,30 @@
   function renderEmergencyBlock(options) {
     const strings = UI_STRINGS[currentUiLang];
 
+    // If the numbers are already the last thing on screen, scroll to
+    // them instead of adding a second identical block. The pipeline
+    // surfaces them automatically on a high-risk reply and the header
+    // phone button surfaces them on demand -- doing both in one turn
+    // stacked two copies, which reads as a glitch at exactly the
+    // moment the screen needs to look dependable.
+    const last = chat.lastElementChild;
+
+    if (last && last.querySelector && last.querySelector(".emergency")) {
+      scrollChat();
+      return;
+    }
+
+    // Two featured numbers, not one. 112 is for immediate danger;
+    // 14566 is this helpline, and leaving it in the small grid made
+    // Athena the only service on the list not offering its own number
+    // prominently -- when it was on the list at all.
     const primary =
       options.find((option) => String(option.phone).trim() === "112") || options[0];
-    const rest = options.filter((option) => option !== primary);
+    const helpline =
+      options.find((option) => String(option.phone).trim() === "14566") || null;
+    const rest = options.filter(
+      (option) => option !== primary && option !== helpline
+    );
 
     const items = rest
       .map(
@@ -895,7 +937,17 @@
             `<span aria-hidden="true">&#128222;</span>` +
             `${escapeHTML(strings.callEmergency)}</button>`
           : "") +
+        (helpline
+          ? `<button type="button" class="em-primary em-helpline" ` +
+            `onclick="confirmCall(this, ${JSON.stringify(
+              escapeHTML(helpline.label)
+            )}, ${JSON.stringify(escapeHTML(helpline.phone))})" ` +
+            `aria-label="${escapeHTML(strings.callHelpline)}">` +
+            `<span aria-hidden="true">&#128222;</span>` +
+            `${escapeHTML(strings.callHelpline)}</button>`
+          : "") +
         `<div class="em-list">${items}</div>` +
+        `<p class="em-hint">${escapeHTML(strings.dialHint)}</p>` +
         `<div class="em-confirm-slot"></div>` +
       `</div>`;
     chat.appendChild(row);

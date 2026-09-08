@@ -4438,3 +4438,18 @@ table tbody tr:hover {
 
     white-space: nowrap;
 }
+
+/* Feedback after an explicit "Save to case" on a reply draft. */
+.reply-save-status {
+    margin-top: 7px;
+
+    font-size: 11px;
+
+    line-height: 1.45;
+
+    color: #2f6b4f;
+}
+
+.reply-save-status.is-error {
+    color: #a8332f;
+}

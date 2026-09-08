@@ -2152,9 +2152,17 @@ function showCaseBrief(brief) {
                                 >
                                     ${escapeHTML(t("brief.translate"))}
                                 </button>
+                                <button
+                                    type="button"
+                                    id="saveReplyButton"
+                                    class="secondary-button"
+                                >
+                                    ${escapeHTML(t("brief.saveDraft"))}
+                                </button>
                             </div>
 
                             <div id="replyDraftOutput" class="reply-output" hidden></div>
+                            <div id="replySaveStatus" class="reply-save-status" role="status" aria-live="polite" hidden></div>
 
                         </div>
                       `
@@ -2437,6 +2445,80 @@ function showCaseBrief(brief) {
        not reload the brief afterwards: the draft is not case data and
        there is nothing new on the server to fetch. */
 
+    /* Saving a draft is deliberately an explicit action, not an
+       autosave. The translate endpoint persists nothing on purpose --
+       a draft a counsellor is still composing is not a case record,
+       and writing every keystroke into a file that gets handed to
+       police and courts is a different thing entirely. That objection
+       is about writing without being asked; it does not apply once
+       the counsellor presses a button that says "Save to case".
+
+       Saved through the notes endpoint that already exists, and
+       prefixed so the case file can never be read as evidence that a
+       message was delivered. Athena has no send path to a reporter. */
+    overlay
+        .querySelector("#saveReplyButton")
+        ?.addEventListener("click", async () => {
+
+            const button = overlay.querySelector("#saveReplyButton");
+            const input = overlay.querySelector("#replyDraftInput");
+            const output = overlay.querySelector("#replyDraftOutput");
+            const status = overlay.querySelector("#replySaveStatus");
+
+            const text = input?.value.trim();
+
+            if (!text || !status) return;
+
+            const translation =
+                output && !output.hidden && !output.classList.contains("is-error")
+                    ? output.textContent.trim()
+                    : "";
+
+            const note =
+                `${t("brief.draftPrefix")}: ${text}` +
+                (translation ? `
+${t("brief.translationLabel")}: ${translation}` : "");
+
+            button.disabled = true;
+            status.hidden = false;
+            status.classList.remove("is-error");
+            status.textContent = t("brief.saving");
+
+            try {
+
+                const response = await fetch(
+                    `${API_BASE_URL}/cases/${brief.case_id}/notes`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-API-Key": ADMIN_API_KEY
+                        },
+                        body: JSON.stringify({ note: note })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                status.textContent = t("brief.savedToCase");
+
+            } catch (error) {
+
+                console.error("Could not save reply draft:", error);
+                status.classList.add("is-error");
+                status.textContent = t("brief.saveFailed");
+
+            } finally {
+
+                button.disabled = false;
+
+            }
+
+        });
+
+
     overlay
         .querySelector("#translateReplyButton")
         ?.addEventListener("click", async () => {
@@ -2450,7 +2532,7 @@ function showCaseBrief(brief) {
             if (!text || !output) return;
 
             button.disabled = true;
-            button.textContent = "Translating...";
+            button.textContent = t("brief.translating");
 
             output.hidden = false;
             output.textContent = t("brief.translating");

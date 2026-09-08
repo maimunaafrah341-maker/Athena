@@ -135,11 +135,23 @@ def find_nearby_help(latitude, longitude, radius_km=3, limit_per_type=5):
 # police-station numbers come from live OpenStreetMap data rather
 # than being invented.
 
+# Ordered by what a person in danger should reach for first, not by
+# how well known the number is. 112 is unconditional; 14566 is the
+# helpline this entire project is built for and was missing from this
+# list until 2026-09-08, so Athena spent its whole life offering
+# people every national number except its own.
+#
+# KIRAN is here because SIH26093 is a stress and trauma problem
+# statement: it asks the system to detect suicidal ideation and
+# recommend counselling, and a system that detects it while offering
+# only police numbers has identified a crisis and routed it nowhere.
 NATIONAL_HELPLINES = [
     {"label": "Emergency (Police / Fire / Ambulance)", "phone": "112", "source": "national"},
+    {"label": "National Helpline Against Atrocities", "phone": "14566", "source": "national"},
     {"label": "Police", "phone": "100", "source": "national"},
     {"label": "Women's Helpline", "phone": "181", "source": "national"},
     {"label": "Childline (child in distress)", "phone": "1098", "source": "national"},
+    {"label": "KIRAN mental health support", "phone": "1800-599-0019", "source": "national"},
 ]
 
 

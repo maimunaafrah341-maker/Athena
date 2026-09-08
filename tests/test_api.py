@@ -271,3 +271,28 @@ def test_map_reports_its_own_suppression():
     assert "suppressed" in body
     assert "min_group_size" in body
     assert body["min_group_size"] >= 3
+
+
+def test_the_helpline_offers_its_own_number():
+    """
+    14566 was missing from NATIONAL_HELPLINES until 2026-09-08, so
+    Athena offered a person in danger every national number except the
+    one this project exists to serve.
+    """
+
+    numbers = {option["phone"] for option in client.get("/call-options").json()}
+
+    assert "14566" in numbers, "the NHAA helpline is not offered to reporters"
+    assert "112" in numbers
+
+
+def test_mental_health_support_is_offered():
+    """
+    SIH26093 asks the system to detect suicidal ideation and recommend
+    counselling. Detecting it while offering only police numbers is
+    identifying a crisis and routing it nowhere.
+    """
+
+    numbers = {option["phone"] for option in client.get("/call-options").json()}
+
+    assert "1800-599-0019" in numbers, "KIRAN is not offered"
