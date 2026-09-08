@@ -194,6 +194,16 @@ def init_db():
                     f"ALTER TABLE cases ADD COLUMN {column} {column_type}"
                 )
 
+        # Rows written before 2026-09-08 carry the old "Medium" tier.
+        # Renaming in risk.py alone would leave them unreachable behind
+        # a dashboard filter that now offers only "Moderate" -- they
+        # would still exist, and simply never appear in a filtered
+        # view, which is the worst kind of missing case. Idempotent, so
+        # it costs one no-op UPDATE per start once migrated.
+        connection.execute(
+            "UPDATE cases SET risk_tier = 'Moderate' WHERE risk_tier = 'Medium'"
+        )
+
         connection.execute("""
             CREATE TABLE IF NOT EXISTS case_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

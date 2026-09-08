@@ -311,9 +311,13 @@ DIVERGENCE_FLAG_THRESHOLD = 50
 
 def _tier(score):
     """Same cut points as risk.py's tiers, for consistent judge-facing
-    explanation ("same thresholds, different construct") -- just
-    "Moderate" instead of "Medium" to keep the two axes visually
-    distinct in the UI."""
+    explanation: same thresholds, different construct.
+
+    Both axes now use "Moderate". They previously differed -- risk.py
+    said "Medium" -- on the reasoning that distinct words kept the two
+    visually separate. In practice the frontend assumed they agreed and
+    two bugs followed, so the axes are named consistently and told
+    apart by their labels instead."""
 
     if score >= 60:
         return "Critical"

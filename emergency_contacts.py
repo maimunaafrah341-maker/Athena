@@ -57,7 +57,7 @@ def get_deterministic_contacts(risk_tier, svi_tier, is_sos=False, escalate=False
     happened to find.
 
     Layered rather than all-or-nothing: Critical risk (or SOS) gets the
-    full general emergency set; High/Medium get the women's helpline
+    full general emergency set; High/Moderate get the women's helpline
     numbers; svi_tier Critical/High adds KIRAN regardless of risk_tier,
     since a caller can be in acute psychological distress without an
     immediate physical-safety trigger (and this is exactly the path
@@ -88,7 +88,7 @@ def get_deterministic_contacts(risk_tier, svi_tier, is_sos=False, escalate=False
         ]
         contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
 
-    elif risk_tier == "Medium":
+    elif risk_tier == "Moderate":
         contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
 
     if svi_tier in ("Critical", "High"):

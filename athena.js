@@ -2636,11 +2636,7 @@ function updateDashboardStats() {
 
     const moderate =
         cases.filter(
-            // risk_tier's real value is "Medium", not "Moderate" --
-            // that's svi_tier's naming, a different field entirely
-            // (see svi.py). This was silently undercounting every
-            // medium-risk case out of every tier bucket.
-            item => item.risk === "Medium"
+            item => item.risk === "Moderate"
         ).length;
 
 
@@ -2715,7 +2711,7 @@ async function loadStats() {
             stats.by_risk_tier?.Low || 0;
 
         const moderate =
-            stats.by_risk_tier?.Medium || 0;
+            stats.by_risk_tier?.Moderate || 0;
 
 
         const pending =
@@ -3063,12 +3059,8 @@ function renderRiskMap() {
 
         }
 
-        else if (risk === "medium") {
+        else if (risk === "moderate") {
 
-            // risk_tier's real value from /cases/map is "Medium" --
-            // this was checking "moderate" (that's svi_tier's scale,
-            // a different axis), so every medium-risk pin was
-            // silently falling through to the green low-risk color.
             markerColor = "#a8763c";
 
         }
@@ -3279,7 +3271,7 @@ function renderRiskMap() {
 //
 // So: everything needing review first, ordered by severity, then
 // everything already reviewed, also ordered by severity.
-const ALERT_RISK_ORDER = { "Critical": 0, "High": 1, "Medium": 2, "Low": 3 };
+const ALERT_RISK_ORDER = { "Critical": 0, "High": 1, "Moderate": 2, "Low": 3 };
 
 function alertRank(item) {
     return ALERT_RISK_ORDER[item.risk] ?? 99;

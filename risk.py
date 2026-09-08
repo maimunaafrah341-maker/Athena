@@ -11,7 +11,7 @@ and assigns an explainable risk tier.
 Risk levels:
     Critical
     High
-    Medium
+    Moderate
     Low
 """
 
@@ -72,7 +72,7 @@ RESPONSE_PROTOCOL = {
         "route": "Standard Queue",
         "action": "Log Docket + SMS",
     },
-    "Medium": {
+    "Moderate": {
         "sla": "2 hours",
         "route": "Priority Queue",
         "action": "Supervisor Alert + DLSA Legal Aid",
@@ -216,7 +216,15 @@ def assess_risk(incident):
         risk_tier = "High"
 
     elif score >= 20:
-        risk_tier = "Medium"
+        # SIH26093 names the four categories Low / Moderate / High /
+        # Critical. This said "Medium" until 2026-09-08, which both
+        # missed the problem statement's own vocabulary and collided
+        # with svi.py, whose stress axis has always used "Moderate".
+        # The mismatch had already caused two live bugs in the
+        # dashboard: the tier counter undercounted every mid-risk case
+        # and the risk map drew mid-risk pins in the low-risk colour,
+        # because the frontend reasonably assumed the two axes agreed.
+        risk_tier = "Moderate"
 
     else:
         risk_tier = "Low"
