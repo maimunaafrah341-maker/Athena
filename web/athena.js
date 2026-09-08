@@ -3060,7 +3060,12 @@ async function loadRiskMap() {
     try {
 
         const response = await fetch(
-            `${API_BASE_URL}/cases/map`
+            `${API_BASE_URL}/cases/map`,
+            {
+                headers: {
+                    "X-API-Key": ADMIN_API_KEY
+                }
+            }
         );
 
         if (!response.ok) {

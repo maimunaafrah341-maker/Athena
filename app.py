@@ -1049,7 +1049,7 @@ def get_cases(status: Optional[str] = None):
     return list_cases(status=status)
 
 
-@app.get("/cases/map")
+@app.get("/cases/map", dependencies=[Depends(require_admin_key)])
 def get_case_map_locations():
     """
     Real pins for a safety map -- coordinates + incident type/risk
@@ -1057,6 +1057,19 @@ def get_case_map_locations():
     list_case_locations' docstring). Registered before
     /cases/{case_id} so "map" is never swallowed as a case_id path
     param.
+
+    Admin-gated since 2026-09-08. It was public, and its only caller
+    was already the counsellor dashboard's risk map, which sits behind
+    the key -- so nothing legitimate depended on it being open.
+
+    What was open was a per-case feed of atrocity reports: each pin
+    carries a case id, a timestamp, an incident type, a risk tier and
+    district-level coordinates. k-anonymity suppression keeps any one
+    district from being identifiable by its sparseness, but it does
+    not make an individual pin an aggregate -- with a time and a type
+    and a district, in a small district, that is re-identifying. The
+    docstring below promised "incident type/risk tier only" and the
+    payload was already carrying more than that.
 
     Pins from areas with fewer than MAP_MIN_GROUP_SIZE reports are
     withheld entirely (k-anonymity -- see _suppress_sparse_locations).
