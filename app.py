@@ -316,6 +316,25 @@ class SosRequest(BaseModel):
     channel: Optional[str] = DEFAULT_CHANNEL
 
 
+def _validate_report_text(text):
+    """
+    Reject an empty report before it reaches the pipeline.
+
+    Empty text used to answer 200 with an empty `response` and
+    `escalate: true` -- claiming an escalation with no case behind it,
+    since create_case is never reached. The web form guards against
+    this, so it was only visible to a direct API caller, which is
+    exactly who a documented contract is for. Matches _reusable/api.py,
+    which rejects the same input.
+    """
+
+    if not text or not text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="text must not be empty",
+        )
+
+
 def _validate_disclosure_level(disclosure_level):
     """
     Shared 400-on-typo check for /report and /sos -- same pattern as
@@ -388,6 +407,8 @@ def report(payload: ReportRequest):
     API_CONTRACT.md's low-disclosure section for what each level
     actually does and the follow-up tradeoff it carries.
     """
+
+    _validate_report_text(payload.text)
 
     _validate_disclosure_level(payload.disclosure_level)
 
