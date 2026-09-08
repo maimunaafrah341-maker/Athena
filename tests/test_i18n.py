@@ -153,3 +153,65 @@ def test_risk_tiers_match_the_problem_statement():
     assert "risk.medium" not in english, (
         'risk.medium is back; the problem statement says "Moderate"'
     )
+
+
+# ------------------------------------------------------------------
+# The case brief was built with English literals inline in athena.js
+# rather than through t(), so switching the dashboard to Telugu
+# translated the risk badge and left every heading around it in
+# English. The parity tests above could not catch it, because they
+# only check keys that are actually referenced -- a hardcoded string
+# references nothing.
+# ------------------------------------------------------------------
+
+BRIEF_LABELS = [
+    "CASE BRIEF",
+    "NHAA DOCKET",
+    "RISK LEVEL",
+    "RISK SCORE",
+    "SVI SCORE",
+    "ENGLISH TRANSLATION",
+    "AI ASSESSMENT",
+    "DRAFT A REPLY",
+    "STRESS / TRAUMA SIGNALS",
+    "LEGAL GUIDANCE",
+    "PROCEDURAL NEXT STEPS",
+    "PRIORITY QUEUE",
+]
+
+
+def _case_brief_source():
+    source = _read("web", "athena.js")
+    start = source.index("function showCaseBrief")
+    end = source.index("\nfunction ", start + 10)
+    return source[start:end]
+
+
+@pytest.mark.parametrize("label", BRIEF_LABELS)
+def test_case_brief_has_no_hardcoded_english_headings(label):
+    assert label not in _case_brief_source(), (
+        "%r is hardcoded in the case brief; it will stay English on a "
+        "Hindi, Telugu, Urdu or Bengali dashboard" % label
+    )
+
+
+def test_every_case_status_is_translatable():
+    """
+    The status dropdown stores English values -- that is the database
+    contract -- but must display a translation.
+    """
+
+    english = _tables()["en"]
+
+    for status in ("New", "Under Review", "Escalated",
+                   "In Progress", "Resolved", "Closed"):
+        key = "status.%s" % status.replace(" ", "")
+        assert key in english, "no translation key for status %r" % status
+
+
+def test_every_timeline_event_is_translatable():
+    english = _tables()["en"]
+
+    for event in ("reported", "status_changed", "escalated",
+                  "note_added", "acknowledged"):
+        assert "event.%s" % event in english, "no label for event %r" % event

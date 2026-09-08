@@ -1788,11 +1788,16 @@ function showCaseBrief(brief) {
     ];
 
 
+    // Read through t() at render time rather than held as English
+    // constants: the brief is rebuilt every time it opens, so this
+    // makes the timeline follow a language change like everything
+    // else on the page.
     const TIMELINE_LABELS = {
-        reported: "Report received",
-        status_changed: "Status changed",
-        escalated: "Escalated",
-        note_added: "Note added",
+        reported: t("event.reported"),
+        status_changed: t("event.status_changed"),
+        escalated: t("event.escalated"),
+        note_added: t("event.note_added"),
+        acknowledged: t("event.acknowledged"),
     };
 
 
@@ -1813,7 +1818,7 @@ function showCaseBrief(brief) {
                 <div>
 
                     <span class="eyebrow">
-                        CASE BRIEF
+                        ${escapeHTML(t("brief.title"))}
                     </span>
 
                     <h2>
@@ -1860,7 +1865,7 @@ function showCaseBrief(brief) {
                         <div class="case-brief-section">
 
                             <span class="eyebrow">
-                                NHAA DOCKET
+                                ${escapeHTML(t("brief.docket"))}
                             </span>
 
                             <p class="case-summary">
@@ -1886,7 +1891,7 @@ function showCaseBrief(brief) {
                 <div>
 
                     <span class="brief-label">
-                        RISK LEVEL
+                        ${escapeHTML(t("brief.riskLevel"))}
                     </span>
 
                     ${riskBadge(risk)}
@@ -1897,7 +1902,7 @@ function showCaseBrief(brief) {
                 <div>
 
                     <span class="brief-label">
-                        RISK SCORE
+                        ${escapeHTML(t("brief.riskScore"))}
                     </span>
 
                     <strong>
@@ -1910,7 +1915,7 @@ function showCaseBrief(brief) {
                 <div>
 
                     <span class="brief-label">
-                        SVI SCORE
+                        ${escapeHTML(t("brief.sviScore"))}
                     </span>
 
                     <strong>
@@ -1923,7 +1928,7 @@ function showCaseBrief(brief) {
                 <div>
 
                     <span class="brief-label">
-                        CONFIDENCE
+                        ${escapeHTML(t("brief.confidence"))}
                     </span>
 
                     <strong>
@@ -1938,7 +1943,7 @@ function showCaseBrief(brief) {
             <div class="case-brief-section">
 
                 <span class="eyebrow">
-                    REPORT
+                    ${escapeHTML(t("brief.report"))}
                     ${
                         brief.language
                             ? `<span class="lang-tag">${escapeHTML(brief.language)}</span>`
@@ -1949,7 +1954,7 @@ function showCaseBrief(brief) {
                 <p class="case-summary">
                     ${escapeHTML(
                         brief.summary ||
-                        "No summary available."
+                        t("brief.noSummary")
                     )}
                 </p>
 
@@ -1959,8 +1964,8 @@ function showCaseBrief(brief) {
                             <div class="case-translation">
 
                                 <span class="eyebrow">
-                                    ENGLISH TRANSLATION
-                                    <span class="ai-badge">Machine translation — original above is authoritative</span>
+                                    ${escapeHTML(t("brief.translation"))}
+                                    <span class="ai-badge">${escapeHTML(t("brief.mtOriginal"))}</span>
                                 </span>
 
                                 <p class="case-summary">
@@ -1979,7 +1984,7 @@ function showCaseBrief(brief) {
 
                 <div class="brief-info">
 
-                    <span>District</span>
+                    <span>${escapeHTML(t("brief.district"))}</span>
 
                     <strong>
                         ${escapeHTML(
@@ -1993,7 +1998,7 @@ function showCaseBrief(brief) {
 
                 <div class="brief-info">
 
-                    <span>Language</span>
+                    <span>${escapeHTML(t("brief.language"))}</span>
 
                     <strong>
                         ${escapeHTML(
@@ -2007,7 +2012,7 @@ function showCaseBrief(brief) {
 
                 <div class="brief-info">
 
-                    <span>Status</span>
+                    <span>${escapeHTML(t("brief.status"))}</span>
 
                     <strong>
                         ${escapeHTML(
@@ -2021,7 +2026,7 @@ function showCaseBrief(brief) {
 
                 <div class="brief-info">
 
-                    <span>SOS</span>
+                    <span>${escapeHTML(t("brief.sos"))}</span>
 
                     <strong>
                         ${
@@ -2039,10 +2044,10 @@ function showCaseBrief(brief) {
             <div class="case-brief-section">
 
                 <span class="eyebrow">
-                    AI ASSESSMENT
+                    ${escapeHTML(t("brief.aiAssessment"))}
                 </span>
                 <span class="ai-badge">
-                    Suggested — not final
+                    ${escapeHTML(t("brief.notFinal"))}
                 </span>
 
                 <p class="brief-reason">
@@ -2058,21 +2063,21 @@ function showCaseBrief(brief) {
             <div class="case-brief-section">
 
                 <span class="eyebrow">
-                    ACTIONS
+                    ${escapeHTML(t("brief.actionsLabel"))}
                 </span>
 
                 <div class="case-action-row">
                     <input
                         type="text"
                         id="escalateNoteInput"
-                        placeholder="Optional note (e.g. who's being notified)"
+                        placeholder="${escapeHTML(t("brief.notePlaceholder"))}"
                     />
                     <button
                         type="button"
                         id="escalateNowButton"
                         class="primary-button escalate-button"
                     >
-                        Escalate now
+                        ${escapeHTML(t("brief.escalateNow"))}
                     </button>
                 </div>
 
@@ -2081,7 +2086,7 @@ function showCaseBrief(brief) {
                         ${
                             CASE_STATUSES.map(status => `
                                 <option value="${status}" ${status === brief.status ? "selected" : ""}>
-                                    ${status}
+                                    ${escapeHTML(t("status." + status.replace(/ /g, "")))}
                                 </option>
                             `).join("")
                         }
@@ -2091,21 +2096,21 @@ function showCaseBrief(brief) {
                         id="updateStatusButton"
                         class="secondary-button"
                     >
-                        Update status
+                        ${escapeHTML(t("brief.updateStatus"))}
                     </button>
                 </div>
 
                 <div class="case-action-row">
                     <textarea
                         id="caseNoteInput"
-                        placeholder="Add a note (e.g. context from a follow-up call)"
+                        placeholder="${escapeHTML(t("brief.addNotePlaceholder"))}"
                     ></textarea>
                     <button
                         type="button"
                         id="addNoteButton"
                         class="secondary-button"
                     >
-                        Add note
+                        ${escapeHTML(t("brief.addNote"))}
                     </button>
                 </div>
 
@@ -2122,27 +2127,30 @@ function showCaseBrief(brief) {
                         <div class="case-brief-section">
 
                             <span class="eyebrow">
-                                DRAFT A REPLY
-                                <span class="ai-badge">Machine translation — read before you use it</span>
+                                ${escapeHTML(t("brief.draftReply"))}
+                                <span class="ai-badge">${escapeHTML(t("brief.mtReadFirst"))}</span>
                             </span>
 
                             <p class="reply-help">
-                                Write in English. This gives you the same words in
-                                ${escapeHTML(String(brief.language).toUpperCase())} to
-                                use on a call or message — Athena does not send it.
+                                ${escapeHTML(
+                                    t("brief.draftHelp").replace(
+                                        "{lang}",
+                                        String(brief.language).toUpperCase()
+                                    )
+                                )}
                             </p>
 
                             <div class="case-action-row">
                                 <textarea
                                     id="replyDraftInput"
-                                    placeholder="e.g. A counsellor will call you tomorrow morning. You are not alone."
+                                    placeholder="${escapeHTML(t("brief.replyPlaceholder"))}"
                                 ></textarea>
                                 <button
                                     type="button"
                                     id="translateReplyButton"
                                     class="secondary-button"
                                 >
-                                    Translate
+                                    ${escapeHTML(t("brief.translate"))}
                                 </button>
                             </div>
 
@@ -2160,10 +2168,10 @@ function showCaseBrief(brief) {
                         <div class="case-brief-section">
 
                             <span class="eyebrow">
-                                STRESS / TRAUMA SIGNALS
+                                ${escapeHTML(t("brief.signals"))}
                             </span>
                             <span class="ai-badge">
-                                Suggested — not final
+                                ${escapeHTML(t("brief.notFinal"))}
                             </span>
 
                             <div class="brief-list">
@@ -2202,10 +2210,10 @@ function showCaseBrief(brief) {
                         <div class="case-brief-section">
 
                             <span class="eyebrow">
-                                LEGAL GUIDANCE
+                                ${escapeHTML(t("brief.legal"))}
                             </span>
                             <span class="ai-badge">
-                                Suggested — verify before citing
+                                ${escapeHTML(t("brief.verifyCiting"))}
                             </span>
 
                             <div class="brief-list">
@@ -2250,10 +2258,10 @@ function showCaseBrief(brief) {
                         <div class="case-brief-section">
 
                             <span class="eyebrow">
-                                PROCEDURAL NEXT STEPS
+                                ${escapeHTML(t("brief.nextSteps"))}
                             </span>
                             <span class="ai-badge">
-                                Suggested — counsellor discretion applies
+                                ${escapeHTML(t("brief.discretion"))}
                             </span>
 
                             <div class="brief-steps">
@@ -2291,7 +2299,7 @@ function showCaseBrief(brief) {
                         <div class="case-brief-section">
 
                             <span class="eyebrow">
-                                TIMELINE
+                                ${escapeHTML(t("brief.timeline"))}
                             </span>
 
                             <div class="case-timeline">
@@ -2343,7 +2351,7 @@ function showCaseBrief(brief) {
                     class="primary-button case-brief-close-button"
                     type="button"
                 >
-                    Close
+                    ${escapeHTML(t("brief.close"))}
                 </button>
 
             </div>
@@ -2445,7 +2453,7 @@ function showCaseBrief(brief) {
             button.textContent = "Translating...";
 
             output.hidden = false;
-            output.textContent = "Translating…";
+            output.textContent = t("brief.translating");
             output.classList.remove("is-error");
 
             try {
@@ -2474,7 +2482,7 @@ function showCaseBrief(brief) {
                     output.textContent =
                         data.reason === "already_english"
                             ? "This case was reported in English — no translation needed."
-                            : "Couldn't translate that right now. Please try again.";
+                            : t("brief.translateFailed");
 
                     return;
 
@@ -2491,7 +2499,7 @@ function showCaseBrief(brief) {
 
                 output.classList.add("is-error");
                 output.textContent =
-                    "Couldn't translate that right now. Please try again.";
+                    t("brief.translateFailed");
 
             } finally {
 
