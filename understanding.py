@@ -551,7 +551,64 @@ INCIDENT_EXAMPLES = {
 
         # Romanized Bengali
         "Keu amar jater karone jonoshommukhe amake opoman koreche.",
-        "Amar jater karone amake dhukte deya hoyni."
+        "Amar jater karone amake dhukte deya hoyni.",
+
+        # ------------------------------------------------------------
+        # Caste abuse by a NEIGHBOUR OR COMMUNITY MEMBER, with
+        # violence. Added 2026-09-03.
+        #
+        # kg.get_legal_guidance() routes on incident_type, not on the
+        # caste_based_motive signal. So even with that signal firing
+        # at 100%, a caste atrocity classified as domestic_violence
+        # gets the Protection of Women from Domestic Violence Act
+        # instead of the SC/ST (Prevention of Atrocities) Act -- the
+        # wrong statute, cited confidently.
+        #
+        # Measured: "My neighbour abused me using my caste name and
+        # beat me" classified as harassment in English (correct ->
+        # BNS + SC/ST) but as domestic_violence in Hindi, Telugu,
+        # Bengali and Urdu (-> PWDVA). The caste anchors already above
+        # cover public humiliation and denial of entry, neither of
+        # which involves being hit, so once violence entered the
+        # sentence the domestic_violence bank -- full of non-English
+        # "he beat me" phrasings -- won.
+        #
+        # What separates these from domestic violence is WHO: a
+        # neighbour, a landlord, villagers, an upper-caste group --
+        # not a spouse or family member. These anchors name that
+        # relationship explicitly in every language.
+        # ------------------------------------------------------------
+        "My neighbour insulted my caste and attacked me.",
+        "Villagers from an upper caste beat me and abused my community.",
+        "My landlord used caste slurs and shoved me out of the house.",
+
+        "पड़ोसी ने मेरी जाति पर टिप्पणी कर मुझे पीटा।",
+        "गाँव के दबंगों ने जातिसूचक गाली देकर मुझ पर हमला किया।",
+
+        # Romanized Hindi
+        "Padosi ne meri jaati par tippani kar mujhe peeta.",
+        "Gaon ke dabangon ne jaati suchak gaali dekar mujh par hamla kiya.",
+
+        "పొరుగువాడు నా కులాన్ని దూషించి నన్ను కొట్టాడు.",
+        "ఊళ్ళో అగ్రవర్ణాల వాళ్ళు కుల దూషణ చేసి నాపై దాడి చేశారు.",
+
+        # Romanized Telugu
+        "Poruguvaadu naa kulanni dushinchi nannu kottadu.",
+        "Ullo agravarnala vaallu kula dushana chesi naapai daadi chesaru.",
+
+        "پڑوسی نے میری ذات پر طعنہ دے کر مجھے مارا۔",
+        "گاؤں کے اونچی ذات والوں نے ذات کی گالی دے کر مجھ پر حملہ کیا۔",
+
+        # Romanized Urdu
+        "Padosi ne meri zaat par taana de kar mujhe maara.",
+        "Gaon ke oonchi zaat walon ne zaat ki gaali de kar mujh par hamla kiya.",
+
+        "প্রতিবেশী আমার জাত নিয়ে কটূক্তি করে আমাকে মেরেছে।",
+        "গ্রামের উঁচু জাতের লোকেরা জাতের গালি দিয়ে আমার উপর হামলা করেছে।",
+
+        # Romanized Bengali
+        "Protibeshi amar jaat niye kotukti kore amake mereche.",
+        "Gramer unchu jater lokera jater gali diye amar upor hamla koreche."
     ],
 
     "stalking": [
