@@ -194,6 +194,84 @@ def run_tests():
 
 
 # ============================================================
+# ASSERTIONS
+# ============================================================
+
+# run_tests() above prints a report for a human to read. It asserts
+# nothing, so `pytest` collected zero tests from this file and the
+# project looked untested while its retrieval was in fact working.
+# These are the checks that make the report a test.
+
+import pytest  # noqa: E402
+
+from pipeline import RETRIEVAL_CONFIDENCE_THRESHOLD  # noqa: E402
+
+
+@pytest.mark.parametrize("case", TEST_QUERIES, ids=lambda c: c["topic"])
+def test_retrieval_returns_well_formed_results(case):
+    results = retrieve(case["query"], top_k=3)
+
+    assert len(results) == 3, "expected 3 results, got %d" % len(results)
+
+    for result in results:
+        assert result["source"], "a result carries no source document"
+        assert result["page"] is not None, "a result carries no page number"
+        assert result["text"].strip(), "a result carries empty text"
+        assert 0.0 <= result["similarity"] <= 1.0
+
+
+@pytest.mark.parametrize("case", TEST_QUERIES, ids=lambda c: c["topic"])
+def test_results_are_ordered_by_similarity(case):
+    """
+    A citation list a counsellor reads top-down has to be ranked. Chroma
+    returns sorted, but the distance-to-similarity conversion in
+    retrieval.py is ours and could invert it.
+    """
+
+    scores = [result["similarity"] for result in retrieve(case["query"], top_k=3)]
+
+    assert scores == sorted(scores, reverse=True), "results are out of order"
+
+
+@pytest.mark.parametrize("case", TEST_QUERIES, ids=lambda c: c["topic"])
+def test_every_query_clears_the_confidence_gate(case):
+    """
+    pipeline.py discards evidence below this threshold and answers
+    without citations. A query in the evaluation set falling under it
+    means that topic silently stopped being answerable -- including in
+    the non-English queries, where cross-lingual retrieval is the thing
+    being relied on.
+    """
+
+    top = retrieve(case["query"], top_k=3)[0]["similarity"]
+
+    assert top >= RETRIEVAL_CONFIDENCE_THRESHOLD, (
+        "%s (%s) retrieved at %.4f, under the %.2f gate -- this topic "
+        "would answer with no citations"
+        % (case["topic"], case["language"], top, RETRIEVAL_CONFIDENCE_THRESHOLD)
+    )
+
+
+def test_caste_query_reaches_the_scst_act():
+    """
+    The statute this helpline exists to enforce has to be reachable
+    from a caste query, in the corpus rather than only via kg.py's
+    deterministic routing.
+    """
+
+    results = retrieve(
+        "caste based insult and physical assault, Scheduled Caste atrocity",
+        top_k=5,
+    )
+
+    sources = [result["source"] for result in results]
+
+    assert any("SCST" in source or "scst" in source.lower() for source in sources), (
+        "no SC/ST Act chunk in the top 5 for a caste query; got %s" % sources
+    )
+
+
+# ============================================================
 # MAIN
 # ============================================================
 
