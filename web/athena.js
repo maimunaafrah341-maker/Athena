@@ -1455,7 +1455,7 @@ function renderCasesTable() {
                     </td>
 
                     <td>
-                        ${escapeHTML(item.incident)}
+                        ${escapeHTML(formatIncidentType(item.incident))}
                     </td>
 
                     <td>
@@ -1463,9 +1463,7 @@ function renderCasesTable() {
                     </td>
 
                     <td>
-                        <span class="risk-tag ${riskClass}">
-                            ${escapeHTML(item.risk)}
-                        </span>
+                        ${riskBadge(item.risk)}
                     </td>
 
                     <td>
@@ -1841,12 +1839,7 @@ function showCaseBrief(brief) {
                         RISK LEVEL
                     </span>
 
-                    <span class="
-                        risk-tag
-                        ${riskClass}
-                    ">
-                        ${escapeHTML(risk)}
-                    </span>
+                    ${riskBadge(risk)}
 
                 </div>
 
@@ -2543,7 +2536,7 @@ function renderOverviewCases() {
                     </strong>
 
                     <span>
-                        ${escapeHTML(item.incident)}
+                        ${escapeHTML(formatIncidentType(item.incident))}
                     </span>
 
                     <span>
@@ -2551,9 +2544,7 @@ function renderOverviewCases() {
                     </span>
 
                     <span>
-                        <span class="risk-tag ${riskClass}">
-                            ${escapeHTML(item.risk)}
-                        </span>
+                        ${riskBadge(item.risk)}
                     </span>
 
                 </div>
@@ -3271,6 +3262,68 @@ function renderRiskMap() {
 //
 // So: everything needing review first, ordered by severity, then
 // everything already reviewed, also ordered by severity.
+// ============================================================
+// LABELS AND BADGES
+// ============================================================
+
+// Database labels are not user-facing copy. "domestic_violence" is a
+// column value; a counsellor reading a queue at 2am should see
+// "Domestic violence". Translated where a translation exists, and
+// otherwise de-underscored and sentence-cased rather than shown raw --
+// an incident type added to understanding.py later should still read
+// like language, not like a schema.
+function formatIncidentType(value) {
+
+    if (!value) {
+        return "";
+    }
+
+    const raw = String(value).trim();
+    const key = "incident." + raw.toLowerCase();
+    const translated = t(key);
+
+    if (translated && translated !== key) {
+        return translated;
+    }
+
+    const words = raw.replace(/_/g, " ").toLowerCase();
+
+    return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+
+// A shape per tier, so severity survives being printed in greyscale,
+// read by someone colour-blind, or glanced at by someone who has not
+// learned this dashboard's palette. The tier word was always present,
+// so this is redundancy rather than a fix for colour-only meaning --
+// the actual accessibility bug was the 7px type, corrected in the CSS.
+const RISK_GLYPH = {
+    "critical": "\u25C6",
+    "high": "\u25B2",
+    "moderate": "\u25CF",
+    "low": "\u25AC",
+};
+
+
+function riskBadge(tier) {
+
+    const raw = String(tier || "Low").trim();
+    const cls = raw.toLowerCase().replace(" ", "-");
+    const label = t("risk." + cls) !== "risk." + cls ? t("risk." + cls) : raw;
+
+    return `
+        <span
+            class="risk-tag ${cls}"
+            role="img"
+            aria-label="${escapeHTML(t("table.risk"))}: ${escapeHTML(label)}"
+        >
+            <span class="risk-glyph" aria-hidden="true">${RISK_GLYPH[cls] || ""}</span>
+            ${escapeHTML(label)}
+        </span>
+    `;
+}
+
+
 const ALERT_RISK_ORDER = { "Critical": 0, "High": 1, "Moderate": 2, "Low": 3 };
 
 function alertRank(item) {
@@ -3414,7 +3467,7 @@ function renderAlerts() {
                         <p class="alert-meta">
                             ${escapeHTML(item.district)}
                             ·
-                            ${escapeHTML(item.incident)}
+                            ${escapeHTML(formatIncidentType(item.incident))}
                             ·
                             <span class="alert-status">${escapeHTML(item.status)}</span>
                             ${elapsed ? `· ${escapeHTML(elapsed)}` : ""}

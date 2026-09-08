@@ -1020,15 +1020,28 @@ a {
 .risk-tag {
     display: inline-flex;
 
+    align-items: center;
+
+    gap: 4px;
+
     width: fit-content;
 
     padding: 4px 8px;
 
     border-radius: 20px;
 
-    font-size: 7px;
+    /* See the note on the override below: 7px was unreadable. */
+    font-size: 10.5px;
 
     font-weight: 900;
+
+    white-space: nowrap;
+}
+
+.risk-glyph {
+    font-size: 8px;
+
+    line-height: 1;
 }
 
 .risk-tag.low {
@@ -2992,7 +3005,10 @@ table tbody tr:hover {
 .risk-tag {
     padding: 5px 9px;
 
-    font-size: 7.5px;
+    /* Was 7.5px, which is below the size at which most people can read
+       a word at a glance -- and this badge is the single most
+       load-bearing piece of text on the page. */
+    font-size: 10.5px;
 
     letter-spacing: .2px;
 }
@@ -3257,7 +3273,8 @@ table tbody tr:hover {
 
     color: var(--critical);
 
-    font-size: 7px;
+    /* Was 7px. The emergency line inside a map popup has to be readable. */
+    font-size: 9.5px;
 
     font-weight: 900;
 }
@@ -3596,7 +3613,8 @@ table tbody tr:hover {
 
     color: var(--muted-light);
 
-    font-size: 7px;
+    /* Was 7px. The field labels in a counsellor's case brief has to be readable. */
+    font-size: 9.5px;
 
     font-weight: 900;
 
@@ -3737,7 +3755,8 @@ table tbody tr:hover {
 
     color: var(--muted-light);
 
-    font-size: 7px;
+    /* Was 7px. The machine-translation disclaimer has to be readable. */
+    font-size: 9.5px;
 
     font-weight: 700;
 
