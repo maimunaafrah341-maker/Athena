@@ -236,3 +236,119 @@ def test_confidence_breakdown_keys_match_their_signals():
     # The short keys svi.py and API_CONTRACT.md depend on must survive.
     assert breakdown["threat"] == breakdown["threat_present"]
     assert breakdown["injury"] == breakdown["injury_present"]
+
+
+# ------------------------------------------------------------------
+# depression_indicators and social_isolation.
+#
+# SIH26093 asks for both by name. They feed the Stress Vulnerability
+# Index rather than the risk tier: they describe how vulnerable
+# someone is, not whether they are about to be hurt.
+#
+# social_isolation does double duty -- the problem statement's
+# background lists social boycott among the atrocities people call
+# 14566 about, and boycott is an SC/ST Act offence, not just a mood.
+# ------------------------------------------------------------------
+
+DEPRESSION_REPORTS = [
+    ("en", "I have not been able to leave my room for a month and I feel nothing at all."),
+    ("hi", "मैं एक महीने से कमरे से बाहर नहीं निकला हूँ और मुझे कुछ महसूस नहीं होता।"),
+    ("te", "నేను నెల రోజులుగా గది నుంచి బయటకు రాలేదు, నాకు ఏమీ అనిపించడం లేదు."),
+    ("bn", "আমি এক মাস ধরে ঘর থেকে বেরোইনি, আমার কিছুই ভালো লাগে না।"),
+    ("ur", "میں ایک مہینے سے کمرے سے باہر نہیں نکلا، مجھے کچھ محسوس نہیں ہوتا۔"),
+]
+
+ISOLATION_REPORTS = [
+    ("en", "Nobody in the village talks to me and the shop will not sell me anything."),
+    ("hi", "पूरे गाँव ने मुझसे बात करना छोड़ दिया है और दुकान वाले भी कुछ नहीं देते।"),
+    ("te", "ఊళ్ళో ఎవరూ నాతో మాట్లాడరు, దుకాణంలో కూడా నాకు ఏమీ ఇవ్వరు."),
+    ("bn", "গ্রামের কেউ আমার সঙ্গে কথা বলে না, দোকানেও আমাকে কিছু দেয় না।"),
+    ("ur", "گاؤں کا کوئی مجھ سے بات نہیں کرتا، دکان پر بھی کچھ نہیں دیتے۔"),
+]
+
+# Every one of these fired one of the two signals during development.
+NEITHER_SIGNAL = [
+    ("tired", "I am exhausted after a long week at work."),
+    ("sad", "I feel sad about what happened but I am managing."),
+    ("alone", "I live alone in the city because of my job."),
+    ("family", "My family lives in another district."),
+    ("not_disclosed", "I have not told anyone about this yet."),
+    ("suicidal", "I want to end my life."),
+    ("domestic", "My husband hit me and threatened to kill me."),
+    ("caste_assault", "My neighbour abused me using my caste name and beat me."),
+]
+
+
+@pytest.mark.parametrize("language,text", DEPRESSION_REPORTS)
+def test_depression_indicators_detected_in_every_language(language, text):
+    assert understand(text)["depression_indicators"] is True
+
+
+@pytest.mark.parametrize("language,text", ISOLATION_REPORTS)
+def test_social_isolation_detected_in_every_language(language, text):
+    assert understand(text)["social_isolation"] is True
+
+
+@pytest.mark.parametrize("label,text", NEITHER_SIGNAL)
+def test_ordinary_distress_fires_neither_signal(label, text):
+    """
+    Both signals sit on a looser margin than the rest of the file, so
+    the negatives matter more here than usual. Tiredness, situational
+    sadness, living alone, and choosing not to disclose are what most
+    callers say -- a signal that fires on them says nothing.
+    """
+
+    incident = understand(text)
+
+    assert incident["depression_indicators"] is False, "%s read as depression" % label
+    assert incident["social_isolation"] is False, "%s read as isolation" % label
+
+
+def test_suicidal_ideation_is_not_absorbed_into_depression():
+    """
+    They are separate signals with very different weights -- 65 points
+    against 20. Collapsing them would either lose the emergency or
+    invent one.
+    """
+
+    incident = understand("I want to end my life.")
+
+    assert incident["suicidal_ideation"] is True
+    assert incident["depression_indicators"] is False
+
+
+def test_isolation_raises_stress_without_raising_risk():
+    """
+    A boycotted person is vulnerable, not in immediate danger. These
+    signals must move the Stress Vulnerability Index and leave the
+    risk tier to the danger signals.
+    """
+
+    from svi import assess_stress
+
+    incident = understand(
+        "Nobody in the village talks to me and the shop will not sell me anything."
+    )
+    stress = assess_stress(incident)
+
+    labels = [
+        signal["signal"]
+        for signal in stress["explainability"]["text_signals"]
+    ]
+
+    assert "social_isolation" in labels, "isolation did not reach the SVI"
+
+    # Deliberately not asserting that immediate_danger stays False.
+    #
+    # A village boycott does currently fire it, because the anchors
+    # for a hostile crowd gathered outside the home sit close to it in
+    # embedding space. Hard negatives were tried on 2026-09-08 and
+    # withdrawn: they separated boycott from danger in four languages
+    # and, through cross-lingual similarity, suppressed danger on the
+    # Urdu report of a crowd outside the house -- trading a real
+    # emergency detection for a tidier queue.
+    #
+    # So a boycott may over-escalate. That errs toward answering too
+    # fast, which is the right direction on a helpline, and the person
+    # is picked up either way. Revisit with labelled data, not by
+    # guessing at thresholds a week before submission.

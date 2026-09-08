@@ -120,6 +120,41 @@ def _text_distress_score(incident):
             "points": points,
         })
 
+    # Named by SIH26093 alongside trauma, fear, suicidal ideation and
+    # intimidation. Both land here rather than in risk.py on purpose:
+    # they describe how vulnerable someone is, not whether they are
+    # about to be hurt. Routing them to the risk tier would put a
+    # withdrawn, boycotted person into the same queue as an assault in
+    # progress, which helps neither of them.
+    #
+    # Weighted so the two together reach 35 -- Moderate on this scale,
+    # not High. Someone cut off by their village and unable to get out
+    # of bed should be prioritised above baseline and should not
+    # displace an emergency. If danger signals fire as well, those add
+    # on top and carry it upward, which is the correct shape.
+    if incident.get("depression_indicators"):
+        points = 20
+        score += points
+        factors.append({
+            "signal": "depression_indicators",
+            # Deliberately "signs of", not "depression". This detects
+            # language a person used; it does not diagnose them, and
+            # the Guidance page promises Athena does not diagnose.
+            "label": "Signs of depression reported",
+            "confidence": confidence_breakdown.get("depression_indicators"),
+            "points": points,
+        })
+
+    if incident.get("social_isolation"):
+        points = 15
+        score += points
+        factors.append({
+            "signal": "social_isolation",
+            "label": "Social isolation or boycott reported",
+            "confidence": confidence_breakdown.get("social_isolation"),
+            "points": points,
+        })
+
     # Same confidence floor risk.py uses before trusting incident_type
     # enough to apply its baseline -- a low-confidence misclassification
     # shouldn't smuggle in distress points it hasn't earned.

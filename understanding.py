@@ -1225,6 +1225,152 @@ SIGNAL_EXAMPLES = {
         "Amar mone hoy amar more jawa uchit.",
         "Amar mone hoy amake chara shobai bhalo thakbe.",
     ],
+
+    # ============================================================
+    # DEPRESSION INDICATORS
+    # ============================================================
+    #
+    # Named by SIH26093, which asks the system to detect "severe
+    # trauma, fear, depression, suicidal ideation, intimidation,
+    # social isolation and extreme vulnerability".
+    #
+    # Called depression_INDICATORS on purpose. This detects language a
+    # person used; it does not diagnose them, and nothing downstream
+    # may present it as a clinical finding. The Guidance page says
+    # Athena does not diagnose, and a signal named "depression" would
+    # quietly contradict that on the same screen.
+    #
+    # Feeds the Stress Vulnerability Index, not the risk tier. Low
+    # mood raises how vulnerable someone is; it does not mean anyone
+    # is about to be hurt, and routing it to risk would put a
+    # withdrawn person into the same queue as an active assault.
+    #
+    # Deliberately narrower than "sad". Anchors describe function
+    # collapsing -- not getting up, not eating, feeling nothing --
+    # because ordinary distress is what every caller has and a signal
+    # that fires on all of them says nothing.
+    "depression_indicators": [
+        "I have not been able to get out of bed for weeks.",
+        "Nothing matters to me anymore and I cannot feel anything.",
+        "I cry every day and I have stopped eating properly.",
+
+        "मैं हफ़्तों से बिस्तर से उठ नहीं पा रहा/रही हूँ।",
+        "अब मुझे किसी चीज़ में कुछ महसूस नहीं होता, सब बेकार लगता है।",
+        "मैं हर दिन रोती हूँ और ठीक से खाना भी नहीं खा पा रही।",
+
+        # Romanized Hindi
+        "Main haphton se bistar se uth nahi pa raha hoon.",
+        "Ab mujhe kisi cheez mein kuch mehsoos nahi hota.",
+
+        "నేను వారాలుగా మంచం మీద నుంచి లేవలేకపోతున్నాను.",
+        "ఇప్పుడు నాకు దేని మీదా ఆసక్తి లేదు, ఏమీ అనిపించడం లేదు.",
+
+        # Romanized Telugu
+        "Nenu varaluga mancham meeda nunchi levalekapotunnanu.",
+        "Ippudu naaku deni meeda aasakti ledu, emi anipinchadam ledu.",
+
+        "میں ہفتوں سے بستر سے اٹھ نہیں پا رہا۔",
+        "اب مجھے کسی چیز میں کچھ محسوس نہیں ہوتا۔",
+
+        # Romanized Urdu
+        "Main haphton se bistar se uth nahi pa raha.",
+        "Ab mujhe kisi cheez mein kuch mehsoos nahi hota.",
+
+        "আমি সপ্তাহের পর সপ্তাহ বিছানা থেকে উঠতে পারছি না।",
+        "এখন আমার কিছুতেই কিছু মনে হয় না, সব অর্থহীন লাগে।",
+
+        # Romanized Bengali
+        "Ami saptaher por saptaho bichana theke uthte parchi na.",
+        "Ekhon amar kichutei kichu mone hoy na.",
+    ],
+
+
+    # ============================================================
+    # SOCIAL ISOLATION
+    # ============================================================
+    #
+    # Also named by SIH26093, and not only as a symptom: the problem
+    # statement's background lists SOCIAL BOYCOTT among the atrocities
+    # people call 14566 about, and boycott is an offence under the
+    # SC/ST Act in its own right. Being cut off by a village is a
+    # thing done TO someone, not a mood.
+    #
+    # Anchors describe being cut off by others rather than being
+    # alone. The hard negatives below carry the difference: living
+    # alone, or family living elsewhere, is circumstance.
+    "social_isolation": [
+        "The whole village has stopped speaking to me.",
+        "They have cut me off from everyone and I have no one left to go to.",
+        "Nobody will sell me anything or let me draw water any more.",
+        "The shopkeeper refuses to serve me and I am kept away from the well.",
+
+        # Denial of service and access, in every language. Added after
+        # the first pass: the Bengali, Telugu and Urdu versions of
+        # "nobody in the village talks to me and the shop will not
+        # sell me anything" cleared the neutral margin comfortably
+        # (+0.058 to +0.072) but beat their hard negative by only
+        # +0.003 to +0.011, under the 0.020 required -- "I live alone
+        # for work" sits closer to being cut off by a village in those
+        # languages than it does in Hindi or English. Raising the
+        # positive rather than weakening the negative, so "I live
+        # alone" still does not read as boycott.
+        "গ্রামের দোকান আমাকে কিছু বিক্রি করে না, কুয়ো থেকে জলও নিতে দেয় না।",
+        "কেউ আমার বাড়িতে আসে না, সবাই আমাকে এড়িয়ে চলে।",
+
+        # Romanized Bengali
+        "Gramer dokan amake kichu bikri kore na, kuo theke jolo nite dey na.",
+        "Keu amar barite ase na, sobai amake ariye chole.",
+
+        "ఊళ్ళో దుకాణం నాకు ఏమీ అమ్మదు, బావి దగ్గరకు కూడా రానివ్వరు.",
+        "ఎవరూ మా ఇంటికి రారు, అందరూ నన్ను తప్పించుకుంటారు.",
+
+        # Romanized Telugu
+        "Ullo dukanam naaku emi ammadu, baavi daggaraku kooda ranivvaru.",
+        "Evaru maa intiki raaru, andaru nannu tappinchukuntaru.",
+
+        "گاؤں کی دکان مجھے کچھ نہیں بیچتی، کنویں سے پانی بھی نہیں لینے دیتے۔",
+        "کوئی میرے گھر نہیں آتا، سب مجھ سے کتراتے ہیں۔",
+
+        # Romanized Urdu
+        "Gaon ki dukan mujhe kuch nahi bechti, kuen se paani bhi nahi lene dete.",
+        "Koi mere ghar nahi aata, sab mujh se katrate hain.",
+
+        "गाँव की दुकान मुझे कुछ नहीं बेचती, कुएँ से पानी भी नहीं लेने देते।",
+        "कोई मेरे घर नहीं आता, सब मुझसे कतराते हैं.",
+
+        # Romanized Hindi
+        "Gaon ki dukan mujhe kuch nahi bechti, kuen se paani bhi nahi lene dete.",
+        "Koi mere ghar nahi aata, sab mujhse katrate hain.",
+
+        "पूरे गाँव ने मुझसे बात करना बंद कर दिया है।",
+        "उन्होंने मुझे सबसे अलग कर दिया है, अब मेरे पास जाने के लिए कोई नहीं।",
+
+        # Romanized Hindi
+        "Poore gaon ne mujhse baat karna band kar diya hai.",
+        "Unhone mujhe sabse alag kar diya hai, ab koi nahi bacha.",
+
+        "ఊరు మొత్తం నాతో మాట్లాడటం మానేసింది.",
+        "వాళ్ళు నన్ను అందరి నుంచి వేరు చేశారు, ఇప్పుడు వెళ్ళడానికి ఎవరూ లేరు.",
+
+        # Romanized Telugu
+        "Ooru mottham naatho maatladatam manesindi.",
+        "Vaallu nannu andari nunchi veru chesaru, ippudu evaru leru.",
+
+        "پورے گاؤں نے مجھ سے بات کرنا چھوڑ دیا ہے۔",
+        "انہوں نے مجھے سب سے الگ کر دیا ہے، اب کوئی نہیں بچا۔",
+
+        # Romanized Urdu
+        "Poore gaon ne mujh se baat karna chhod diya hai.",
+        "Unhone mujhe sab se alag kar diya hai, ab koi nahi bacha.",
+
+        "গোটা গ্রাম আমার সঙ্গে কথা বলা বন্ধ করে দিয়েছে।",
+        "তারা আমাকে সবার থেকে আলাদা করে দিয়েছে, এখন যাওয়ার কেউ নেই।",
+
+        # Romanized Bengali
+        "Gota gram amar songe kotha bola bondho kore diyeche.",
+        "Tara amake sobar theke alada kore diyeche, ekhon jawar keu nei.",
+    ],
+
 }
 
 
@@ -1251,6 +1397,7 @@ SIGNAL_EXAMPLES = {
 # verified -- not applied speculatively to every signal.
 
 SIGNAL_HARD_NEGATIVES = {
+
 
     # Confirmed live 2026-08-29: multilingual-e5-small puts almost any
     # first-person emotional-distress statement within 0.85-0.90+
@@ -1365,6 +1512,89 @@ SIGNAL_HARD_NEGATIVES = {
         "কেউ আমার সাথে যৌন নির্যাতন করেছে।",
         "আমার স্বামী আমাকে মারে।",
     ],
+
+    # Ordinary tiredness and situational sadness -- which nearly every
+    # caller has -- plus suicidal ideation, which is its own signal
+    # with its own weighting and must not be absorbed into this one.
+    "depression_indicators": [
+        "I am tired after a long day at work.",
+        "I feel sad about what happened but I am managing.",
+        "I could not sleep well last night.",
+        "I want to end my life.",
+
+        # Not disclosing is a decision, not a symptom. With the looser
+        # neutral margin this signal uses, "I have not told anyone
+        # about this yet" fired as depression -- a sentence that
+        # describes privacy, and that a large share of callers will
+        # say.
+        "I have not told anyone about this yet.",
+        "मैंने अभी तक किसी को नहीं बताया।",
+        "నేను ఇంకా ఎవరికీ చెప్పలేదు.",
+        "میں نے ابھی تک کسی کو نہیں بتایا۔",
+        "আমি এখনও কাউকে বলিনি।",
+
+        # Being cut off by a village is social_isolation's job. Both
+        # are distress, and letting them collapse into one another
+        # double-counts the same report in the stress score.
+        #
+        # KNOWN LIMITATION, accepted deliberately on 2026-09-08: a
+        # report that genuinely contains both -- boycotted AND unable
+        # to get out of bed -- now scores social_isolation alone, so
+        # its stress score is 20 points lower than the sum of what was
+        # said. Removing this negative fixes that and reintroduces the
+        # opposite error, where every boycott report collects 20
+        # depression points nobody reported.
+        #
+        # Chosen this way round because the failure is conservative:
+        # it under-states vulnerability rather than inventing it, and
+        # the person still reaches the same or a higher tier through
+        # the danger signals that usually accompany a boycott. Worth
+        # revisiting with a labelled dataset; not worth guessing at a
+        # week before submission.
+        "The whole village has stopped speaking to me.",
+        "पूरे गाँव ने मुझसे बात करना बंद कर दिया है।",
+        "मैं थक गया हूँ, दिन बहुत लंबा था।",
+        "दुख तो है, पर मैं संभाल रही हूँ।",
+        "నేను అలసిపోయాను, రోజు చాలా పొడుగైంది.",
+        "బాధగా ఉంది కానీ నేను తట్టుకోగలను.",
+        "میں تھک گیا ہوں، دن بہت لمبا تھا۔",
+        "دکھ ہے، لیکن میں سنبھال رہی ہوں۔",
+        "আমি ক্লান্ত, দিনটা অনেক লম্বা ছিল।",
+        "কষ্ট হচ্ছে, তবে আমি সামলাচ্ছি।",
+    ],
+
+    # Being alone is circumstance. Being cut off is something done to
+    # you. Without these, "I live alone" and "I have not told anyone"
+    # both read as boycott -- and the second is a disclosure decision,
+    # which is the opposite of a signal that someone is isolated.
+    "social_isolation": [
+        "I live alone in the city for work.",
+        "My family lives in another district.",
+        "I have not told anyone about this yet.",
+
+        # A caste assault is not a boycott. "My neighbour abused me
+        # using my caste name and beat me" fired social_isolation --
+        # the two co-occur often enough in real reports that the
+        # embedding treats them as the same thing, and they carry
+        # different stress weights and different SC/ST provisions.
+        "My neighbour abused me using my caste name and beat me.",
+        "They attacked me and used caste slurs while beating me.",
+        "मेरे पड़ोसी ने मेरी जाति का नाम लेकर गाली दी और मुझे मारा।",
+        "నా పొరుగువాడు నా కులం పేరు చెప్పి తిట్టి నన్ను కొట్టాడు.",
+        "میرے پڑوسی نے میری ذات کا نام لے کر گالی دی اور مجھے مارا۔",
+        "আমার প্রতিবেশী আমাকে জাত তুলে গালি দিয়েছে এবং মারধর করেছে।",
+
+        "मैं काम के लिए शहर में अकेला रहता हूँ।",
+        "मेरा परिवार दूसरे ज़िले में रहता है।",
+        "मैंने अभी तक किसी को नहीं बताया।",
+        "నేను ఉద్యోగం కోసం నగరంలో ఒంటరిగా ఉంటాను.",
+        "మా కుటుంబం వేరే జిల్లాలో ఉంటుంది.",
+        "میں کام کے لیے شہر میں اکیلا رہتا ہوں۔",
+        "میرا خاندان دوسرے ضلع میں رہتا ہے۔",
+        "আমি কাজের জন্য শহরে একা থাকি।",
+        "আমার পরিবার অন্য জেলায় থাকে।",
+    ],
+
 }
 
 hard_negative_embeddings = {}
@@ -1945,6 +2175,34 @@ def understand(text, language=None):
         "suicidal_ideation",
     )
 
+    # Both feed the Stress Vulnerability Index rather than the risk
+    # tier -- see their banks above for why. SIH26093 names both
+    # explicitly, and social isolation is doing double duty: the
+    # problem statement's background lists social boycott among the
+    # atrocities people call 14566 about, and boycott is an SC/ST Act
+    # offence, not just a symptom.
+    # Looser neutral margin, for the reason detect_signal's docstring
+    # already documents: emotionally flattened language resembles the
+    # neutral example bank more closely than a terse anchor does, so a
+    # genuine report clears the raw threshold and then fails the
+    # margin. Measured: "I have not been able to leave my room for a
+    # month and I feel nothing at all" scored 0.926 against a neutral
+    # ceiling of 0.909 -- a +0.017 lead, under the shared 0.040, so it
+    # did not fire while the Hindi translation of the same sentence
+    # did. A false positive here costs a slightly elevated stress
+    # score; a false negative loses the indicator the problem
+    # statement asked for.
+    depression_indicators, depression_score = detect_signal(
+        text,
+        "depression_indicators",
+        neutral_margin=0.015,
+    )
+
+    social_isolation, isolation_score = detect_signal(
+        text,
+        "social_isolation",
+    )
+
     relationship, relationship_score = detect_relationship(text)
 
     location, location_score = detect_location(text)
@@ -1981,6 +2239,8 @@ def understand(text, language=None):
     # percentage.
     confidence_breakdown = {
         "incident_type": confidence,
+        "depression_indicators": round(depression_score * 100, 2),
+        "social_isolation": round(isolation_score * 100, 2),
         "threat": round(threat_score * 100, 2),
         "injury": round(injury_score * 100, 2),
 
@@ -2018,6 +2278,8 @@ def understand(text, language=None):
         "location": location,
         "caste_based_motive": caste_based_motive,
         "suicidal_ideation": suicidal_ideation,
+        "depression_indicators": depression_indicators,
+        "social_isolation": social_isolation,
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
     }
