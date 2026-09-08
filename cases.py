@@ -100,6 +100,15 @@ _NEW_COLUMNS = {
     # none of them have an explicit review recorded. See
     # acknowledge_case().
     "acknowledged": "INTEGER",
+    # Whether this row is seeded demonstration data rather than a real
+    # report. The dashboard mixes both -- seed_data.py populates an
+    # empty database so the demo has something to show, and real
+    # WhatsApp and portal reports land in the same table -- so a blanket
+    # "demo data" banner would mislabel real reports, and no label at
+    # all invites a judge to read seeded cases as live traffic. NULL
+    # for rows written before this column existed; seed_data backfills
+    # its own by text on startup.
+    "is_demo": "INTEGER",
     # How (and whether) the reporter wants to be contacted back, chosen
     # by them on the confirmation screen after submitting -- one of
     # VALID_FOLLOW_UP_PREFERENCES. NULL means they never answered, which
@@ -462,6 +471,7 @@ def create_case(
     district=None,
     created_at=None,
     location_source=None,
+    is_demo=False,
 ):
     """
     Persist one pipeline result as a case row.
@@ -566,9 +576,9 @@ def create_case(
                 evidence_path, location, latitude, longitude, is_sos,
                 stress_assessment_json, legal_guidance_json,
                 disclosure_level, reporter_name, reporter_contact, district,
-                nhaa_docket_json, location_source
+                nhaa_docket_json, location_source, is_demo
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 created_at or datetime.now(timezone.utc).isoformat(),
@@ -596,6 +606,7 @@ def create_case(
                 district,
                 json.dumps(nhaa_docket) if nhaa_docket is not None else None,
                 location_source,
+                int(bool(is_demo)),
             ),
         )
 
@@ -674,6 +685,7 @@ def _row_to_case(row):
         ),
         # NULL (pre-existing rows, or a real GPS fix) reads as "gps" --
         # see the _NEW_COLUMNS comment on why that backfill is correct.
+        "is_demo": bool(row["is_demo"]) if "is_demo" in row.keys() else False,
         "location_source": (
             row["location_source"]
             if "location_source" in row_keys and row["location_source"]

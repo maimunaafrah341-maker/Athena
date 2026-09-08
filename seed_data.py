@@ -37,6 +37,7 @@ from kg import get_legal_guidance
 from retrieval import retrieve
 from nhaa import create_nhaa_docket
 from cases import init_db, create_case, get_stats
+from cases import _connect
 from geocoding import geocode_district
 
 
@@ -167,6 +168,34 @@ def _escalate_and_reason(risk_assessment, stress_assessment, incident):
     return escalate, (" ".join(reasons) if reasons else None)
 
 
+def mark_existing_demo_cases():
+    """
+    Flag rows seeded before is_demo existed.
+
+    Those rows are indistinguishable from real reports in the schema,
+    but not in their content: SEED_REPORTS holds the exact text of
+    every one, so matching on it is deterministic rather than a guess.
+    Runs on every start and is idempotent -- a real report would have
+    to be a character-for-character match with a seed to be caught,
+    and the seeds are long enough narratives that this is not a
+    realistic collision.
+    """
+
+    texts = [row[0] for row in SEED_REPORTS]
+
+    with _connect() as connection:
+
+        cursor = connection.execute(
+            "UPDATE cases SET is_demo = 1 "
+            "WHERE (is_demo IS NULL OR is_demo = 0) "
+            "AND original_text IN (%s)" % ",".join("?" * len(texts)),
+            texts,
+        )
+
+        if cursor.rowcount:
+            print(f"[seed_data] flagged {cursor.rowcount} existing rows as demo data")
+
+
 def seed_demo_cases(force=False):
     """
     Insert SEED_REPORTS into cases.db if it's currently empty.
@@ -180,6 +209,7 @@ def seed_demo_cases(force=False):
 
     if not force and get_stats()["total_cases"] > 0:
         print("[seed_data] cases.db already has data -- skipping seed.")
+        mark_existing_demo_cases()
         return
 
     print(f"[seed_data] Seeding {len(SEED_REPORTS)} demo cases...")
@@ -244,6 +274,7 @@ def seed_demo_cases(force=False):
             latitude=seed_lat,
             longitude=seed_lon,
             location_source="district_approx" if seed_lat is not None else None,
+            is_demo=True,
         )
 
     print("[seed_data] Done.")

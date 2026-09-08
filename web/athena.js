@@ -1392,6 +1392,13 @@ function normalizeCase(item) {
         acknowledged:
             Boolean(item.acknowledged),
 
+        // Seeded example rows. The dashboard mixes them with real
+        // reports, so labelling the page "demo" would be wrong and
+        // labelling nothing invites a judge to read seeded cases as
+        // live traffic. Per row is the only honest granularity.
+        isDemo:
+            Boolean(item.is_demo),
+
         // Why the pipeline flagged this -- already computed and stored
         // per case, just never surfaced in the alert list, which meant
         // every row said "Critical priority case" and nothing about
@@ -1494,7 +1501,7 @@ function renderCasesTable() {
                     <td>
                         <strong>
                             ${escapeHTML(item.id)}
-                        </strong>
+                        </strong>${demoBadge(item)}
                     </td>
 
                     <td>
@@ -2727,7 +2734,7 @@ function renderOverviewCases() {
                 <div class="overview-case">
 
                     <strong>
-                        ${escapeHTML(item.id)}
+                        ${escapeHTML(item.id)}${demoBadge(item)}
                     </strong>
 
                     <span>
@@ -3514,6 +3521,20 @@ const RISK_GLYPH = {
     "moderate": "\u25CF",
     "low": "\u25AC",
 };
+
+
+function demoBadge(item) {
+
+    if (!item.isDemo) {
+        return "";
+    }
+
+    return `
+        <span class="demo-badge" title="${escapeHTML(t("demo.hint"))}">
+            ${escapeHTML(t("demo.badge"))}
+        </span>
+    `;
+}
 
 
 function riskBadge(tier) {

@@ -4410,3 +4410,31 @@ table tbody tr:hover {
 
     color: #45585f;
 }
+
+/* Marks a seeded example row. Deliberately per row, not per page: the
+   dashboard shows real reports alongside seeded ones. */
+.demo-badge {
+    display: inline-block;
+
+    margin-left: 6px;
+
+    padding: 2px 6px;
+
+    border-radius: 4px;
+
+    background: #fff4d6;
+
+    border: 1px solid #e8d9a8;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    letter-spacing: .3px;
+
+    color: #6b5a1e;
+
+    vertical-align: middle;
+
+    white-space: nowrap;
+}
