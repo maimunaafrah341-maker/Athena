@@ -82,6 +82,10 @@ const TRANSLATIONS = {
         "district.title": "District risk",
         "district.viewMap": "View map →",
         "district.placeholder": "District risk data",
+        "district.empty": "No district data yet.",
+        "district.emptyHint": "Districts appear here once reports include a location. Location is optional, so many never will.",
+        "district.cases": "{n} cases",
+        "district.oneCase": "1 case",
 
         "recent.eyebrow": "CASE MANAGEMENT",
         "recent.title": "Recent cases",
@@ -268,6 +272,10 @@ const TRANSLATIONS = {
         "district.title": "जिला जोखिम",
         "district.viewMap": "मानचित्र देखें →",
         "district.placeholder": "जिला जोखिम डेटा",
+        "district.empty": "अभी कोई जिला डेटा नहीं।",
+        "district.emptyHint": "जब रिपोर्ट में स्थान शामिल होगा तब जिले यहाँ दिखेंगे। स्थान देना वैकल्पिक है, इसलिए कई रिपोर्ट में यह कभी नहीं आएगा।",
+        "district.cases": "{n} मामले",
+        "district.oneCase": "1 मामला",
 
         "recent.eyebrow": "केस प्रबंधन",
         "recent.title": "हाल के मामले",
@@ -454,6 +462,10 @@ const TRANSLATIONS = {
         "district.title": "జిల్లా ప్రమాదం",
         "district.viewMap": "పటం చూడండి →",
         "district.placeholder": "జిల్లా ప్రమాద డేటా",
+        "district.empty": "ఇంకా జిల్లా డేటా లేదు.",
+        "district.emptyHint": "నివేదికలలో స్థానం ఉన్నప్పుడు జిల్లాలు ఇక్కడ కనిపిస్తాయి. స్థానం ఐచ్ఛికం, కాబట్టి చాలా వాటిలో ఇది ఉండదు.",
+        "district.cases": "{n} కేసులు",
+        "district.oneCase": "1 కేసు",
 
         "recent.eyebrow": "కేసు నిర్వహణ",
         "recent.title": "ఇటీవలి కేసులు",
@@ -647,6 +659,10 @@ const TRANSLATIONS = {
         "district.title": "ضلعی خطرہ",
         "district.viewMap": "نقشہ دیکھیں →",
         "district.placeholder": "ضلعی خطرے کا ڈیٹا",
+        "district.empty": "ابھی کوئی ضلعی ڈیٹا نہیں۔",
+        "district.emptyHint": "جب رپورٹس میں مقام شامل ہوگا تو اضلاع یہاں نظر آئیں گے۔ مقام دینا اختیاری ہے، اس لیے بہت سی رپورٹس میں یہ کبھی نہیں آئے گا۔",
+        "district.cases": "{n} کیس",
+        "district.oneCase": "1 کیس",
 
         "recent.eyebrow": "کیس مینجمنٹ",
         "recent.title": "حالیہ مقدمات",
@@ -833,6 +849,10 @@ const TRANSLATIONS = {
         "district.title": "জেলা ঝুঁকি",
         "district.viewMap": "মানচিত্র দেখুন →",
         "district.placeholder": "জেলা ঝুঁকির তথ্য",
+        "district.empty": "এখনও কোনো জেলার তথ্য নেই।",
+        "district.emptyHint": "প্রতিবেদনে অবস্থান থাকলে জেলাগুলি এখানে দেখা যাবে। অবস্থান দেওয়া ঐচ্ছিক, তাই অনেক প্রতিবেদনে তা কখনও থাকবে না।",
+        "district.cases": "{n}টি কেস",
+        "district.oneCase": "১টি কেস",
 
         "recent.eyebrow": "কেস ব্যবস্থাপনা",
         "recent.title": "সাম্প্রতিক কেস",
@@ -1047,12 +1067,12 @@ function setUiLanguage(lang) {
         // persist across reloads.
     }
 
-    // Urdu is right-to-left. Setting dir/lang on <html> is the minimum
-    // that makes text, punctuation and input caret behave correctly --
-    // a full RTL layout mirror (sidebar, tables, icon order) is a
-    // bigger change than this pass takes on, so this deliberately
-    // fixes reading direction without pretending the whole dashboard
-    // has been mirrored.
+    // Urdu is right-to-left. Setting dir/lang on <html> fixes text,
+    // punctuation and caret behaviour -- and, because the layout is
+    // built from flexbox and grid, it also mirrors the sidebar, the
+    // table columns and the icon order for free. Confirmed live
+    // 2026-09-08; an earlier note here said a full mirror was out of
+    // scope, which turned out to understate what dir alone does.
     document.documentElement.setAttribute("lang", lang);
     document.documentElement.setAttribute(
         "dir",

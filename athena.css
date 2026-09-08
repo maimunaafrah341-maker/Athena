@@ -4158,7 +4158,14 @@ table tbody tr:hover {
    NEEDS-ACTION QUEUE
 ========================================================= */
 
+/* Spans the full row. As a fifth child of a four-column grid it fell
+   into column one of a new implicit row, squeezing the text into a
+   narrow ribbon and making every row six lines tall. */
 .overview-case-why {
+    grid-column: 1 / -1;
+
+    margin-top: 5px;
+
     font-size: 10.5px;
 
     color: #6b7c85;
@@ -4198,4 +4205,41 @@ table tbody tr:hover {
     color: #6b7c85;
 
     line-height: 1.45;
+}
+
+
+/* =========================================================
+   DISTRICT WATCHLIST
+========================================================= */
+
+.district-row {
+    display: grid;
+
+    grid-template-columns: 1fr auto auto;
+
+    gap: 10px;
+
+    align-items: center;
+
+    padding: 11px 21px;
+
+    border-bottom: 1px solid #eeece7;
+}
+
+.district-row:last-child {
+    border-bottom: none;
+}
+
+.district-name {
+    font-size: 12px;
+
+    font-weight: 600;
+
+    color: #2c3a42;
+}
+
+.district-count {
+    font-size: 11px;
+
+    color: #6b7c85;
 }

@@ -313,6 +313,47 @@ if (pageName === "alerts") {
 
 
 /* =========================================================
+   LANGUAGE CHANGE
+========================================================= */
+
+// applyTranslations() in i18n.js walks [data-i18n] attributes, which
+// only exist on static markup. Every list on this dashboard is built
+// with innerHTML at render time, so its strings were frozen in
+// whichever language was active when it rendered: switching to English
+// left "घरेलू हिंसा" sitting in the queue, and switching to Telugu left
+// it there too. The chrome moved and the content did not -- the same
+// complaint this project already fixed once for the static pages.
+//
+// i18n.js has always called this hook after applying translations; it
+// simply was never defined here. Re-render from state rather than
+// refetching: the data has not changed, only the language it is
+// spelled in.
+window.onUiLanguageChange = function () {
+
+    if (!state.cases) return;
+
+    if (state.currentPage === "overview") {
+        renderOverviewCases();
+        renderDistrictWatchlist();
+    }
+
+    if (state.currentPage === "cases") {
+        renderCasesTable();
+    }
+
+    if (state.currentPage === "alerts") {
+        renderAlerts();
+    }
+
+    // risk-map is deliberately not re-rendered here. Its markers are
+    // drawn by Leaflet, and tearing that down and rebuilding it on a
+    // language change risks a double-init for popup text that updates
+    // on the next visit to the page anyway.
+
+};
+
+
+/* =========================================================
    NAVIGATION EVENTS
 ========================================================= */
 
@@ -1282,6 +1323,7 @@ async function loadCases() {
         renderCasesTable();
 
         renderOverviewCases();
+        renderDistrictWatchlist();
 
         updateDashboardStats();
 
@@ -1299,6 +1341,7 @@ async function loadCases() {
         renderCasesTable();
 
         renderOverviewCases();
+        renderDistrictWatchlist();
 
         updateDashboardStats();
 
@@ -2492,6 +2535,113 @@ function showCaseBrief(brief) {
    OVERVIEW CASES
 ========================================================= */
 
+/* =========================================================
+   DISTRICT WATCHLIST (OVERVIEW)
+========================================================= */
+
+// #miniDistrictMap shipped as a placeholder div that no code ever
+// touched, so the panel showed the words "District risk data" over
+// blank space on every load -- indistinguishable from a panel whose
+// fetch had failed, sitting next to cards full of real numbers.
+//
+// The data to fill it was already in memory: every loaded case
+// carries a district and a risk tier. This aggregates those rather
+// than adding an endpoint, so the panel costs one pass over an array
+// already in state and cannot fail separately from the page.
+//
+// District-level only, never a point -- same rule as the full risk
+// map. A count per district is planning information; a location per
+// case is surveillance.
+function renderDistrictWatchlist() {
+
+    const container = $("#miniDistrictMap");
+
+    if (!container) return;
+
+    const counts = new Map();
+
+    state.cases
+        .map(normalizeCase)
+        .forEach(item => {
+
+            const district = (item.district || "").trim();
+
+            // "—" is normalizeCase's placeholder for a report that
+            // named no district. Counting it would invent a district
+            // called "unknown" and rank it first, since anonymity is
+            // the most common choice here, not the rarest.
+            if (!district || district === "\u2014") return;
+
+            const existing =
+                counts.get(district) ||
+                { district: district, total: 0, worst: "Low" };
+
+            existing.total += 1;
+
+            if (alertRank({ risk: item.risk }) < alertRank({ risk: existing.worst })) {
+                existing.worst = item.risk;
+            }
+
+            counts.set(district, existing);
+
+        });
+
+    const districts =
+        Array.from(counts.values())
+            .sort((a, b) => {
+                const severity =
+                    alertRank({ risk: a.worst }) - alertRank({ risk: b.worst });
+                if (severity !== 0) return severity;
+                return b.total - a.total;
+            })
+            .slice(0, 5);
+
+    if (!districts.length) {
+
+        container.innerHTML = `
+            <div class="empty-state empty-state-good">
+                <div class="empty-state-title">
+                    ${escapeHTML(t("district.empty"))}
+                </div>
+                <div class="empty-state-hint">
+                    ${escapeHTML(t("district.emptyHint"))}
+                </div>
+            </div>
+        `;
+
+        return;
+
+    }
+
+    container.innerHTML =
+        districts.map(entry => {
+
+            const label =
+                entry.total === 1
+                    ? t("district.oneCase")
+                    : t("district.cases").replace("{n}", entry.total);
+
+            return `
+                <div class="district-row">
+
+                    <span class="district-name">
+                        ${escapeHTML(entry.district)}
+                    </span>
+
+                    <span class="district-count">
+                        ${escapeHTML(label)}
+                    </span>
+
+                    ${riskBadge(entry.worst)}
+
+                </div>
+            `;
+
+        }).join("");
+
+}
+
+
 function renderOverviewCases() {
 
     const container =
@@ -2558,11 +2708,19 @@ function renderOverviewCases() {
         cases.map(item => {
 
             // Why this row is in the queue, rather than leaving a
-            // counsellor to infer it from the badge. The stored reason
-            // is used when the pipeline recorded one; otherwise the
-            // membership rule itself is the honest answer.
+            // counsellor to infer it from the badge.
+            //
+            // Deliberately NOT item.reason. That field is written by
+            // the pipeline in English only, so on the Hindi dashboard
+            // it rendered a six-line block of untranslated English --
+            // the exact failure this project already fixed once, where
+            // switching language moved the chrome and left the content
+            // behind. It is also long: it explains the assessment,
+            // which belongs in the case brief, not in a queue row.
+            //
+            // What a queue row has to answer is why this case is in
+            // THIS queue, and the membership rule is the whole answer.
             const why =
-                item.reason ||
                 `${t("risk." + item.risk.toLowerCase())} · ${t("needsAction.notReviewed")}`;
 
             return `
