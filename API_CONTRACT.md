@@ -35,7 +35,13 @@ chose to share their location (e.g. a browser geolocation prompt they
 accepted). Omit/null is the default and totally fine.
 
 - `text` (string, required): the raw report. Language is auto-detected — you
-  don't need to pass `language` unless you want to force it (`"en"` / `"hi"` / `"te"`).
+  don't need to pass `language` unless you want to force it (`"en"` / `"hi"` /
+  `"te"` / `"ur"` / `"bn"`). **400 if empty or whitespace-only.** It used to
+  answer 200 with an empty response and `escalate: true`, which claimed an
+  escalation with no case behind it, since `create_case` is never reached on
+  that path. `POST /sos` is the deliberate exception: its `text` is optional
+  and falls back to a default phrase, because pressing the button is itself
+  the signal.
 - `language` (string, optional): omit or send `null` in the normal case.
 - `voice_features` (object, optional): pre-extracted voice signal, see
   **Stress Vulnerability Index (SVI)** below. Omit/null for text-only input,
@@ -90,17 +96,19 @@ frontend should branch on `escalate`/`reason`, not on HTTP status:
 | `incident.script` | `"native" \| "romanized" \| "latin"` | whether the report was written in native script (Devanagari/Telugu) or romanized (Latin letters); `"latin"` for English. The Gemini response matches this — romanized input gets a romanized reply, not a switch to native script |
 | `incident.incident_type` | string | e.g. `"domestic_violence"`, `"harassment"`, `"stalking"`, `"other"` |
 | `incident.violence_types` | string[] | subset of `["physical","threat","sexual","cyber"]` |
-| `incident.immediate_danger` / `.threat_present` / `.injury_present` | bool | |
+| `incident.immediate_danger` / `.threat_present` / `.injury_present` | bool | `immediate_danger` also fires on a hostile crowd gathered outside the reporter's home — SIH26093's background names social boycott and displacement as atrocities, and that is how both begin |
+| `incident.depression_indicators` | bool | Language describing collapsed functioning — not getting up, not eating, feeling nothing. **Named `_indicators` deliberately: this detects what a person said, it does not diagnose them.** Feeds the Stress Vulnerability Index, never the risk tier |
+| `incident.social_isolation` | bool | Being cut off by others — a village that has stopped speaking to you, a shop that will not serve you. Distinct from *being alone*, which is circumstance and is a hard negative. Also feeds the SVI only. Doing double duty: social boycott is an SC/ST Act offence, not just a symptom |
 | `incident.relationship` | string \| null | e.g. `"husband"`, `"stranger"`; null if not confidently detected |
 | `incident.location` | string \| null | a real-world place *type* mentioned in the report — one of `bus_stop`, `railway_station`, `hostel`, `home`, `workplace`, `college_campus`, `market`, `street`, `police_station`, `hospital`, `park`; null if no location is confidently mentioned (most reports won't have one — that's expected, not a bug) |
 | `incident.confidence` | float 0-100 | how confident the understanding step is — **low confidence is a real, meaningful state now** (see below) |
-| `incident.confidence_breakdown` | object | per-field confidence: `{incident_type, threat, injury, immediate_danger, relationship, location, caste_based_motive}`, each 0-100, calibrated the same way as `confidence` (comparable to each other, not raw similarity scores). A field can show low confidence even when its boolean came back `false`/`null` — that's the point, it explains *why* (e.g. `location: 43.4` alongside `location: null` means Athena saw a weak hint but wasn't confident enough to commit to it) |
+| `incident.confidence_breakdown` | object | per-field confidence: `{incident_type, threat, injury, immediate_danger, relationship, location, caste_based_motive, suicidal_ideation, depression_indicators, social_isolation}`, plus `threat_present` and `injury_present` as aliases of `threat`/`injury` — six of the keys were named exactly like the boolean they explain and two were not, so a caller looking up `threat_present` got `null` and reasonably read it as zero confidence in a signal that had fired. The short keys are kept because `svi.py` reads them, each 0-100, calibrated the same way as `confidence` (comparable to each other, not raw similarity scores). A field can show low confidence even when its boolean came back `false`/`null` — that's the point, it explains *why* (e.g. `location: 43.4` alongside `location: null` means Athena saw a weak hint but wasn't confident enough to commit to it) |
 | `incident.caste_based_motive` | bool | whether the report describes a caste-based motive (public insult/humiliation, denial of access, forced eviction because of caste — grounded in the SC/ST Act's own enumerated offences, not a generic "harassment" guess). **This raw boolean can be `true` on generic non-caste harassment text** (confirmed via live testing — caste-based insult is a semantic subset of generic insult, hard for a short-phrase embedding model to cleanly separate); don't trust it alone. `legal_guidance` only adds SC/ST Act provisions when this field's confidence clears 80 — always check `confidence_breakdown.caste_based_motive`, not just the boolean. Treat as advisory even above that bar; this is not a legal determination |
-| `risk.risk_tier` | `"Low" \| "Medium" \| "High" \| "Critical"` | |
+| `risk.risk_tier` | `"Low" \| "Moderate" \| "High" \| "Critical"` | The four categories SIH26093 names. Was `"Medium"` until 2026-09-08, which both missed the problem statement's vocabulary and collided with `svi_tier`, whose stress axis has always said `"Moderate"` — the mismatch silently undercounted mid-risk cases in the dashboard and drew their map pins in the low-risk colour |
 | `risk.risk_score` | int 0-100 | |
 | `risk.risk_factors` | string[] | human-readable reasons, e.g. `"Immediate danger detected"`, `"Low understanding confidence — human review recommended"` |
 | `risk.response_protocol` | object | `{sla, route, action}` staff-facing triage routing for this `risk_tier` (from `risk.py`'s `RESPONSE_PROTOCOL` table, added 2026-08-24 per Samreen's SLA/routing spec) — e.g. Critical: `{"sla": "Immediate", "route": "ERSS 112 Hard Override", "action": "Auto 112 Dispatch + SP Intercept"}`. Descriptive routing metadata only — nothing in this codebase actually calls ERSS-112 or dispatches police; a human still acts on it, same as `legal_guidance.escalation_contact` |
-| `stress_assessment.svi_tier` | `"Low" \| "Moderate" \| "High" \| "Critical"` | Stress Vulnerability Index tier — a *different axis from `risk_tier`*, see below. Deliberately "Moderate" not "Medium" so the two tier sets are never visually confused in the UI |
+| `stress_assessment.svi_tier` | `"Low" \| "Moderate" \| "High" \| "Critical"` | Stress Vulnerability Index tier — a *different axis from `risk_tier`*, see below. Both axes now use the same four words. They differed once, on the reasoning that distinct words kept them visually separate; in practice the frontend assumed they agreed and two bugs followed, so they are named consistently and told apart by their labels instead |
 | `stress_assessment.svi_score` | float 0-100 | |
 | `stress_assessment.confidence` | float 0-100 | same 0-100 convention as `incident.confidence`/`risk.confidence` — do not treat as a 0-1 scale |
 | `stress_assessment.modalities_used` | string[] | `["text"]` or `["text","voice"]` — tells you whether voice signal actually contributed |
@@ -192,15 +200,26 @@ open access.
 **Gated** (send `X-API-Key`): `GET /cases`, `GET /cases/{id}`,
 `GET /cases/{id}/related`, `GET /cases/{id}/brief`,
 `PATCH /cases/{id}/status`, `GET /stats`, `GET /stats/trend`,
-`GET /stats/districts`.
+`GET /stats/districts`, `POST /cases/{id}/notes`,
+`POST /cases/{id}/escalate`, `POST /cases/{id}/acknowledge`,
+`POST /cases/{id}/translate-reply`, and `GET /cases/map`.
 
-**Not gated, unchanged**: `POST /report`, `POST /sos`,
-`POST /report/image`, `POST /report/voice`, `GET /call-options`,
-`GET /nearby`, `GET /consent/voice-recording`, `GET /health`, and
-`GET /cases/map` — the map endpoint is deliberately public since it
-already returns only anonymized pins (coordinates + incident type/risk
-tier, never the report content — see `list_case_locations()`'s docstring
-in `cases.py`), unlike every other `/cases/*` route.
+**`GET /cases/map` was gated on 2026-09-08.** This document previously
+said it was deliberately public, on the reasoning that its pins are
+anonymized. That reasoning does not survive contact with what the
+payload actually carries: each pin has a case id, a timestamp, an
+incident type, a risk tier and district-level coordinates. k-anonymity
+suppression stops a *sparse district* being identifiable by its
+sparseness; it does not turn an individual pin into an aggregate, and
+a time plus a type plus a small district is re-identifying. Its only
+caller was already the counsellor dashboard, which sits behind the key,
+so nothing legitimate depended on it being open.
+
+**Not gated**: `POST /report`, `POST /sos`, `POST /report/image`,
+`POST /report/voice`, `POST /cases/{id}/follow-up` (token-gated
+instead — see below), `POST /whatsapp/webhook` (signature-verified
+instead), `GET /call-options`, `GET /nearby`,
+`GET /consent/voice-recording`, `GET /health`.
 
 **Be honest about what this is**: one shared secret, not per-counsellor
 accounts, roles, or an audit log of who accessed what. It closes the real
@@ -606,7 +625,7 @@ way: a real match if one exists, an empty list if not.
     "created_at": "2026-08-20T18:03:45+00:00",
     "incident_type": "stalking",
     "location": "college_campus",
-    "risk_tier": "Medium"
+    "risk_tier": "Moderate"
   }
 ]
 ```

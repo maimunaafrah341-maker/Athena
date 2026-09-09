@@ -12,8 +12,8 @@ Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a
 
 - **Understands** a report in English, Hindi, Telugu, Urdu, or Bengali — native script or romanized (Latin script for Hindi/Telugu/Urdu/Bengali) — using semantic similarity against curated real-world examples, not keyword matching. The interface itself (not just the complaint text) is also localized into Hindi/Telugu/Urdu/Bengali, so a reporter doesn't need to already read English to get through the report form. Urdu/Bengali support is new (2026-08-29) and hasn't had a native-speaker review pass yet — see `eval_pipeline.py`.
 - **Places a report on the safety map even without GPS.** If a reporter shares a district but denies/lacks location access, `geocoding.py` resolves an approximate district-level pin (OSM Nominatim, with a cached/offline table for common districts) instead of the case simply not appearing — clearly labeled "(approx.)" rather than implying GPS precision it doesn't have.
-- **Assesses risk** (`risk_tier`: Low/Medium/High/Critical) from detected signals — threats, injury, immediate danger, caste-based motive — with a concrete per-tier response protocol (SLA, escalation route, action).
-- **Assesses stress** independently via the **Stress Vulnerability Index (SVI)** — the module this problem statement names directly — fusing text distress signals with voice acoustic features (pitch variation, pause ratio, speech rate, real-extracted from the actual audio via `voice_features.py`/librosa, not placeholder values) into a Low/Moderate/High/Critical tier, and flagging when text and voice disagree.
+- **Assesses risk** (`risk_tier`: Low/Moderate/High/Critical — the four categories SIH26093 names) from detected signals — threats, injury, immediate danger, caste-based motive, and a hostile crowd gathered outside the home — with a concrete per-tier response protocol (SLA, escalation route, action).
+- **Assesses stress** independently via the **Stress Vulnerability Index (SVI)** — the module this problem statement names directly — fusing text distress signals with voice acoustic features (pitch variation, pause ratio, speech rate, real-extracted from the actual audio via `voice_features.py`/librosa, not placeholder values) into a Low/Moderate/High/Critical tier, and flagging when text and voice disagree. Also detects **depression indicators** and **social isolation** — both named by the problem statement, both feeding the stress index rather than the risk tier, because they describe how vulnerable someone is rather than whether they are about to be hurt. Social isolation does double duty: social boycott is an SC/ST Act offence, not just a mood.
 - **Grounds every legal citation** in real, ingested government source documents (Bharatiya Nyaya Sanhita 2023, the SC/ST Prevention of Atrocities Act 1989 bare act, PWDVA 2005, Mission Shakti guidelines) via a confidence-gated RAG pipeline — nothing is cited that wasn't actually retrieved above a similarity threshold.
 - **Resolves an escalation contact** from a national directory of 554 districts across 33 states/UTs, provenance-tagged (manually verified vs. machine-parsed) so nothing is presented with false confidence.
 - **Escalates to a human** on any of three independent triggers: Critical risk, Critical stress, or the system simply not being confident it understood the report at all.
@@ -86,9 +86,34 @@ Full request/response contract, known limitations, and field-level detail: [API_
 
 ### The WhatsApp-style channel
 
-[web/index.html](web/index.html) is a real channel, not a mockup with canned replies: typing, recording a voice note, or sending a photo there hits the same `/report`, `/report/voice`, and `/report/image` endpoints the dashboard uses, and the case it creates shows up in the counsellor dashboard like any other. It exists to show that the same pipeline works inside an interface a first-time user already trusts, ahead of a real WhatsApp Business API integration.
+[web/index.html](web/index.html) is a real channel, not a mockup with canned replies: typing, recording a voice note, or sending a photo there hits the same `/report`, `/report/voice`, and `/report/image` endpoints the dashboard uses, and the case it creates shows up in the counsellor dashboard like any other. It exists to show that the same pipeline works inside an interface a first-time user already trusts.
+
+**Real WhatsApp is live too.** `whatsapp.py` + `POST /whatsapp/webhook` run the same pipeline from an actual WhatsApp message via the Twilio sandbox — text, voice notes and photos — with the request signature verified before anything is processed, so the endpoint cannot be used to inject cases. A voice note is transcribed, assessed and answered inside the webhook itself; measured at ~2s on the live deployment.
 
 Two ways to send voice, deliberately: the **mic button records live** from the browser (with a timer, and a clear message rather than a silent failure if permission is denied or there's no device), and a **separate button sends a bundled Hindi sample** — a guaranteed-good clip to fall back on when a stage mic or a noisy room won't cooperate mid-demo.
+
+## Tests
+
+```bash
+pytest -q          # 195 tests, ~60s
+pytest tests/test_i18n.py -q   # 11 of them, 0.14s, no model or database
+```
+
+Every test encodes a defect this project actually shipped, not a hypothetical — and the
+sentences in them are the ones that *found* each bug, deliberately not the example anchors
+added to fix it. A test that reuses its own anchor proves the anchor exists, not that the
+fix generalises.
+
+| File | Guards |
+|---|---|
+| `tests/test_understanding.py` | Caste motive firing in all five languages and clearing the 80% floor `kg.py` needs before attaching SC/ST provisions; caste reports not typing as domestic violence and routing to the wrong Act; a death threat not reading as suicidal ideation while genuine ideation still does; anonymous attackers not being downgraded; native Urdu and Bengali reported as native script |
+| `tests/test_api.py` | Every admin endpoint refusing a missing or wrong key; the follow-up token being per-case and one-shot; empty reports rejected while SOS with no text is not; map pins carrying nothing that identifies a reporter |
+| `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief |
+| `tests/test_risk.py` | Tier vocabulary matching the problem statement; contact counts rising with severity |
+| `tests/test_retrieval.py` | Retrieval well-formed and ordered, every evaluation query clearing the confidence gate including the non-English ones, and the SC/ST Act reachable from a caste query |
+
+`tests/conftest.py` points the database at a temp file first, so running the suite cannot
+file test reports into a database a counsellor is looking at.
 
 ## Running it locally
 
@@ -118,7 +143,10 @@ Stated honestly rather than discovered by a judge mid-demo — full detail in `A
 - Admin access is a single shared API key today, not per-counsellor roles or an audit log.
 - The reporter's follow-up-contact preference is saved through a public endpoint (the person answering it has just filed a report and holds no counsellor key). It requires a per-case token issued with the report itself, is write-only, never echoes case content back, and refuses to overwrite an answer already given. Guessing a case ID is not enough to answer on someone's behalf.
 - Counsellor actions are timestamped on the case timeline, but not attributed to an individual — there is one shared admin key, so the log records *what* happened and *when*, not *who*. Per-counsellor identity needs real accounts first.
-- Urdu switches the page to `dir="rtl"`, which fixes text direction and input behaviour. The dashboard layout itself (sidebar, tables, icon order) is not mirrored yet.
+- Voice acoustic features (`voice_features.py`) are **disabled on the hosted deployment**. Measured at ~20s and ~800MB on top of the embedding model, which is enough to get a memory-capped free-tier container killed mid-request. Set `ENABLE_VOICE_FEATURES=1` where the RAM exists; without it, voice notes still transcribe, assess, escalate and reply — on the transcript alone, so the SVI runs text-only.
+- A village boycott can read as immediate danger and over-escalate. Hard negatives fixed that in four languages and, through cross-lingual similarity, suppressed danger detection on the Urdu report of a crowd gathered outside a house — so they were withdrawn. A mob at the door is worth more than a tidy queue, and the error points toward answering too fast.
+- A report containing **both** social boycott and depression scores only the isolation signal, because separating the two required a hard negative that suppresses the other. Chosen deliberately: it under-states vulnerability rather than inventing it.
+- Romanized detection is uneven across languages — romanized Hindi scores ~97 on the evaluation set against ~78 for romanized Telugu. Native script is effectively exact, since it is a Unicode range check. The honest claim is *five languages in native script, two of them also romanized, one of those two well*.
 - "Auto 112 Dispatch" in `risk.py`'s response protocol is routing metadata describing the intended real-world action — Athena does not call ERSS-112 itself, and no screen tells a reporter that help has been dispatched.
 
 ## Team

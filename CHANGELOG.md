@@ -1,6 +1,6 @@
 # Athena — what it does, and what's shipped
 
-_SIH26093 · National Helpline Against Atrocities · updated 31 Aug 2026_
+_SIH26093 · National Helpline Against Atrocities · updated 9 Sep 2026_
 
 ## The problem
 
@@ -120,3 +120,85 @@ order.
   demo always blamed "backend not running on localhost:8000," even in
   production. It now distinguishes an unreachable backend from a real
   backend error and reports which one actually happened.
+
+---
+
+## 8-9 September 2026
+
+A correctness pass. Almost everything here was a defect found by testing
+rather than a feature added, and each one is now covered by a test so it
+cannot come back quietly.
+
+### Classification bugs, all of them cross-language
+- **Caste motive fired in English only.** `kg.py` gates the SC/ST Act
+  provisions on that signal, so a caste atrocity reported in Hindi,
+  Telugu, Urdu or Bengali received no statutory citations at all — on a
+  project built for the National Helpline Against Atrocities. The
+  anchors covered public humiliation and denial of entry, neither of
+  which involves being hit, so once a beating entered the sentence the
+  domestic-violence hard negatives won.
+- **Non-English caste reports cited the wrong Act.** `get_legal_guidance`
+  routes on incident type, so a neighbour's caste assault typed as
+  domestic violence received the Protection of Women from Domestic
+  Violence Act. Confidently, and wrongly.
+- **A crowd outside the home wasn't danger.** The same event — caste
+  temple-entry denial plus a crowd at the house — scored Low in Hindi
+  and English and Critical in Telugu, Bengali and Urdu. The two
+  languages most likely to be used gave the safest-sounding answer.
+- **Native Urdu and Bengali were recorded as `latin`.** Both reached
+  language detection later than Hindi and Telugu, and script detection
+  was never extended with their Unicode ranges.
+
+### Two indicators the problem statement asked for
+- **Depression indicators** and **social isolation**, in five languages,
+  feeding the Stress Vulnerability Index rather than the risk tier —
+  they describe how vulnerable someone is, not whether they are about to
+  be hurt. Social isolation does double duty: social boycott is an SC/ST
+  Act offence, not just a symptom.
+
+### Security and privacy
+- **`GET /cases/map` was public.** Each pin carried a case id, a
+  timestamp, an incident type, a risk tier and district coordinates.
+  k-anonymity stops a sparse district being identifiable by its
+  sparseness; it does not make one pin an aggregate. Now admin-gated —
+  its only caller was already behind the key.
+- **An empty report answered 200** with an empty response and
+  `escalate: true`, claiming an escalation with no case behind it.
+
+### The helpline's own number
+- **14566 was not in the emergency list.** Athena offered a person in
+  danger 112, 100, 181 and 1098 — every national number except the one
+  this project exists to serve. KIRAN 1800-599-0019 added alongside it.
+
+### Language, everywhere
+- **Switching language moved the chrome and left the content behind.**
+  Every list built with `innerHTML` kept whichever language it rendered
+  in. `i18n.js` had always called a hook for this; it was never defined.
+- **The case brief was English on every language** — every heading,
+  label, button and placeholder built as a literal rather than read
+  through `t()`. It is the screen a counsellor works from, and the one
+  where a reporter's own words sat surrounded by another language.
+- **Risk tiers renamed Medium → Moderate**, matching the four categories
+  the problem statement names. The old mismatch with `svi_tier` had
+  already caused two dashboard bugs.
+
+### The test suite
+- **From zero to 195.** `pytest` previously reported "no tests ran",
+  accurately: `tests/` held one file that printed a retrieval report and
+  asserted nothing. Every test now encodes a defect this project
+  actually shipped, and uses the sentence that *found* the bug rather
+  than the anchor added to fix it.
+
+### Interface honesty
+- Dead phone and video icons removed from the demo header; the phone
+  icon now opens real numbers.
+- "online" replaced — it borrowed WhatsApp's meaning, that a person is
+  there right now.
+- Emergency numbers became one-tap `tel:` links, then gained a
+  confirmation step, because 112 reaches real emergency services and a
+  judge tapping it mid-demo would place a real call.
+- Reply drafts can be saved to the case, prefixed "Drafted reply (not
+  sent)" so a case file can never be read as evidence of delivery.
+- Seeded demo cases are labelled per row, not per page — the dashboard
+  mixes them with real reports.
+
