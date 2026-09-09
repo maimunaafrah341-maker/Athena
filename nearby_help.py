@@ -151,8 +151,20 @@ NATIONAL_HELPLINES = [
     {"label": "Police", "phone": "100", "source": "national"},
     {"label": "Women's Helpline", "phone": "181", "source": "national"},
     {"label": "Childline (child in distress)", "phone": "1098", "source": "national"},
-    {"label": "KIRAN mental health support", "phone": "1800-599-0019", "source": "national"},
 ]
+
+# KIRAN is deliberately NOT in the list above. emergency_contacts.py
+# imports it as its general set and attaches KIRAN separately, gated on
+# the stress tier, because acute psychological distress does not track
+# physical-safety risk. Putting KIRAN here handed it to every Critical
+# case regardless of stress and quietly bypassed that gate. It is still
+# offered by /call-options, which is a "show me every number" list
+# rather than a triage decision -- see get_call_options below.
+KIRAN_MENTAL_HEALTH = {
+    "label": "KIRAN mental health support",
+    "phone": "1800-599-0019",
+    "source": "national",
+}
 
 
 def get_call_options(latitude=None, longitude=None):
@@ -191,5 +203,11 @@ def get_call_options(latitude=None, longitude=None):
             })
 
     options.extend(NATIONAL_HELPLINES)
+
+    # This endpoint answers "show me every number", not "triage this
+    # case", so mental-health support belongs here unconditionally --
+    # unlike emergency_contacts.py, which attaches it on the stress
+    # tier because it is making a decision rather than listing options.
+    options.append(KIRAN_MENTAL_HEALTH)
 
     return options

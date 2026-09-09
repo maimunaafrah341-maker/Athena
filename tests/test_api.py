@@ -296,3 +296,60 @@ def test_mental_health_support_is_offered():
     numbers = {option["phone"] for option in client.get("/call-options").json()}
 
     assert "1800-599-0019" in numbers, "KIRAN is not offered"
+
+
+@pytest.mark.parametrize("risk,svi", [
+    ("Low", "Low"), ("Moderate", "Low"), ("High", "Low"), ("Critical", "Low"),
+    ("Low", "High"), ("Moderate", "High"), ("High", "High"), ("Critical", "High"),
+])
+def test_the_helpline_is_offered_at_every_tier(risk, svi):
+    """
+    14566 reached Critical and SOS cases only, because those branches
+    take the whole national list while the others filter it down to
+    specific numbers. A Moderate or High case was handed 112, 181 and
+    the NCW helpline and not the number of the helpline it had just
+    contacted -- seen live in a WhatsApp reply to a missing-person
+    report on 2026-09-09.
+    """
+
+    from emergency_contacts import get_deterministic_contacts
+
+    numbers = [c["phone"] for c in get_deterministic_contacts(risk, svi)]
+
+    assert "14566" in numbers, "%s/%s was not offered 14566" % (risk, svi)
+
+
+def test_uncertain_escalation_still_gets_a_safety_net():
+    """
+    pipeline.py escalates on low understanding confidence, which can
+    land Low/Low on both tiers. That path had a fallback, and putting
+    14566 in unconditionally silently disabled it -- the fallback
+    triggered on "no contacts yet", which stopped ever being true.
+    """
+
+    from emergency_contacts import get_deterministic_contacts
+
+    numbers = [
+        c["phone"]
+        for c in get_deterministic_contacts("Low", "Low", escalate=True)
+    ]
+
+    assert "14566" in numbers
+    assert len(numbers) > 1, "an escalated case got only the helpline number"
+
+
+def test_mental_health_support_tracks_stress_not_risk():
+    """
+    KIRAN is attached on the stress tier, because acute psychological
+    distress does not track physical-safety risk. Adding it to the
+    general national list handed it to every Critical case regardless
+    of stress and bypassed that gate entirely.
+    """
+
+    from emergency_contacts import get_deterministic_contacts
+
+    calm = [c["phone"] for c in get_deterministic_contacts("Critical", "Low")]
+    distressed = [c["phone"] for c in get_deterministic_contacts("Low", "High")]
+
+    assert "1800-599-0019" not in calm, "KIRAN attached without a stress trigger"
+    assert "1800-599-0019" in distressed, "KIRAN missing on high stress"

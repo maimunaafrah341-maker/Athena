@@ -78,28 +78,55 @@ def get_deterministic_contacts(risk_tier, svi_tier, is_sos=False, escalate=False
 
     contacts = []
 
+    # The National Helpline Against Atrocities goes on every response,
+    # at every tier, before anything else.
+    #
+    # It was reaching Critical and SOS cases only, because those are
+    # the branches that take the whole general list and the others
+    # filter it down to specific numbers. So a Moderate or High case --
+    # or an escalated-but-uncertain one -- was handed 112, 181 and the
+    # NCW helpline and not the number of the helpline it had just
+    # contacted. Seen live on 2026-09-09 in a WhatsApp reply to a
+    # missing-person report.
+    #
+    # Unconditional on purpose: this is the service the person is
+    # already talking to, and there is no tier at which it stops being
+    # the right number for them.
+    contacts += [
+        c for c in GENERAL_NATIONAL_HELPLINES
+        if c["phone"] == "14566"
+    ]
+
+    # Everything below is tier-driven. Tracked separately from
+    # `contacts` because 14566 is now always in there, so "did any tier
+    # rule fire?" can no longer be answered by asking whether the list
+    # is empty -- which silently disabled the escalate fallback below.
+    tier_contacts = []
+
     if is_sos or risk_tier == "Critical":
-        contacts += GENERAL_NATIONAL_HELPLINES
+        tier_contacts += GENERAL_NATIONAL_HELPLINES
 
     elif risk_tier == "High":
-        contacts += [
+        tier_contacts += [
             c for c in GENERAL_NATIONAL_HELPLINES
             if c["phone"] in ("112", "181")
         ]
-        contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
+        tier_contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
 
     elif risk_tier == "Moderate":
-        contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
+        tier_contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
 
     if svi_tier in ("Critical", "High"):
-        contacts.append(EXTRA_HELPLINES["kiran_mental_health"])
+        tier_contacts.append(EXTRA_HELPLINES["kiran_mental_health"])
 
-    if escalate and not contacts:
-        contacts += [
+    if escalate and not tier_contacts:
+        tier_contacts += [
             c for c in GENERAL_NATIONAL_HELPLINES
             if c["phone"] == "181"
         ]
-        contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
+        tier_contacts.append(EXTRA_HELPLINES["ncw_women_helpline"])
+
+    contacts += tier_contacts
 
     # De-dupe by phone number, preserving first-seen order (e.g.
     # Critical risk + Critical stress both requesting 181/KIRAN).

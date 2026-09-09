@@ -553,7 +553,11 @@
     ></button>
   </div>
 
-  <div class="chat" id="chat"></div>
+  <div class="chat" id="chat">
+    <div class="row in greeting-row">
+      <div class="bubble"></div>
+    </div>
+  </div>
 
   <div class="disclaimer" id="disclaimer" style="display:none;"></div>
 
@@ -633,6 +637,7 @@
       typing: "typing…",
       disclaimer: "🔒 This is a concept demo. Messages are sent to Athena's safety pipeline — the same one the main app uses — not a real WhatsApp number.",
       placeholder: "Type a message",
+      greeting: "Tell me what happened. You can type it, send a voice note, or send a photo — share only what feels safe.",
       dialHint: "Tapping a number opens your phone's dialler. Nothing is dialled until you confirm.",
       callHelpline: "Call 14566 · Helpline",
       confirmCallTitle: "Call {label} on {phone}?",
@@ -657,6 +662,7 @@
       typing: "टाइप कर रहे हैं…",
       disclaimer: "🔒 यह एक कॉन्सेप्ट डेमो है। संदेश एथेना की सुरक्षा प्रणाली को भेजे जाते हैं — वही जो मुख्य ऐप उपयोग करता है — यह असली व्हाट्सऐप नंबर नहीं है।",
       placeholder: "संदेश टाइप करें",
+      greeting: "बताइए क्या हुआ। आप टाइप कर सकते हैं, वॉइस नोट या फ़ोटो भेज सकते हैं — जितना बताना सुरक्षित लगे, उतना ही बताइए।",
       dialHint: "किसी नंबर को दबाने पर आपका फ़ोन डायलर खुलेगा। पुष्टि करने तक कोई कॉल नहीं लगेगी।",
       callHelpline: "14566 पर कॉल करें · हेल्पलाइन",
       confirmCallTitle: "{label} को {phone} पर कॉल करें?",
@@ -681,6 +687,7 @@
       typing: "టైప్ చేస్తున్నారు…",
       disclaimer: "🔒 ఇది ఒక కాన్సెప్ట్ డెమో. సందేశాలు ఎథీనా భద్రతా వ్యవస్థకు పంపబడతాయి — ప్రధాన యాప్ ఉపయోగించే అదే వ్యవస్థ — ఇది నిజమైన WhatsApp నంబర్ కాదు.",
       placeholder: "సందేశం టైప్ చేయండి",
+      greeting: "ఏం జరిగిందో చెప్పండి. మీరు టైప్ చేయవచ్చు, వాయిస్ నోట్ లేదా ఫోటో పంపవచ్చు — సురక్షితం అనిపించినంత మాత్రమే చెప్పండి.",
       dialHint: "నంబర్‌ను నొక్కితే మీ ఫోన్ డయలర్ తెరుచుకుంటుంది. మీరు నిర్ధారించే వరకు కాల్ వెళ్ళదు.",
       callHelpline: "14566కు కాల్ చేయండి · హెల్ప్‌లైన్",
       confirmCallTitle: "{label}కు {phone} నంబర్‌లో కాల్ చేయాలా?",
@@ -705,6 +712,7 @@
       typing: "ٹائپ کر رہے ہیں…",
       disclaimer: "🔒 یہ ایک تصوراتی ڈیمو ہے۔ پیغامات ایتھینا کے حفاظتی نظام کو بھیجے جاتے ہیں — وہی جو مرکزی ایپ استعمال کرتی ہے — یہ حقیقی واٹس ایپ نمبر نہیں ہے۔",
       placeholder: "پیغام ٹائپ کریں",
+      greeting: "بتائیے کیا ہوا۔ آپ ٹائپ کر سکتے ہیں، وائس نوٹ یا تصویر بھیج سکتے ہیں — جتنا بتانا محفوظ لگے، اتنا ہی بتائیں۔",
       dialHint: "کسی نمبر کو دبانے پر آپ کا فون ڈائلر کھلے گا۔ تصدیق تک کوئی کال نہیں لگے گی۔",
       callHelpline: "14566 پر کال کریں · ہیلپ لائن",
       confirmCallTitle: "{label} کو {phone} پر کال کریں؟",
@@ -729,6 +737,7 @@
       typing: "টাইপ করছে…",
       disclaimer: "🔒 এটি একটি ধারণাগত ডেমো। বার্তাগুলি এথীনার নিরাপত্তা ব্যবস্থায় পাঠানো হয় — মূল অ্যাপ যা ব্যবহার করে সেটিই — এটি প্রকৃত হোয়াটসঅ্যাপ নম্বর নয়।",
       placeholder: "বার্তা লিখুন",
+      greeting: "কী হয়েছে বলুন। আপনি লিখতে পারেন, ভয়েস নোট বা ছবি পাঠাতে পারেন — যতটা নিরাপদ মনে হয় ততটাই বলুন।",
       dialHint: "নম্বরে চাপ দিলে আপনার ফোনের ডায়ালার খুলবে। নিশ্চিত না করা পর্যন্ত কল যাবে না।",
       callHelpline: "14566-এ কল করুন · হেল্পলাইন",
       confirmCallTitle: "{label}-কে {phone} নম্বরে কল করবেন?",
@@ -767,6 +776,19 @@
     counsellorViewButton.setAttribute("aria-label", strings.counsellorView);
     composerLang.textContent = strings.writingIn;
     input.placeholder = strings.placeholder;
+
+    // The opening message. Moving the demo disclaimer out of the chat
+    // and into a persistent bar left the conversation starting on an
+    // empty panel -- correct about where the disclaimer belongs, wrong
+    // about what someone sees when they arrive. Rendered here rather
+    // than in the markup so it follows a language change, and only
+    // while it is still the only thing on screen, so switching
+    // language mid-conversation never rewrites history.
+    const greetingRow = chat.querySelector(".greeting-row");
+
+    if (greetingRow && chat.children.length === 1) {
+        greetingRow.querySelector(".bubble").textContent = strings.greeting;
+    }
 
     // Urdu is right-to-left. Without this the composer, the demo bar
     // and every system message read in the wrong direction.
