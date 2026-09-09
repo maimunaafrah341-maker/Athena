@@ -1433,6 +1433,29 @@ function renderCasesTable() {
         "all";
 
 
+    // Cases are never deleted. A report bound to an NHAA docket exists
+    // inside a legal process the helpline does not get to end, and the
+    // case timeline is append-only precisely so it can be read as
+    // evidence later. What a counsellor actually needs is a queue that
+    // is not flooded by work already finished -- so finished cases are
+    // filtered out of the default view, and counted where they were.
+    const statusMode =
+        $("#statusFilter")?.value ||
+        "open";
+
+    const matchesStatus = (item) => {
+
+        if (statusMode === "all") {
+            return true;
+        }
+
+        const isClosed = CLOSED_STATUSES.has(item.status);
+
+        return statusMode === "closed" ? isClosed : !isClosed;
+
+    };
+
+
     const cases =
         state.cases
             .map(normalizeCase)
@@ -1460,9 +1483,33 @@ function renderCasesTable() {
 
 
                 return matchesSearch &&
-                    matchesRisk;
+                    matchesRisk &&
+                    matchesStatus(item);
 
             });
+
+
+    // Say how many are hidden, every time. A queue that quietly drops
+    // rows is indistinguishable from one that lost them, and on a case
+    // list bound to NHAA dockets that is the worst possible ambiguity.
+    const hiddenNote = $("#casesHiddenNote");
+
+    if (hiddenNote) {
+
+        const hidden =
+            state.cases
+                .map(normalizeCase)
+                .filter(item => CLOSED_STATUSES.has(item.status)).length;
+
+        if (statusMode === "open" && hidden > 0) {
+            hiddenNote.hidden = false;
+            hiddenNote.textContent =
+                t("cases.hiddenNote").replace("{n}", hidden);
+        } else {
+            hiddenNote.hidden = true;
+        }
+
+    }
 
 
     if (!cases.length) {
@@ -3651,6 +3698,10 @@ function riskBadge(tier) {
 }
 
 
+// Work that is finished. Everything else is still somebody's job.
+const CLOSED_STATUSES = new Set(["Resolved", "Closed"]);
+
+
 const ALERT_RISK_ORDER = { "Critical": 0, "High": 1, "Moderate": 2, "Low": 3 };
 
 function alertRank(item) {
@@ -3925,6 +3976,11 @@ $("#caseSearch")?.addEventListener(
 
 
 $("#riskFilter")?.addEventListener(
+    "change",
+    renderCasesTable
+);
+
+$("#statusFilter")?.addEventListener(
     "change",
     renderCasesTable
 );

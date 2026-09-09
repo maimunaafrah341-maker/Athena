@@ -1038,7 +1038,21 @@
                                 <option value="Low">Low</option>
                             </select>
 
+                            <select id="statusFilter" aria-label="Case status">
+                                <option value="open" selected data-i18n="cases.activeOnly">Open cases</option>
+                                <option value="all" data-i18n="cases.allStatuses">All cases</option>
+                                <option value="closed" data-i18n="cases.closedOnly">Resolved and closed</option>
+                            </select>
+
                         </div>
+
+                        <p
+                            id="casesHiddenNote"
+                            class="cases-hidden-note"
+                            role="status"
+                            aria-live="polite"
+                            hidden
+                        ></p>
 
 
                         <div class="table-wrapper">

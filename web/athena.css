@@ -4453,3 +4453,24 @@ table tbody tr:hover {
 .reply-save-status.is-error {
     color: #a8332f;
 }
+
+/* Says how many finished cases the default view is holding back. A
+   queue that quietly drops rows is indistinguishable from one that
+   lost them. */
+.cases-hidden-note {
+    margin: 0 0 12px;
+
+    padding: 8px 12px;
+
+    background: #f4f6f5;
+
+    border-left: 3px solid #2f6b4f;
+
+    border-radius: 6px;
+
+    font-size: 11.5px;
+
+    line-height: 1.45;
+
+    color: #45585f;
+}
