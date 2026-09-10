@@ -97,8 +97,8 @@ Two ways to send voice, deliberately: the **mic button records live** from the b
 ## Tests
 
 ```bash
-pytest -q          # 195 tests, ~60s
-pytest tests/test_i18n.py -q   # 11 of them, 0.14s, no model or database
+pytest -q          # 244 tests, ~3min (the embedding model dominates)
+pytest tests/test_i18n.py -q   # 39 of them, 0.3s, no model or database
 ```
 
 Every test encodes a defect this project actually shipped, not a hypothetical — and the
@@ -110,7 +110,8 @@ fix generalises.
 |---|---|
 | `tests/test_understanding.py` | Caste motive firing in all five languages and clearing the 80% floor `kg.py` needs before attaching SC/ST provisions; caste reports not typing as domestic violence and routing to the wrong Act; a death threat not reading as suicidal ideation while genuine ideation still does; anonymous attackers not being downgraded; native Urdu and Bengali reported as native script |
 | `tests/test_api.py` | Every admin endpoint refusing a missing or wrong key; the follow-up token being per-case and one-shot; empty reports rejected while SOS with no text is not; map pins carrying nothing that identifies a reporter |
-| `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief |
+| `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief. Also covers the demo page's own `UI_STRINGS` table, which imports nothing and so was invisible to all of the above, and forbids any label or error message written in English by JavaScript — the gap that put an English verdict under a Hindi reply |
+| `tests/test_response_prompt.py` | The prompt naming the statute actually in force, forbidding the evidence markers and the repealed penal code, and asking for plain text and one numeral system; markdown stripped from replies and from translations, without touching a statute citation |
 | `tests/test_risk.py` | Tier vocabulary matching the problem statement; contact counts rising with severity |
 | `tests/test_retrieval.py` | Retrieval well-formed and ordered, every evaluation query clearing the confidence gate including the non-English ones, and the SC/ST Act reachable from a caste query |
 
