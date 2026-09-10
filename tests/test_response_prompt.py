@@ -16,7 +16,7 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 
-from response_engine import build_prompt  # noqa: E402
+from response_engine import build_prompt, strip_markdown  # noqa: E402
 
 
 def _incident(language, script):
@@ -104,3 +104,94 @@ def test_the_repealed_penal_code_is_named_as_forbidden():
     assert "भारतीय दंड संहिता" in prompt, (
         "the prompt does not name the repealed statute it must avoid"
     )
+
+
+# ------------------------------------------------------------------
+# Markdown never reaches the reporter
+# ------------------------------------------------------------------
+
+def test_the_prompt_forbids_markdown():
+    """
+    A live Hindi reply on 2026-09-10 opened a section with
+    "**अगले कदम:**" -- literal asterisks, in a chat bubble that
+    renders no markdown, in the middle of a message about a
+    break-in. Nothing in the prompt had ever asked for plain text.
+    """
+
+    prompt = build_prompt(_incident("hi", "native"), RISK, EVIDENCE)
+
+    assert "FORMATTING:" in prompt
+    assert "No markdown" in prompt
+
+
+def test_the_prompt_does_not_demonstrate_the_thing_it_forbids():
+    """
+    The statute section wrote **Bharatiya Nyaya Sanhita, 2023** in
+    markdown bold. A model shown bold in its instructions hands bold
+    back, so the rule and the example contradicted each other.
+    """
+
+    prompt = build_prompt(_incident("hi", "native"), RISK, EVIDENCE)
+
+    statute_line = [
+        line for line in prompt.splitlines()
+        if "Bharatiya Nyaya Sanhita" in line
+    ]
+
+    assert statute_line, "the prompt no longer names the statute in force"
+
+    for line in statute_line:
+        assert "**" not in line, (
+            "the prompt still shows markdown bold to the model: %r" % line
+        )
+
+
+def test_the_prompt_asks_for_one_numeral_system():
+    """
+    The same sentence carried "2023" and "१४" -- Arabic and Devanagari
+    digits -- and ran "अधिकतम१४" together with no space.
+    """
+
+    prompt = build_prompt(_incident("hi", "native"), RISK, EVIDENCE)
+
+    assert "Western Arabic digits" in prompt
+    assert "space between a word and the number" in prompt
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("**अगले कदम:**", "अगले कदम:"),
+    ("The **Bharatiya Nyaya Sanhita, 2023** applies.",
+     "The Bharatiya Nyaya Sanhita, 2023 applies."),
+    ("## Next steps", "Next steps"),
+    ("__Important__ notice", "Important notice"),
+    ("Call *14566* now", "Call 14566 now"),
+])
+def test_markdown_is_stripped_from_the_reply(raw, expected):
+    """
+    The prompt asks; this enforces. A prompt rule is a request, and
+    the cost of one that is ignored is punctuation in the middle of a
+    sentence somebody is reading in a crisis.
+    """
+
+    assert strip_markdown(raw) == expected
+
+
+@pytest.mark.parametrize("text", [
+    "Section 3(2)(v) of the SC/ST Act",
+    "2 * 3 = 6",
+    "Call 14566 for help.",
+    "",
+])
+def test_the_stripper_leaves_ordinary_text_alone(text):
+    """
+    A sanitiser that mangles a statute citation is worse than the
+    asterisks it removes.
+    """
+
+    assert strip_markdown(text) == text
+
+
+def test_the_stripper_survives_no_response():
+    """generate_response can return None when every provider fails."""
+
+    assert strip_markdown(None) is None

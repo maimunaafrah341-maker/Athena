@@ -215,3 +215,93 @@ def test_every_timeline_event_is_translatable():
     for event in ("reported", "status_changed", "escalated",
                   "note_added", "acknowledged"):
         assert "event.%s" % event in english, "no label for event %r" % event
+
+
+# ------------------------------------------------------------------
+# The demo page keeps its own table, and nothing was checking it
+# ------------------------------------------------------------------
+#
+# web/index.html deliberately does not import i18n.js -- it is meant to
+# stand alone with no build step -- so every test above walks straight
+# past it. Two strings sat hardcoded in English inside a reply rendered
+# entirely in Hindi until someone read a screenshot.
+
+DEMO_LANGUAGES = ["en", "hi", "te", "ur", "bn"]
+
+
+def _demo_tables():
+    """{lang: {key: value}} parsed out of UI_STRINGS in web/index.html."""
+
+    page = _read("web", "index.html")
+
+    tables = {}
+
+    for language in DEMO_LANGUAGES:
+        match = re.search(
+            r"\n    %s: \{(.*?)\n    \}," % language, page, re.DOTALL
+        )
+
+        assert match, "UI_STRINGS has no %r block" % language
+
+        tables[language] = dict(
+            re.findall(
+                r'([A-Za-z][A-Za-z0-9_]*):\s*"((?:[^"\\]|\\.)*)"',
+                match.group(1),
+            )
+        )
+
+    return tables
+
+
+@pytest.mark.parametrize("language", DEMO_LANGUAGES)
+def test_the_demo_table_has_every_key(language):
+    """
+    A missing key renders as the literal word "undefined" in a chat
+    bubble, which is worse than showing English.
+    """
+
+    tables = _demo_tables()
+
+    missing = set(tables["en"]) - set(tables[language])
+
+    assert not missing, "%s is missing %s" % (language, sorted(missing))
+
+
+@pytest.mark.parametrize("language", [l for l in DEMO_LANGUAGES if l != "en"])
+def test_the_demo_table_is_actually_translated(language):
+    """
+    A value copied from the English column is the failure this file
+    exists to catch: it looks translated in the source and reads as
+    English on the screen.
+    """
+
+    tables = _demo_tables()
+
+    english = tables["en"]
+
+    untranslated = sorted(
+        key for key, value in tables[language].items()
+        if key in english and value == english[key]
+    )
+
+    assert not untranslated, (
+        "%s left these as English: %s" % (language, untranslated)
+    )
+
+
+@pytest.mark.parametrize("literal", [
+    "Not confidently understood",
+    "${riskTier} risk",
+])
+def test_the_risk_tag_is_not_hardcoded_english(literal):
+    """
+    Both of these were built straight into the message template, so a
+    Hindi reply carried an English verdict underneath it. Seen live on
+    2026-09-10.
+    """
+
+    assert literal not in _read("web", "index.html"), (
+        "%r is hardcoded in the demo instead of coming from UI_STRINGS"
+        % literal
+    )
+

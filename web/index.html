@@ -764,6 +764,11 @@
       statusLine: "Automated · replies in seconds",
       demoBar: "Concept demo — real safety pipeline, not a real WhatsApp number.",
       counsellorView: "Counsellor view",
+      tagUncertain: "Type unclear — a counsellor will confirm",
+      tagRiskLow: "Low risk",
+      tagRiskModerate: "Moderate risk",
+      tagRiskHigh: "High risk",
+      tagRiskCritical: "Critical risk",
       uncertainTitle: "Sent for human review",
       uncertainBody: "Athena wasn't confident it understood this, so a counsellor will read it.",
       escalatedTitle: "Flagged for a counsellor",
@@ -789,6 +794,11 @@
       statusLine: "स्वचालित · कुछ ही सेकंड में उत्तर",
       demoBar: "कॉन्सेप्ट डेमो — असली सुरक्षा प्रणाली, पर असली व्हाट्सऐप नंबर नहीं।",
       counsellorView: "काउंसलर व्यू",
+      tagUncertain: "प्रकार स्पष्ट नहीं — काउंसलर पुष्टि करेंगे",
+      tagRiskLow: "कम जोखिम",
+      tagRiskModerate: "मध्यम जोखिम",
+      tagRiskHigh: "उच्च जोखिम",
+      tagRiskCritical: "गंभीर जोखिम",
       uncertainTitle: "मानवीय समीक्षा के लिए भेजा गया",
       uncertainBody: "एथेना इसे पूरी तरह नहीं समझ पाई, इसलिए एक काउंसलर इसे पढ़ेंगे।",
       escalatedTitle: "काउंसलर के लिए चिह्नित",
@@ -814,6 +824,11 @@
       statusLine: "స్వయంచాలకం · సెకన్లలో సమాధానం",
       demoBar: "కాన్సెప్ట్ డెమో — నిజమైన భద్రతా వ్యవస్థ, కానీ నిజమైన WhatsApp నంబర్ కాదు.",
       counsellorView: "కౌన్సెలర్ వ్యూ",
+      tagUncertain: "రకం స్పష్టంగా లేదు — కౌన్సెలర్ నిర్ధారిస్తారు",
+      tagRiskLow: "తక్కువ ప్రమాదం",
+      tagRiskModerate: "మధ్యస్థ ప్రమాదం",
+      tagRiskHigh: "అధిక ప్రమాదం",
+      tagRiskCritical: "తీవ్ర ప్రమాదం",
       uncertainTitle: "మానవ సమీక్షకు పంపబడింది",
       uncertainBody: "ఎథీనా దీన్ని పూర్తిగా అర్థం చేసుకోలేకపోయింది, కాబట్టి ఒక కౌన్సెలర్ చదువుతారు.",
       escalatedTitle: "కౌన్సెలర్ కోసం గుర్తించబడింది",
@@ -839,6 +854,11 @@
       statusLine: "خودکار · چند سیکنڈ میں جواب",
       demoBar: "تصوراتی ڈیمو — اصل حفاظتی نظام، مگر اصل واٹس ایپ نمبر نہیں۔",
       counsellorView: "کونسلر ویو",
+      tagUncertain: "نوعیت واضح نہیں — کونسلر تصدیق کریں گے",
+      tagRiskLow: "کم خطرہ",
+      tagRiskModerate: "درمیانہ خطرہ",
+      tagRiskHigh: "زیادہ خطرہ",
+      tagRiskCritical: "شدید خطرہ",
       uncertainTitle: "انسانی جائزے کے لیے بھیجا گیا",
       uncertainBody: "ایتھینا اسے پوری طرح نہیں سمجھ سکی، اس لیے ایک کونسلر اسے پڑھے گا۔",
       escalatedTitle: "کونسلر کے لیے نشان زد",
@@ -864,6 +884,11 @@
       statusLine: "স্বয়ংক্রিয় · কয়েক সেকেন্ডে উত্তর",
       demoBar: "ধারণাগত ডেমো — প্রকৃত নিরাপত্তা ব্যবস্থা, তবে আসল হোয়াটসঅ্যাপ নম্বর নয়।",
       counsellorView: "কাউন্সেলর ভিউ",
+      tagUncertain: "ধরন স্পষ্ট নয় — কাউন্সেলর নিশ্চিত করবেন",
+      tagRiskLow: "কম ঝুঁকি",
+      tagRiskModerate: "মাঝারি ঝুঁকি",
+      tagRiskHigh: "উচ্চ ঝুঁকি",
+      tagRiskCritical: "গুরুতর ঝুঁকি",
       uncertainTitle: "মানব পর্যালোচনার জন্য পাঠানো হয়েছে",
       uncertainBody: "এথীনা এটি সম্পূর্ণ বুঝতে পারেনি, তাই একজন কাউন্সেলর এটি পড়বেন।",
       escalatedTitle: "কাউন্সেলরের জন্য চিহ্নিত",
@@ -994,10 +1019,23 @@
     const row = document.createElement("div");
     row.className = "row in";
 
+    // Both of these were hardcoded English, so a Hindi reply carried
+    // an English verdict at the bottom of it. The tier also doubles as
+    // a CSS class, which is why riskTier itself stays untranslated in
+    // the class attribute and only the visible text is looked up.
+    const tagStrings = UI_STRINGS[currentUiLang];
+
+    // "Uncertain" means the incident TYPE scored below the confidence
+    // floor -- not that nothing was understood. The signals (threat,
+    // injury, caste motive) are detected separately and may well be
+    // firing, so the wording must not contradict a reply that just
+    // stated a clear reading of what happened.
+    const tagText = riskTier === "Uncertain"
+      ? tagStrings.tagUncertain
+      : (tagStrings["tagRisk" + riskTier] || riskTier + " risk");
+
     const tag = riskTier
-      ? (riskTier === "Uncertain"
-          ? `<div class="tag Uncertain">Not confidently understood — sent for human review</div>`
-          : `<div class="tag ${riskTier}">${riskTier} risk</div>`)
+      ? `<div class="tag ${riskTier}">${escapeHTML(tagText)}</div>`
       : "";
 
     const note = escalateNote

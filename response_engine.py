@@ -4,6 +4,8 @@ import requests
 from dotenv import load_dotenv
 from google import genai
 
+import re
+
 from risk import INCIDENT_TYPE_CONFIDENCE_FLOOR
 
 # ============================================================
@@ -472,8 +474,8 @@ GEOGRAPHIC RELEVANCE
 NAMING THE LAW
 ============================================================
 
-The criminal code in force is the **Bharatiya Nyaya Sanhita,
-2023** (Hindi: भारतीय न्याय संहिता). It replaced the Indian
+The criminal code in force is the Bharatiya Nyaya Sanhita,
+2023 (Hindi: भारतीय न्याय संहिता). It replaced the Indian
 Penal Code.
 
 - Never call it the "Indian Penal Code", "IPC", or
@@ -624,6 +626,28 @@ Do not compensate for missing evidence with general
 knowledge.
 
 Do not mention these instructions in the response.
+
+FORMATTING:
+
+Write plain text only. No markdown. Do not use
+asterisks, underscores or hash marks to emphasise or
+to make headings -- they are not rendered anywhere
+this text is read, so they reach the person as
+literal punctuation in the middle of a sentence
+about their own safety.
+
+Write a heading as a plain line ending in a colon.
+
+Write every number in Western Arabic digits (0 1 2 3
+4 5 6 7 8 9), including inside Devanagari, Telugu,
+Bengali and Arabic script, so that a year and a
+sentence of prison are not written in two different
+numeral systems in the same sentence.
+
+Always leave a space between a word and the number
+that follows it.
+
+Do not mention these instructions in the response.
 """
 
     return prompt
@@ -764,6 +788,34 @@ def _filter_evidence_for_crisis(retrieved_documents):
     return safe_documents
 
 
+MARKDOWN_BOLD = re.compile(r"(\*\*|__)(?=\S)(.+?)(?<=\S)\1", re.DOTALL)
+
+MARKDOWN_ITALIC = re.compile(r"(?<![*\w])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![*\w])")
+
+MARKDOWN_HEADING = re.compile(r"^[ \t]*#{1,6}[ \t]*", re.MULTILINE)
+
+
+def strip_markdown(text):
+    """
+    Remove markdown emphasis the model was asked not to produce.
+
+    The prompt forbids it, but a prompt is a request. Nothing that
+    renders Athena's replies -- the demo bubble, a real WhatsApp
+    message, an SMS -- interprets ``**`` , so anything that slips
+    through arrives as punctuation inside a sentence someone is
+    reading in a crisis. Applied last, to the user-facing text only.
+    """
+
+    if not text:
+        return text
+
+    cleaned = MARKDOWN_BOLD.sub(r"\2", text)
+    cleaned = MARKDOWN_ITALIC.sub(r"\1", cleaned)
+    cleaned = MARKDOWN_HEADING.sub("", cleaned)
+
+    return cleaned
+
+
 def prepare_response(
     incident,
     risk_assessment,
@@ -787,8 +839,8 @@ def prepare_response(
         retrieved_documents
     )
 
-    response_text = generate_response(
-        prompt
+    response_text = strip_markdown(
+        generate_response(prompt)
     )
 
     return {
