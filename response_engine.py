@@ -209,7 +209,13 @@ def build_prompt(
     # who types Hindi/Telugu in Latin letters may not read the
     # native script comfortably, so switching scripts on them in the
     # response would be backwards.
-    if script == "romanized" and language_code in ("hi", "te"):
+    # Urdu and Bengali were added to detection later and this
+    # condition was never extended with them, so someone writing
+    # romanized Urdu or Bengali got a reply in Perso-Arabic or Bengali
+    # script -- the exact switch this rule exists to prevent, and the
+    # third place in this codebase where "added later, never extended"
+    # has produced the same class of bug.
+    if script == "romanized" and language_code in ("hi", "te", "ur", "bn"):
         language_instruction = (
             f"Respond ONLY in romanized {language_name} "
             f"(write it phonetically using English/Latin letters, "
@@ -451,6 +457,38 @@ GEOGRAPHIC RELEVANCE
   prompt only. The person reading your answer is in distress
   and did not ask for footnotes -- source tracking is handled
   separately and shown to counsellors, not to them.
+- This applies in EVERY language, including translated forms of
+  the word. Do not write "According to Evidence 1", and do not
+  write its equivalent in the reply language -- not
+  "साक्ष्य 1 के अनुसार", not "సాక్ష్యం 1 ప్రకారం", not
+  "شواہد 1 کے مطابق", not "প্রমাণ ১ অনুযায়ী". Seen live on
+  2026-09-10: the English ban held and the model translated the
+  marker instead, so a person reading a reply about her own home
+  being broken into was shown the system's internal scaffolding.
+  State what the law says directly, with no reference to where
+  you read it.
+
+============================================================
+NAMING THE LAW
+============================================================
+
+The criminal code in force is the **Bharatiya Nyaya Sanhita,
+2023** (Hindi: भारतीय न्याय संहिता). It replaced the Indian
+Penal Code.
+
+- Never call it the "Indian Penal Code", "IPC", or
+  "भारतीय दंड संहिता". Those name a repealed statute. Seen live
+  on 2026-09-10: a Hindi reply grounded in real Bharatiya Nyaya
+  Sanhita text called it भारतीय दंड संहिता, because that is the
+  familiar Hindi phrase for penal law.
+- The one exception is quoting the SC/ST (Prevention of
+  Atrocities) Act, whose own Section 3(2)(v) text says "Indian
+  Penal Code". Quoting an Act accurately is not the same as
+  telling someone which law applies to them today.
+- If the evidence does not make the statute name clear, say what
+  the conduct amounts to and leave the Act unnamed. An unnamed
+  law is recoverable; a wrong one is cited back at a police
+  station.
 
 ============================================================
 WHO DID WHAT -- DO NOT FILL IN THE BLANKS
