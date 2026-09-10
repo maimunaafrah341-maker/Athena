@@ -919,20 +919,22 @@
     }
   }
 
-  // Shown until someone chooses, then never again on this device.
-  // A returning reporter should not have to answer the same question
-  // twice, and a demo being reloaded on stage should not either --
-  // clear athena_ui_lang in devtools to see it again.
+  // Shown once per visit. Deliberately sessionStorage and not
+  // localStorage: a person filing a second report weeks later may well
+  // want a different language, and a device-permanent flag meant the
+  // chooser could never be seen again on the machine that demonstrates
+  // it. A fresh tab always shows it; a reload inside the same visit
+  // does not re-ask.
   function chooseLanguage(lang) {
     const gate = document.getElementById("langGate");
     if (gate) gate.remove();
     if (langToggle) langToggle.value = UI_STRINGS[lang] ? lang : "en";
     applyUiLanguage(lang);
     try {
-      localStorage.setItem("athena_lang_chosen", "1");
+      sessionStorage.setItem("athena_lang_chosen", "1");
     } catch (error) {
-      // localStorage unavailable -- the gate simply shows again next
-      // load, which is the harmless direction to fail in.
+      // storage unavailable -- the gate simply shows again next load,
+      // which is the harmless direction to fail in.
     }
     input?.focus();
   }
@@ -940,7 +942,7 @@
   (function hideGateIfAlreadyChosen() {
     let chosen = null;
     try {
-      chosen = localStorage.getItem("athena_lang_chosen");
+      chosen = sessionStorage.getItem("athena_lang_chosen");
     } catch (error) {
       // treat as not chosen
     }
