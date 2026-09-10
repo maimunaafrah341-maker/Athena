@@ -33,7 +33,7 @@ ever reads. It runs the first time a case brief is actually opened,
 and the result is cached on the case so it only ever happens once.
 """
 
-from response_engine import generate_response
+from response_engine import generate_response, strip_markdown
 
 # Reports already in English need no translation, and neither does an
 # empty/failed transcript. Kept as a set so the check reads the same
@@ -157,7 +157,7 @@ def translate_reply(text, target_language):
     if not translated or not translated.strip():
         return None
 
-    return translated.strip()
+    return strip_markdown(translated.strip())
 
 
 def translate_to_english(text, source_language=None):
@@ -194,4 +194,4 @@ def translate_to_english(text, source_language=None):
     if not translated or not translated.strip():
         return None
 
-    return translated.strip()
+    return strip_markdown(translated.strip())

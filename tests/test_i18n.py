@@ -305,3 +305,38 @@ def test_the_risk_tag_is_not_hardcoded_english(literal):
         % literal
     )
 
+
+@pytest.mark.parametrize("page", ["athena.js", "index.html"])
+def test_no_label_is_written_in_english_by_javascript(page):
+    """
+    Markup gets audited because data-i18n is visible in a diff. A
+    label assigned in a handler is not, and five of them were sitting
+    in athena.js: a Translate button that turned English after its
+    first click, "Marking..." and "Mark reviewed" on the alerts
+    queue, and "Checking..." / "Continue" on the access gate -- each
+    one created a few lines away with t().
+
+    Anything a person reads must come from the tables or from case
+    data. A bare string literal here is neither.
+    """
+
+    source = _read("web", page)
+
+    literals = re.findall(
+        r'(?:textContent|innerText)\s*=\s*"([^"]*)"', source
+    )
+
+    english = [value for value in literals if re.search(r"[A-Za-z]", value)]
+
+    assert not english, "%s writes untranslated labels: %s" % (page, english)
+
+
+def test_no_error_message_is_written_in_english():
+    """Same rule, for the messages shown when something has gone wrong."""
+
+    source = _read("web", "athena.js")
+
+    literals = re.findall(r'showError\(\s*[`"]([^`"]*)[`"]', source)
+
+    assert not literals, "untranslated error messages: %s" % literals
+

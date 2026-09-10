@@ -105,29 +105,25 @@ function showAdminKeyGate(targetPage) {
 
             <div class="brand-symbol" style="margin: 0 auto 14px;">A</div>
 
-            <h2>Counsellor / Admin Access</h2>
+            <h2>${escapeHTML(t("auth.title"))}</h2>
 
-            <p>
-                This dashboard handles real reporter data, so it's
-                gated behind an access key. Enter the one you were
-                given to continue.
-            </p>
+            <p>${escapeHTML(t("auth.body"))}</p>
 
             <input
                 type="password"
                 id="adminGateInput"
-                placeholder="Access key"
+                placeholder="${escapeHTML(t("auth.placeholder"))}"
                 autofocus
             />
 
             <p class="admin-gate-error" id="adminGateError" hidden></p>
 
             <button type="button" id="adminGateSubmit" class="primary-button">
-                Continue
+                ${escapeHTML(t("auth.continue"))}
             </button>
 
             <button type="button" id="adminGateBack" class="text-button" style="margin-top: 10px;">
-                ← Back to report form
+                ${escapeHTML(t("auth.back"))}
             </button>
 
         </div>
@@ -158,7 +154,7 @@ function showAdminKeyGate(targetPage) {
 
         errorEl.hidden = true;
         button.disabled = true;
-        button.textContent = "Checking...";
+        button.textContent = t("auth.checking");
 
         try {
 
@@ -167,13 +163,13 @@ function showAdminKeyGate(targetPage) {
             });
 
             if (response.status === 401 || response.status === 403) {
-                showError("Invalid access key -- check with your team lead.");
+                showError(t("auth.invalidKey"));
                 return;
             }
 
             if (!response.ok) {
                 showError(
-                    `Backend error (${response.status}) -- couldn't verify this key right now.`
+                    t("auth.backendError").replace("{status}", response.status)
                 );
                 return;
             }
@@ -186,12 +182,12 @@ function showAdminKeyGate(targetPage) {
 
             console.error("Admin key verification failed:", error);
 
-            showError("Couldn't reach the Athena backend -- check your connection and try again.");
+            showError(t("auth.unreachable"));
 
         } finally {
 
             button.disabled = false;
-            button.textContent = "Continue";
+            button.textContent = t("auth.continue");
 
         }
 
@@ -1542,7 +1538,7 @@ function renderCasesTable() {
                 <tr
                     class="case-row"
                     data-case-id="${escapeHTML(item.id)}"
-                    title="View case brief"
+                    title="${escapeHTML(t("brief.viewCase"))}"
                 >
 
                     <td>
@@ -1887,7 +1883,7 @@ function showCaseBrief(brief) {
                 <button
                     class="case-brief-close"
                     type="button"
-                    aria-label="Close"
+                    aria-label="${escapeHTML(t("common.close"))}"
                 >
                     ×
                 </button>
@@ -2610,7 +2606,7 @@ ${t("brief.translationLabel")}: ${translation}` : "");
                     output.classList.add("is-error");
                     output.textContent =
                         data.reason === "already_english"
-                            ? "This case was reported in English — no translation needed."
+                            ? t("brief.alreadyEnglish")
                             : t("brief.translateFailed");
 
                     return;
@@ -2633,7 +2629,7 @@ ${t("brief.translationLabel")}: ${translation}` : "");
             } finally {
 
                 button.disabled = false;
-                button.textContent = "Translate";
+                button.textContent = t("brief.translate");
 
             }
 
@@ -3732,7 +3728,7 @@ function populateAlertCategories(normalizedCases) {
     if (select.dataset.builtFor === wanted) return;
 
     select.innerHTML =
-        `<option value="all">All categories</option>` +
+        `<option value="all">${escapeHTML(t("alerts.allCategories"))}</option>` +
         categories.map(
             category =>
                 `<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`
@@ -3921,7 +3917,7 @@ $("#alertsContainer")?.addEventListener("click", async event => {
     const caseId = button.dataset.ackCase;
 
     button.disabled = true;
-    button.textContent = "Marking...";
+    button.textContent = t("alerts.marking");
 
     try {
 
@@ -3958,7 +3954,7 @@ $("#alertsContainer")?.addEventListener("click", async event => {
         console.error("Could not acknowledge case:", error);
 
         button.disabled = false;
-        button.textContent = "Mark reviewed";
+        button.textContent = t("alerts.markReviewed");
 
     }
 

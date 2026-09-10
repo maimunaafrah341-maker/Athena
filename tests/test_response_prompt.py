@@ -195,3 +195,28 @@ def test_the_stripper_survives_no_response():
     """generate_response can return None when every provider fails."""
 
     assert strip_markdown(None) is None
+
+
+# ------------------------------------------------------------------
+# Translation output is model output
+# ------------------------------------------------------------------
+#
+# translation.py reuses generate_response(), so it inherits the same
+# failover -- and the same habit of reaching for markdown. Its result
+# goes into the case brief a counsellor reads, which renders it as
+# text, so asterisks would sit there just as visibly.
+
+@pytest.mark.parametrize("function,args", [
+    ("translate_reply", ("kuch hua hai", "hi")),
+    ("translate_to_english", ("कुछ हुआ है", "hi")),
+])
+def test_translations_are_stripped_of_markdown(monkeypatch, function, args):
+
+    import translation
+
+    monkeypatch.setattr(
+        translation, "generate_response", lambda prompt: "**अनुवाद** किया गया"
+    )
+
+    assert getattr(translation, function)(*args) == "अनुवाद किया गया"
+
