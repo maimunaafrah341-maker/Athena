@@ -24,34 +24,72 @@ Six slides maximum including the title. Points, not paragraphs.
 
 **Athena — the first ninety seconds of 14566**
 
-### Open with this (the story, not a scenario)
+Two visuals and about forty words. Nothing else fits, and nothing else
+is needed — feasibility belongs on slide 4, architecture on slide 3.
 
-> *"Because of my caste I was not allowed into the temple and I was humiliated.
-> A crowd is standing outside my house."*
+### VISUAL 1 — top half of the slide
 
-- We wrote that report in five languages and ran it through our own system.
-- **Hindi and English scored it Low risk. Telugu, Bengali and Urdu scored it Critical.**
-- One event. The two languages a caller is most likely to use gave the safest-sounding answer.
-- Found 8 September 2026. Fixed the same day. It is now a test that runs in all five languages on every change.
+The quoted report in large type, then the five results. This single
+graphic covers *how it addresses the problem*.
 
-*That is why this is a triage system and not a chatbot.*
+```
+  "Because of my caste I was not allowed into the temple
+   and I was humiliated. A crowd is standing outside my house."
 
-### What Athena does
+   ────────  THE SAME REPORT, IN FIVE LANGUAGES  ────────
 
-- Assesses **stress, trauma and danger at first contact**, and routes the caller — instead of leaving triage to whoever answers the phone.
-- **UNDERSTAND → VERIFY → ACT → ESCALATE.** It hands a case to a human the moment it is unsure, rather than guessing.
-- **Two independent scores**, because they are not the same question:
-  - **Risk tier** — is someone about to be hurt?
-  - **Stress Vulnerability Index** — how much can this person withstand right now?
-- Every **legal citation is retrieved** from the ingested bare Act above a confidence threshold — never generated.
-- Bound to an **NHAA docket** across all five real entry points: 14566 voice, IVRS, Integrated Portal, chatbot, mobile app.
+        English   ● LOW              తెలుగు   ● CRITICAL
+        हिंदी      ● LOW              বাংলা    ● CRITICAL
+                                      اردو     ● CRITICAL
 
-### What makes it different
+   The two languages a caller is most likely to use
+   gave the safest-sounding answer.
 
-- **Five languages in native script, four also romanized** — tested, not claimed. 244 automated tests, each written from a defect the system actually had.
-- **It escalates on not understanding** — the failure a helpline cannot afford is confident nonsense, not silence.
-- **It cannot inflate a complaint.** SC/ST Act provisions are not attached below 80% caste-motive confidence, and nothing is cited that was not retrieved.
-- **A safety map that protects sparse districts** — areas with fewer than three reports are withheld, and the number withheld is shown, so "protected" never reads as "nothing happened here".
+   Found 8 Sep 2026 · fixed the same day · now a test in all five
+```
+
+**How to build it:** quote in ~20pt italic. Five language names in their
+own scripts. LOW in grey, CRITICAL in red — the colour split *is* the
+argument, so let the two columns sit far apart. Last line small, in grey.
+
+### VISUAL 2 — bottom half
+
+The fork is the idea. It covers *the solution* and *what is novel* at once.
+
+```
+                    ONE REPORT
+                        │
+              ┌─────────┴─────────┐
+              ▼                   ▼
+         RISK TIER               SVI
+    is someone about      how much can this
+      to be hurt?        person withstand?
+              │                   │
+              └─────────┬─────────┘
+                        ▼
+          ESCALATE ON EITHER — OR ON
+            NOT UNDERSTANDING AT ALL
+```
+
+**Caption, one line under it:**
+
+> Most systems escalate when they are sure. Athena also escalates when it isn't.
+
+### The only text on the slide
+
+- Two scores, because *"is someone about to be hurt"* and *"how much can this person take"* are not the same question — and SIH26093 names both.
+- Every legal citation is **retrieved** from the ingested bare Act, never generated.
+- Five languages in native script, four also romanized.
+
+### Moved off this slide (already covered elsewhere — do not repeat)
+
+| Was on slide 2 | Now lives on |
+| --- | --- |
+| 244 automated tests | Slide 4 — it is a feasibility claim |
+| The 80% caste-motive gate | Slide 4 — risk table |
+| Safety map k-anonymity | Slide 4 — risk table |
+| NHAA docket, five entry points | Slides 3 and 5 |
+| UNDERSTAND → VERIFY → ACT → ESCALATE | Slide 3 — it is the pipeline diagram |
 
 ---
 
