@@ -45,7 +45,7 @@ graphic covers *how it addresses the problem*.
    The two languages a caller is most likely to use
    gave the safest-sounding answer.
 
-   Found 8 Sep 2026 · fixed the same day · now a test in all five
+   Now a regression test in all five languages.
 ```
 
 **How to build it:** quote in ~20pt italic. Five language names in their
