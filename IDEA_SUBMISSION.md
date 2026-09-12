@@ -147,17 +147,24 @@ COUNSELLOR        queue ordered by who is closest to harm
 - **244 automated tests**, every one encoding a defect that actually shipped.
 - Escalation directory covering **554 districts across 33 states and UTs**, provenance-tagged as manually verified or machine-parsed.
 
-### Risks and how each is handled
+### Risks and how each is handled — VISUAL
 
-| Risk | Mitigation |
+Framed as the five questions a judge will actually ask, because that is
+what this slide is for. The question in red, the answer beside it.
+
+**What if it gets it wrong?**
+
+| The question | The answer |
 |---|---|
-| An AI **over-charging** a complaint | SC/ST provisions gated at ≥80% caste-motive confidence — set at 80 rather than 60 because live testing found *"Someone keeps insulting and threatening me at work"*, with no caste element at all, firing at **76.66%**. Nothing is cited that was not retrieved. Athena produces triage support, never a finding, and does not register an FIR |
-| Model asserting something unsupported | Evidence-grounded prompt; citations built only from retrieved documents |
-| Wrong language → wrong assessment | Tested in five languages; the temple/crowd report is a test case in all five |
-| Re-identifying a reporter from the map | Coordinates rounded to ~100m **and** districts with fewer than three reports withheld entirely |
-| Memory-capped free-tier host | Voice acoustic features behind a flag; the transcript-only path still assesses, escalates and replies |
-| Model provider outage | Three-provider failover |
-| Counsellor accountability | Append-only case timeline with no edit or delete path |
+| *"What if it inflates a complaint?"* | SC/ST provisions are not attached below **80% caste-motive confidence** — a floor raised *above our own false positive*, after an unrelated workplace report scored 76.66% |
+| *"What if the model invents a fact?"* | **Nothing is cited that was not retrieved** above a similarity threshold; the prompt forbids answering from general knowledge |
+| *"What if it misreads the language?"* | **244 automated tests**, each from a defect that actually shipped; the temple-and-crowd report is a regression test in *all five languages* |
+| *"What if the map exposes someone?"* | ~100m rounding, and any district with **fewer than three reports is withheld entirely** — with the count shown, so sparse never reads as safe |
+| *"What if a record is changed later?"* | The timeline is **append-only**. No edit path, no delete path — a record that can be rewritten is not evidence |
+
+Cut from this slide to keep it to five: provider failover and the
+memory-capped host. Both are operational rather than ethical, and this
+slide earns more by answering the questions that carry doubt.
 
 ### Known limits we state openly
 
