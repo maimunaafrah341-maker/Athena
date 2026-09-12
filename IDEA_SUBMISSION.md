@@ -57,19 +57,22 @@ argument, so let the two columns sit far apart. Last line small, in grey.
 The fork is the idea. It covers *the solution* and *what is novel* at once.
 
 ```
-                    ONE REPORT
-                        │
-              ┌─────────┴─────────┐
-              ▼                   ▼
-         RISK TIER               SVI
-    is someone about      how much can this
-      to be hurt?        person withstand?
-              │                   │
-              └─────────┬─────────┘
-                        ▼
-          ESCALATE ON EITHER — OR ON
-            NOT UNDERSTANDING AT ALL
+                  ┌──────────────────┐
+             ┌───▶│    RISK TIER     │───┐
+             │    │ about to be hurt?│   │
+  ┌────────┐ │    └──────────────────┘   │   ┌────────────┐
+  │  ONE   │─┤                           ├──▶│  ESCALATE  │
+  │ REPORT │ │    ┌──────────────────┐   │   │ on either  │
+  └────────┘ │    │  STRESS INDEX    │   │   │ — or on    │
+       ╎     └───▶│ how much can they│───┘   │   neither  │
+       ╎          │      take?       │       └────────────┘
+       ╎          └──────────────────┘             ▲
+       └╌╌╌╌╌╌╌╌╌ NOT UNDERSTOOD ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
 ```
+
+The third route is the point: a report Athena cannot read confidently
+reaches a human **without scoring at all**. Draw it as a dashed line
+running past both boxes, not as a bullet under them.
 
 **Caption, one line under it:**
 
