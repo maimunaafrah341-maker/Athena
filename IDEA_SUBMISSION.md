@@ -176,6 +176,30 @@ slide earns more by answering the questions that carry doubt.
 
 ## SLIDE 5 — IMPACT AND BENEFITS
 
+### VISUAL — who gets seen first
+
+Two queues side by side. The left is the order reports arrive in; the
+right is the order Athena puts them in. Report 4 is Critical and
+arrived fourth.
+
+```
+   AS REPORTS ARRIVE              AS ATHENA ORDERS THEM
+
+   Report 1   LOW                 Report 4   CRITICAL
+   Report 2   MODERATE     ──▶    Report 5   HIGH
+   Report 3   LOW                 Report 2   MODERATE
+   Report 4   CRITICAL            Report 1   LOW
+   Report 5   HIGH                Report 3   LOW
+   Report 6   LOW                 Report 6   LOW
+
+      The person closest to harm is not the person who called first.
+```
+
+Deliberately neutral wording — it describes what Athena does, not a
+claim about how anyone currently works a queue.
+
+Under it, three columns, then the closing line.
+
 ### For the person calling
 
 - Answered **in their own language and script**, in seconds.
