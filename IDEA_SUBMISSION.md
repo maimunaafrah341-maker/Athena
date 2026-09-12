@@ -228,29 +228,54 @@ Under it, three columns, then the closing line.
 
 ## SLIDE 6 — RESEARCH AND REFERENCES
 
-### Primary legal sources (ingested into the retrieval corpus)
+Every URL below was checked with a live request. Two links on the
+existing slide were dead and two sources are not worth citing to this
+ministry -- both noted at the bottom.
 
-- **SC/ST (Prevention of Atrocities) Act, 1989**, with the 2015 and 2018 amendments — bare act
-- **Bharatiya Nyaya Sanhita, 2023** — the code in force; replaced the IPC
+### The helpline this is built for
+
+- **National Helpline Against Atrocities (14566)** — PIB, Ministry of Social Justice & Empowerment
+  `pib.gov.in/Pressreleaseshare.aspx?PRID=1780741`
+- **Ministry of Social Justice & Empowerment** — `socialjustice.gov.in`
+- **NCRB, *Crime in India*** — registrations and **pendency** under the SC/ST (PoA) Act
+  `ncrb.gov.in/crime-in-india.html`
+
+### Primary legal sources — ingested into the retrieval corpus
+
+- **SC/ST (Prevention of Atrocities) Act, 1989** — India Code
+  `indiacode.nic.in/handle/123456789/1920`
+- **Bharatiya Nyaya Sanhita, 2023** — Ministry of Home Affairs, official text
+  `mha.gov.in/sites/default/files/250883_english_01042024.pdf`
 - **Protection of Women from Domestic Violence Act, 2005**
-- **Mission Shakti** guidelines
+  `indiankanoon.org/doc/542601/`
 
-### Data and institutional sources
+### Technical
 
-- **NCRB, *Crime in India*** — registrations, chargesheeting, and **pendency** under the SC/ST (PoA) Act  `[verify figures from the NCRB report or the PIB release, not a secondary article]`
-- **Ministry of Social Justice and Empowerment** — NHAA / 14566, `nhapoa.gov.in`
+- **Multilingual E5 text embeddings** — Wang et al., `arxiv.org/abs/2402.05672`
+- **ChromaDB** — `trychroma.com`
+- **OpenAI Whisper**, speech-to-text — `developers.openai.com/api/docs/guides/speech-to-text`
+- **Google Gemini API** — `ai.google.dev/gemini-api/docs`
+- **OpenStreetMap Overpass API** — `wiki.openstreetmap.org/wiki/Overpass_API`
 
-### Case law consulted on due process
+### The build
+
+- **Source code** — `github.com/maimunaafrah341-maker/Athena`
+- **Live prototype** — `athena-production-af83.up.railway.app`
+- **Demo video** — `[ new link ]`
+
+### Fix before submitting
+
+| Link | Status |
+| --- | --- |
+| `ncw.gov.in/telephone-directory/` | **404.** The site root works; this path is gone. Drop it, or link `ncw.gov.in` |
+| `iasgyan.in/...` | Live, but it is a UPSC coaching blog. Not a source to put in front of the ministry that runs the helpline — the PIB release covers the same ground with authority |
+| `indiacode.nic.in/handle/123456789/1920` | Refuses automated requests (403/404 to a script) but is indexed and opens in a browser. **Click it yourself before submitting.** If it fails, `indiankanoon.org/doc/25085007/` has the full Act |
+
+### Only if you use the due-process point
 
 - *Subhash Kashinath Mahajan v. State of Maharashtra* (2018)
 - **SC/ST (PoA) Amendment Act, 2018** — Section 18A
 - *Prathvi Raj Chauhan v. Union of India* (2020)
-
-### The build
-
-- Repository — `github.com/maimunaafrah341-maker/Athena`
-- Live prototype — `athena-production-af83.up.railway.app`
-- Demo video — `[new link]`
 
 ---
 
