@@ -331,6 +331,21 @@ def test_no_label_is_written_in_english_by_javascript(page):
     assert not english, "%s writes untranslated labels: %s" % (page, english)
 
 
+def test_caste_playbook_does_not_promise_automatic_provisions():
+    """
+    The caste playbook told counsellors SC/ST Act provisions "attach to
+    the case automatically". They do not: kg.py attaches them only at or
+    above CASTE_MOTIVE_CONFIDENCE_FLOOR, which the pitch cites as the
+    safeguard against inflating a complaint. Staff guidance that
+    contradicts the safeguard teaches people to skip the check.
+    """
+
+    route = _tables()["en"]["guidance.caste.route"].lower()
+
+    assert "automatically" not in route
+    assert "confidence" in route
+
+
 def test_no_error_message_is_written_in_english():
     """Same rule, for the messages shown when something has gone wrong."""
 

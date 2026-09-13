@@ -97,8 +97,8 @@ Two ways to send voice, deliberately: the **mic button records live** from the b
 ## Tests
 
 ```bash
-pytest -q          # 244 tests, ~3min (the embedding model dominates)
-pytest tests/test_i18n.py -q   # 39 of them, 0.3s, no model or database
+pytest -q          # 245 tests, ~3min (the embedding model dominates)
+pytest tests/test_i18n.py -q   # 40 of them, 0.3s, no model or database
 ```
 
 Every test encodes a defect this project actually shipped, not a hypothetical — and the
