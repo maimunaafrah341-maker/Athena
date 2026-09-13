@@ -13,3 +13,6 @@ _local/
 *.mp4
 /voice over.ogg
 /slide-visuals-245/
+
+# Private working notes between the team and its assistant, not for the public repo
+/IDEA_SUBMISSION.md

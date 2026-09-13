@@ -1,6 +1,6 @@
 # Athena — what it does, and what's shipped
 
-_SIH26093 · National Helpline Against Atrocities · updated 9 Sep 2026_
+_SIH26093 · National Helpline Against Atrocities · updated 13 Sep 2026_
 
 ## The problem
 
@@ -62,7 +62,8 @@ order.
 
 ### Reaching more people, in more ways
 - **Five languages, text and voice** — English, Hindi, Telugu, Urdu, and
-  Bengali, including romanized Hindi/Telugu, not just native script.
+  Bengali, including romanized Hindi, Telugu, Urdu and Bengali, not just
+  native script.
 - **Real voice transcription** — voice notes are actually transcribed
   (Whisper via Groq's free tier), not matched against a canned script.
 - **Photo evidence via OCR** — a screenshot or photo of a threat, injury,
@@ -202,3 +203,51 @@ cannot come back quietly.
 - Seeded demo cases are labelled per row, not per page — the dashboard
   mixes them with real reports.
 
+---
+
+## 13 September 2026
+
+A presentation and accuracy pass before submission. Frontend and copy
+only: no API, schema or deployment change.
+
+### Screens that said something untrue
+- **The risk donut was a fixed picture.** A hardcoded gradient drew the
+  same slices whatever the data said. On live data it showed Low as the
+  largest slice beside a legend reading 70% Critical. It is now drawn
+  from the counts the legend already shows.
+- **The caste playbook promised automatic SC/ST provisions.** `kg.py`
+  attaches them only at 80% caste-motive confidence, the safeguard the
+  pitch cites. The guidance now says so in all five languages, with a
+  test that fails on the old wording.
+- **The language hook was defined twice.** A second definition silently
+  replaced the first, so lists stopped re-rendering on a language change.
+
+### Phones and keyboards
+- Alerts and New Report scrolled sideways at 360px, the demo's send button
+  was cut off, the district watchlist rendered as one clipped strip, and
+  the map's privacy note squeezed the map into half its card.
+- The case table becomes labelled cards on a phone, case ids are
+  keyboard-reachable, and the case brief is a real dialog: Escape closes
+  it and focus returns to what opened it.
+- Text that had drifted down to 8-10px was raised, and grey text brought
+  up to AA contrast.
+
+### Safer by default
+- **Mark reviewed takes two taps.** Acknowledgement cannot be undone, and
+  it removes a case from "Needs review".
+- **Map popups no longer print coordinates.** The pin already sits there.
+- **Alert rows no longer show the pipeline's English reasoning.** It made
+  every row six lines tall and stayed English in every language. It is
+  still in the case brief.
+- **The demo says it is not an emergency service**, with the existing
+  confirm-before-dialling numbers one labelled tap away, and a Try again
+  button when a send fails.
+- **A photo replaces typed text.** That was always how `/report/image`
+  worked; the form now says so the moment a photo is attached.
+
+### Docs
+- README points at the new demo video and the live prototype, and its
+  romanized-language claim now matches the code: four languages, not two.
+
+### The test suite
+- **245 tests.**
