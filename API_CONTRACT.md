@@ -1,8 +1,11 @@
 # Athena Backend API Contract
 
-For Yusra (backend/API integration) and Sadaf (frontend). This reflects the
-actual current behavior of `main` as of 2026-08-18, verified by running it,
-not just reading the code.
+The request and response contract for Athena's backend, written against
+the running server rather than from reading the code. Examples use
+`http://localhost:8000`; the live deployment serves the same routes at
+`https://athena-production-af83.up.railway.app`. Example payloads are
+shortened, and punctuation inside human-readable text fields (such as
+`reason` or `risk_factors`) can differ slightly from a live response.
 
 ## Endpoint
 
@@ -794,7 +797,7 @@ The uploaded image is saved server-side and linked to the case via
 `evidence_path`, not currently served back over HTTP (no `GET` route for the
 file itself yet), just tracked for now.
 
-## Voice report: **wired but not yet functional, see caveat below**
+## Voice report: **working** (Groq-hosted Whisper, see below)
 
 ```
 POST http://localhost:8000/report/voice
