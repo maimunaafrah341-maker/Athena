@@ -1,10 +1,10 @@
-# Athena — what it does, and what's shipped
+# Athena: what it does, and what's shipped
 
 _SIH26093 · National Helpline Against Atrocities · updated 13 Sep 2026_
 
 ## The problem
 
-The bottleneck isn't the helpline — it's everything before the helpline.
+The bottleneck isn't the helpline: it's everything before the helpline.
 The National Helpline Against Atrocities already has people who can help;
 Athena is built for what happens *before* a trained human ever hears about
 a case: whether the person in danger can safely reach out at all, and
@@ -18,7 +18,7 @@ whichever language the operator happens to know, and whoever picks up has
 to correctly judge severity from a few stressed minutes with no record
 beyond their own memory of the call.
 
-Athena doesn't replace that human response chain — it sits in front of
+Athena doesn't replace that human response chain: it sits in front of
 it, so a report can be made the moment someone is able to make it (typed,
 spoken, or photographed, in their own language), and by the time a
 counsellor sees it, it already carries a severity read, the relevant law,
@@ -28,13 +28,13 @@ and next steps.
 
 | Calling directly | Reporting through Athena |
 |---|---|
-| Has to be spoken, out loud, in real time | Typed, voice-noted, or photographed — whenever it's safe to |
+| Has to be spoken, out loud, in real time | Typed, voice-noted, or photographed: whenever it's safe to |
 | Needs a moment when no one nearby can overhear | Looks like ordinary phone use, not a visible "report abuse" call |
-| Depends on whichever operator picks up — their training, language, judgment that day | Same explainable severity scoring, every single time |
-| Severity is one person's read of a short, stressed call | Instant triage — no hold time, no queue |
+| Depends on whichever operator picks up: their training, language, judgment that day | Same explainable severity scoring, every single time |
+| Severity is one person's read of a short, stressed call | Instant triage: no hold time, no queue |
 | No record beyond notes the operator happens to take | Every report becomes a timestamped case with a full timeline |
 
-It doesn't compete with the helpline — it makes the handoff to a real
+It doesn't compete with the helpline: it makes the handoff to a real
 counsellor faster and better-informed than a cold call ever is: they open
 a case that already has the severity, the applicable law, and what to do
 next.
@@ -45,11 +45,11 @@ The best reporting channel is the one already open on someone's phone. A
 new app or unfamiliar website is itself a barrier, and for someone being
 watched, a suspicious-looking app on their home screen is a real risk.
 
-1. **It's already installed** — no download, no account, no learning a
+1. **It's already installed**: no download, no account, no learning a
    new interface, the single biggest drop-off point for any safety tool.
-2. **It hides in plain sight** — a message in an app someone already uses
+2. **It hides in plain sight**: a message in an app someone already uses
    all day draws no attention, unlike a dedicated "report" app.
-3. **It's the same brain, not a new one** — the WhatsApp-style demo
+3. **It's the same brain, not a new one**: the WhatsApp-style demo
    (`web/index.html`) already proves this: identical `/report` pipeline,
    same severity scoring, same case record, just reached through a chat
    window instead of a browser. Real WhatsApp integration swaps who's on
@@ -61,63 +61,63 @@ Grouped by what it actually does for a user or a counsellor, not commit
 order.
 
 ### Reaching more people, in more ways
-- **Five languages, text and voice** — English, Hindi, Telugu, Urdu, and
+- **Five languages, text and voice**: English, Hindi, Telugu, Urdu, and
   Bengali, including romanized Hindi, Telugu, Urdu and Bengali, not just
   native script.
-- **Real voice transcription** — voice notes are actually transcribed
+- **Real voice transcription**: voice notes are actually transcribed
   (Whisper via Groq's free tier), not matched against a canned script.
-- **Photo evidence via OCR** — a screenshot or photo of a threat, injury,
+- **Photo evidence via OCR**: a screenshot or photo of a threat, injury,
   or document feeds straight into the same pipeline as a typed report.
-- **Real nearby help** — live police stations and hospitals near the
+- **Real nearby help**: live police stations and hospitals near the
   reporter (Overpass API), plus a one-tap SOS that forces Critical /
   escalated.
 
 ### Understanding what's actually happening
-- **Stress Vulnerability Index (SVI)** — an explainable severity score
+- **Stress Vulnerability Index (SVI)**: an explainable severity score
   with named, listed factors from both text and voice, not a black-box
   number.
-- **SC/ST Act knowledge graph + legal guidance** — case briefs cite the
+- **SC/ST Act knowledge graph + legal guidance**: case briefs cite the
   actual applicable legal provisions and procedural next steps, grounded
   in real source documents.
-- **Suicidal ideation detection** — recognised as its own case with a
+- **Suicidal ideation detection**: recognised as its own case with a
   crisis-safe response path, separate from general risk scoring.
-- **District-level pattern detection** — a "flagged districts" panel
+- **District-level pattern detection**: a "flagged districts" panel
   surfaces where case counts are rising week over week, with an
   incident-type breakdown.
 
 ### Turning a report into a handled case
-- **Every report becomes a case** — persisted, queryable, with a full
+- **Every report becomes a case**: persisted, queryable, with a full
   chronological timeline from first report through every status change
   and note.
-- **Escalation workflow** — manual "Escalate now" with a note, status
+- **Escalation workflow**: manual "Escalate now" with a note, status
   changes, and NHAA docket binding into the real national helpline's case
   categories.
-- **Urgency cue** *(new)* — escalated cases now show how long they've sat
+- **Urgency cue** *(new)*: escalated cases now show how long they've sat
   since escalation with no update, so a stalled case is visible instead
   of buried in a timeline.
-- **AI-suggested labeling** *(new)* — AI-derived sections of a case brief
-  are explicitly marked "suggested, not final" — decision support, not an
-  authority making the call.
-- **Judge-friendly access** — a case brief can be opened via a link
+- **AI-suggested labeling** *(new)*: AI-derived sections of a case brief
+  are explicitly marked "suggested, not final", as decision support, not
+  an authority making the call.
+- **Judge-friendly access**: a case brief can be opened via a link
   carrying its own access, so a reviewer isn't stuck at a raw login
   prompt.
 
 ### Getting it in front of people
-- **Counsellor dashboard** — real stats, trends, and risk distribution,
+- **Counsellor dashboard**: real stats, trends, and risk distribution,
   access-key gated, with server-side key verification instead of a
   client-side trust check.
-- **WhatsApp-style demo channel** — a chat interface proving the exact
+- **WhatsApp-style demo channel**: a chat interface proving the exact
   same backend works inside a familiar messaging UI: text, voice notes,
   and photos.
-- **Live deployment** — running on Railway, with a Docker fallback path
+- **Live deployment**: running on Railway, with a Docker fallback path
   for Hugging Face Spaces / Cloud Run.
 
 ### Fixed today
-- **Admin-key gate bypass** — the counsellor dashboard's access-key
+- **Admin-key gate bypass**: the counsellor dashboard's access-key
   screen only checked that *something* had been typed, not that it was
   valid, so any string silently opened an empty dashboard shell. It now
   verifies the key against the server before letting anyone through.
-- **Misleading WhatsApp-demo error** — a failed report on the deployed
+- **Misleading WhatsApp-demo error**: a failed report on the deployed
   demo always blamed "backend not running on localhost:8000," even in
   production. It now distinguishes an unreachable backend from a real
   backend error and reports which one actually happened.
@@ -133,7 +133,7 @@ cannot come back quietly.
 ### Classification bugs, all of them cross-language
 - **Caste motive fired in English only.** `kg.py` gates the SC/ST Act
   provisions on that signal, so a caste atrocity reported in Hindi,
-  Telugu, Urdu or Bengali received no statutory citations at all — on a
+  Telugu, Urdu or Bengali received no statutory citations at all: on a
   project built for the National Helpline Against Atrocities. The
   anchors covered public humiliation and denial of entry, neither of
   which involves being hit, so once a beating entered the sentence the
@@ -142,8 +142,8 @@ cannot come back quietly.
   routes on incident type, so a neighbour's caste assault typed as
   domestic violence received the Protection of Women from Domestic
   Violence Act. Confidently, and wrongly.
-- **A crowd outside the home wasn't danger.** The same event — caste
-  temple-entry denial plus a crowd at the house — scored Low in Hindi
+- **A crowd outside the home wasn't danger.** The same event (caste
+  temple-entry denial plus a crowd at the house) scored Low in Hindi
   and English and Critical in Telugu, Bengali and Urdu. The two
   languages most likely to be used gave the safest-sounding answer.
 - **Native Urdu and Bengali were recorded as `latin`.** Both reached
@@ -152,7 +152,7 @@ cannot come back quietly.
 
 ### Two indicators the problem statement asked for
 - **Depression indicators** and **social isolation**, in five languages,
-  feeding the Stress Vulnerability Index rather than the risk tier —
+  feeding the Stress Vulnerability Index rather than the risk tier:
   they describe how vulnerable someone is, not whether they are about to
   be hurt. Social isolation does double duty: social boycott is an SC/ST
   Act offence, not just a symptom.
@@ -161,21 +161,21 @@ cannot come back quietly.
 - **`GET /cases/map` was public.** Each pin carried a case id, a
   timestamp, an incident type, a risk tier and district coordinates.
   k-anonymity stops a sparse district being identifiable by its
-  sparseness; it does not make one pin an aggregate. Now admin-gated —
+  sparseness; it does not make one pin an aggregate. Now admin-gated:
   its only caller was already behind the key.
 - **An empty report answered 200** with an empty response and
   `escalate: true`, claiming an escalation with no case behind it.
 
 ### The helpline's own number
 - **14566 was not in the emergency list.** Athena offered a person in
-  danger 112, 100, 181 and 1098 — every national number except the one
+  danger 112, 100, 181 and 1098, every national number except the one
   this project exists to serve. KIRAN 1800-599-0019 added alongside it.
 
 ### Language, everywhere
 - **Switching language moved the chrome and left the content behind.**
   Every list built with `innerHTML` kept whichever language it rendered
   in. `i18n.js` had always called a hook for this; it was never defined.
-- **The case brief was English on every language** — every heading,
+- **The case brief was English on every language**, every heading,
   label, button and placeholder built as a literal rather than read
   through `t()`. It is the screen a counsellor works from, and the one
   where a reporter's own words sat surrounded by another language.
@@ -193,14 +193,14 @@ cannot come back quietly.
 ### Interface honesty
 - Dead phone and video icons removed from the demo header; the phone
   icon now opens real numbers.
-- "online" replaced — it borrowed WhatsApp's meaning, that a person is
+- "online" replaced: it borrowed WhatsApp's meaning, that a person is
   there right now.
 - Emergency numbers became one-tap `tel:` links, then gained a
   confirmation step, because 112 reaches real emergency services and a
   judge tapping it mid-demo would place a real call.
 - Reply drafts can be saved to the case, prefixed "Drafted reply (not
   sent)" so a case file can never be read as evidence of delivery.
-- Seeded demo cases are labelled per row, not per page — the dashboard
+- Seeded demo cases are labelled per row, not per page: the dashboard
   mixes them with real reports.
 
 ---
