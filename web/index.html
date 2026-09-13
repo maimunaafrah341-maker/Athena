@@ -586,6 +586,97 @@
     padding: 2px 0 4px;
     background: #f0f2f5;
   }
+
+  /* Persistent support strip. The header phone icon already opened the
+     numbers, but an unlabelled icon is not something a frightened person
+     can be expected to find. This says plainly that the chat is not an
+     emergency service and puts the numbers one labelled tap away -- the
+     same confirm-before-dialling block, never a bare tel: link. */
+  .support-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: #fff;
+    border-bottom: 1px solid #ece6d6;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #6b2b2b;
+  }
+  .support-strip .support-text { flex: 1; min-width: 0; font-weight: 600; }
+  .support-strip button {
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 5px 10px;
+    border: 1px solid #e3bcbc;
+    border-radius: 6px;
+    background: #fff6f6;
+    color: #8c1f1f;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .support-strip button:focus-visible { outline: 2px solid #1f6f4a; outline-offset: 2px; }
+
+  .header-name,
+  .header-status {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #langToggle:focus-visible,
+  #headerCallButton:focus-visible,
+  .send-btn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+  .send-btn:focus-visible { outline-color: #075e54; }
+
+  /* Logical corners, so the bubble's tail follows the text direction:
+     in Urdu the outgoing bubble sits on the left and its flat corner
+     has to be on the left too. */
+  .bubble.out { border-radius: 8px; border-end-end-radius: 0; }
+  .bubble.in  { border-radius: 8px; border-end-start-radius: 0; }
+
+  /* Without min-width:0 the text field refuses to shrink below its
+     intrinsic width and pushes the send button off a 360px screen. */
+  .composer input { min-width: 0; }
+
+  .retry-btn {
+    margin-top: 7px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border: 1px solid #075e54;
+    border-radius: 7px;
+    background: #fff;
+    color: #075e54;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .retry-btn:focus-visible { outline: 2px solid #075e54; outline-offset: 2px; }
+
+  /* On a real phone the device frame is the screen itself: drop the
+     frame, the gutter and the rounded corners instead of shrinking a
+     picture of a phone inside a phone. */
+  @media (max-width: 480px) {
+    body { padding: 0; align-items: stretch; }
+    .phone {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+    }
+    .header { padding: 10px 10px; gap: 9px; }
+    .header-icons { gap: 6px; }
+    .composer { padding: 8px 6px; gap: 3px; }
+    .composer .icon { min-width: 36px; padding: 2px; font-size: 19px; }
+    .composer input { padding: 10px 12px; }
+  }
 </style>
 </head>
 <body>
@@ -671,6 +762,12 @@
     ></button>
   </div>
 
+  <div class="support-strip">
+    <span aria-hidden="true">&#9888;</span>
+    <span class="support-text" id="supportStripText"></span>
+    <button type="button" id="supportStripButton" onclick="showEmergencyNumbers()"></button>
+  </div>
+
   <div class="chat" id="chat">
     <div class="row in greeting-row">
       <div class="bubble"></div>
@@ -686,6 +783,7 @@
     <button
       class="icon"
       type="button"
+      id="sampleVoiceButton"
       onclick="sendVoiceNote()"
       title="Play the pre-recorded Hindi sample (works without a mic)"
       aria-label="Send the pre-recorded Hindi sample voice note"
@@ -694,6 +792,7 @@
     <button
       class="icon"
       type="button"
+      id="attachButton"
       onclick="document.getElementById('imageInput').click()"
       title="Attach a photo as evidence"
       aria-label="Attach a photo as evidence"
@@ -738,6 +837,10 @@
   // this is deliberately not a separate integration.
   const REPORT_ENDPOINT = "/report";
 
+  // The most recent submission, kept so a failed send can be retried
+  // with one tap instead of asking someone to record or type it again.
+  let lastAttempt = null;
+
   const chat = document.getElementById("chat");
   const input = document.getElementById("msgInput");
   const headerStatus = document.getElementById("headerStatus");
@@ -755,7 +858,7 @@
       typing: "typing…",
       disclaimer: "🔒 This is a concept demo. Messages are sent to Athena's safety pipeline — the same one the main app uses — not a real WhatsApp number.",
       placeholder: "Type a message",
-      greeting: "Tell me what happened. You can type it, send a voice note, or send a photo — share only what feels safe.",
+      greeting: "Tell me what happened. You can type it, send a voice note, or send a photo — share only what feels safe. Your name, phone number and exact location are not needed.",
       dialHint: "Tapping a number opens your phone's dialler. Nothing is dialled until you confirm.",
       callHelpline: "Call 14566 · Helpline",
       confirmCallTitle: "Call {label} on {phone}?",
@@ -778,6 +881,24 @@
       emergencyTitle: "If you need help now",
       callEmergency: "Call 112 · Emergency",
       writingIn: "Writing in English",
+      notEmergency: "Not an emergency service",
+      stripNumbers: "Emergency numbers",
+      headerCallLabel: "Show emergency phone numbers",
+      languageLabel: "Interface language",
+      sampleVoice: "Send the pre-recorded Hindi sample voice note",
+      attachPhoto: "Attach a photo as evidence",
+      recordVoice: "Record a voice note",
+      stopRecording: "Stop recording and send",
+      sendMessage: "Send message",
+      counsellorViewHint: "Staff only — needs an access key",
+      errNetwork: "I couldn't reach the Athena backend. It may be waking up — wait a few seconds and try again.",
+      errServer: "The Athena backend returned an error ({status}). Try again in a moment.",
+      errNoRecorder: "This browser can't record audio. You can type instead, or use the sample voice note button.",
+      errMic: "I couldn't access the microphone. Check this site's microphone permission, or type your message instead.",
+      errEmptyRecording: "That recording came out empty — please try again.",
+      noResponse: "(no response)",
+      evidenceAlt: "Evidence photo",
+      retry: "Try again",
     },
     hi: {
       headerName: "एथेना हेल्पलाइन",
@@ -785,7 +906,7 @@
       typing: "टाइप कर रहे हैं…",
       disclaimer: "🔒 यह एक कॉन्सेप्ट डेमो है। संदेश एथेना की सुरक्षा प्रणाली को भेजे जाते हैं — वही जो मुख्य ऐप उपयोग करता है — यह असली व्हाट्सऐप नंबर नहीं है।",
       placeholder: "संदेश टाइप करें",
-      greeting: "बताइए क्या हुआ। आप टाइप कर सकते हैं, वॉइस नोट या फ़ोटो भेज सकते हैं — जितना बताना सुरक्षित लगे, उतना ही बताइए।",
+      greeting: "बताइए क्या हुआ। आप टाइप कर सकते हैं, वॉइस नोट या फ़ोटो भेज सकते हैं — जितना बताना सुरक्षित लगे, उतना ही बताइए। आपका नाम, फ़ोन नंबर या सटीक स्थान ज़रूरी नहीं है।",
       dialHint: "किसी नंबर को दबाने पर आपका फ़ोन डायलर खुलेगा। पुष्टि करने तक कोई कॉल नहीं लगेगी।",
       callHelpline: "14566 पर कॉल करें · हेल्पलाइन",
       confirmCallTitle: "{label} को {phone} पर कॉल करें?",
@@ -808,6 +929,24 @@
       emergencyTitle: "अगर अभी मदद चाहिए",
       callEmergency: "112 पर कॉल करें · आपातकाल",
       writingIn: "हिंदी में लिख रहे हैं",
+      notEmergency: "यह आपातकालीन सेवा नहीं है",
+      stripNumbers: "आपातकालीन नंबर",
+      headerCallLabel: "आपातकालीन फ़ोन नंबर दिखाएँ",
+      languageLabel: "इंटरफ़ेस की भाषा",
+      sampleVoice: "पहले से रिकॉर्ड किया हिंदी वॉइस नोट भेजें",
+      attachPhoto: "सबूत के रूप में फ़ोटो जोड़ें",
+      recordVoice: "वॉइस नोट रिकॉर्ड करें",
+      stopRecording: "रिकॉर्डिंग रोकें और भेजें",
+      sendMessage: "संदेश भेजें",
+      counsellorViewHint: "केवल स्टाफ़ के लिए — एक्सेस की ज़रूरी है",
+      errNetwork: "एथेना सर्वर तक नहीं पहुँच सका। हो सकता है यह शुरू हो रहा हो — कुछ सेकंड रुककर फिर कोशिश करें।",
+      errServer: "एथेना सर्वर ने त्रुटि लौटाई ({status})। थोड़ी देर में फिर कोशिश करें।",
+      errNoRecorder: "यह ब्राउज़र ऑडियो रिकॉर्ड नहीं कर सकता। आप टाइप कर सकते हैं, या सैंपल वॉइस नोट बटन इस्तेमाल करें।",
+      errMic: "माइक्रोफ़ोन तक पहुँच नहीं मिली। इस साइट की माइक अनुमति जाँचें, या अपना संदेश टाइप करें।",
+      errEmptyRecording: "रिकॉर्डिंग खाली रही — कृपया फिर से कोशिश करें।",
+      noResponse: "(कोई उत्तर नहीं)",
+      evidenceAlt: "सबूत की फ़ोटो",
+      retry: "फिर से कोशिश करें",
     },
     te: {
       headerName: "ఎథీనా హెల్ప్‌లైన్",
@@ -815,7 +954,7 @@
       typing: "టైప్ చేస్తున్నారు…",
       disclaimer: "🔒 ఇది ఒక కాన్సెప్ట్ డెమో. సందేశాలు ఎథీనా భద్రతా వ్యవస్థకు పంపబడతాయి — ప్రధాన యాప్ ఉపయోగించే అదే వ్యవస్థ — ఇది నిజమైన WhatsApp నంబర్ కాదు.",
       placeholder: "సందేశం టైప్ చేయండి",
-      greeting: "ఏం జరిగిందో చెప్పండి. మీరు టైప్ చేయవచ్చు, వాయిస్ నోట్ లేదా ఫోటో పంపవచ్చు — సురక్షితం అనిపించినంత మాత్రమే చెప్పండి.",
+      greeting: "ఏం జరిగిందో చెప్పండి. మీరు టైప్ చేయవచ్చు, వాయిస్ నోట్ లేదా ఫోటో పంపవచ్చు — సురక్షితం అనిపించినంత మాత్రమే చెప్పండి. మీ పేరు, ఫోన్ నంబర్ లేదా ఖచ్చితమైన స్థానం అవసరం లేదు.",
       dialHint: "నంబర్‌ను నొక్కితే మీ ఫోన్ డయలర్ తెరుచుకుంటుంది. మీరు నిర్ధారించే వరకు కాల్ వెళ్ళదు.",
       callHelpline: "14566కు కాల్ చేయండి · హెల్ప్‌లైన్",
       confirmCallTitle: "{label}కు {phone} నంబర్‌లో కాల్ చేయాలా?",
@@ -838,6 +977,24 @@
       emergencyTitle: "ఇప్పుడే సహాయం కావాలంటే",
       callEmergency: "112కు కాల్ చేయండి · అత్యవసరం",
       writingIn: "తెలుగులో రాస్తున్నారు",
+      notEmergency: "ఇది అత్యవసర సేవ కాదు",
+      stripNumbers: "అత్యవసర నంబర్లు",
+      headerCallLabel: "అత్యవసర ఫోన్ నంబర్లు చూపించండి",
+      languageLabel: "ఇంటర్‌ఫేస్ భాష",
+      sampleVoice: "ముందే రికార్డ్ చేసిన హిందీ వాయిస్ నోట్ పంపండి",
+      attachPhoto: "సాక్ష్యంగా ఫోటో జోడించండి",
+      recordVoice: "వాయిస్ నోట్ రికార్డ్ చేయండి",
+      stopRecording: "రికార్డింగ్ ఆపి పంపండి",
+      sendMessage: "సందేశం పంపండి",
+      counsellorViewHint: "సిబ్బందికి మాత్రమే — యాక్సెస్ కీ అవసరం",
+      errNetwork: "ఎథీనా సర్వర్‌ను చేరుకోలేకపోయాను. అది ప్రారంభమవుతూ ఉండవచ్చు — కొన్ని సెకన్లు ఆగి మళ్ళీ ప్రయత్నించండి.",
+      errServer: "ఎథీనా సర్వర్ లోపం చూపింది ({status}). కొద్దిసేపట్లో మళ్ళీ ప్రయత్నించండి.",
+      errNoRecorder: "ఈ బ్రౌజర్ ఆడియో రికార్డ్ చేయలేదు. మీరు టైప్ చేయవచ్చు, లేదా నమూనా వాయిస్ నోట్ బటన్ ఉపయోగించండి.",
+      errMic: "మైక్రోఫోన్‌ను ఉపయోగించలేకపోయాను. ఈ సైట్ మైక్ అనుమతిని తనిఖీ చేయండి, లేదా మీ సందేశం టైప్ చేయండి.",
+      errEmptyRecording: "రికార్డింగ్ ఖాళీగా వచ్చింది — దయచేసి మళ్ళీ ప్రయత్నించండి.",
+      noResponse: "(సమాధానం లేదు)",
+      evidenceAlt: "సాక్ష్యం ఫోటో",
+      retry: "మళ్ళీ ప్రయత్నించండి",
     },
     ur: {
       headerName: "ایتھینا ہیلپ لائن",
@@ -845,7 +1002,7 @@
       typing: "ٹائپ کر رہے ہیں…",
       disclaimer: "🔒 یہ ایک تصوراتی ڈیمو ہے۔ پیغامات ایتھینا کے حفاظتی نظام کو بھیجے جاتے ہیں — وہی جو مرکزی ایپ استعمال کرتی ہے — یہ حقیقی واٹس ایپ نمبر نہیں ہے۔",
       placeholder: "پیغام ٹائپ کریں",
-      greeting: "بتائیے کیا ہوا۔ آپ ٹائپ کر سکتے ہیں، وائس نوٹ یا تصویر بھیج سکتے ہیں — جتنا بتانا محفوظ لگے، اتنا ہی بتائیں۔",
+      greeting: "بتائیے کیا ہوا۔ آپ ٹائپ کر سکتے ہیں، وائس نوٹ یا تصویر بھیج سکتے ہیں — جتنا بتانا محفوظ لگے، اتنا ہی بتائیں۔ آپ کا نام، فون نمبر یا درست مقام ضروری نہیں۔",
       dialHint: "کسی نمبر کو دبانے پر آپ کا فون ڈائلر کھلے گا۔ تصدیق تک کوئی کال نہیں لگے گی۔",
       callHelpline: "14566 پر کال کریں · ہیلپ لائن",
       confirmCallTitle: "{label} کو {phone} پر کال کریں؟",
@@ -868,6 +1025,24 @@
       emergencyTitle: "اگر ابھی مدد چاہیے",
       callEmergency: "112 پر کال کریں · ہنگامی",
       writingIn: "اردو میں لکھ رہے ہیں",
+      notEmergency: "یہ ہنگامی خدمت نہیں ہے",
+      stripNumbers: "ہنگامی نمبر",
+      headerCallLabel: "ہنگامی فون نمبر دکھائیں",
+      languageLabel: "انٹرفیس کی زبان",
+      sampleVoice: "پہلے سے ریکارڈ شدہ ہندی وائس نوٹ بھیجیں",
+      attachPhoto: "ثبوت کے طور پر تصویر شامل کریں",
+      recordVoice: "وائس نوٹ ریکارڈ کریں",
+      stopRecording: "ریکارڈنگ روکیں اور بھیجیں",
+      sendMessage: "پیغام بھیجیں",
+      counsellorViewHint: "صرف عملے کے لیے — رسائی کی کلید ضروری ہے",
+      errNetwork: "ایتھینا سرور تک رسائی نہیں ہو سکی۔ ممکن ہے یہ شروع ہو رہا ہو — چند سیکنڈ رک کر دوبارہ کوشش کریں۔",
+      errServer: "ایتھینا سرور نے خرابی بتائی ({status})۔ تھوڑی دیر میں دوبارہ کوشش کریں۔",
+      errNoRecorder: "یہ براؤزر آڈیو ریکارڈ نہیں کر سکتا۔ آپ ٹائپ کر سکتے ہیں، یا نمونہ وائس نوٹ کا بٹن استعمال کریں۔",
+      errMic: "مائیکروفون تک رسائی نہیں ملی۔ اس سائٹ کی مائیک اجازت چیک کریں، یا اپنا پیغام ٹائپ کریں۔",
+      errEmptyRecording: "ریکارڈنگ خالی رہی — براہ کرم دوبارہ کوشش کریں۔",
+      noResponse: "(کوئی جواب نہیں)",
+      evidenceAlt: "ثبوت کی تصویر",
+      retry: "دوبارہ کوشش کریں",
     },
     bn: {
       headerName: "এথীনা হেল্পলাইন",
@@ -875,7 +1050,7 @@
       typing: "টাইপ করছে…",
       disclaimer: "🔒 এটি একটি ধারণাগত ডেমো। বার্তাগুলি এথীনার নিরাপত্তা ব্যবস্থায় পাঠানো হয় — মূল অ্যাপ যা ব্যবহার করে সেটিই — এটি প্রকৃত হোয়াটসঅ্যাপ নম্বর নয়।",
       placeholder: "বার্তা লিখুন",
-      greeting: "কী হয়েছে বলুন। আপনি লিখতে পারেন, ভয়েস নোট বা ছবি পাঠাতে পারেন — যতটা নিরাপদ মনে হয় ততটাই বলুন।",
+      greeting: "কী হয়েছে বলুন। আপনি লিখতে পারেন, ভয়েস নোট বা ছবি পাঠাতে পারেন — যতটা নিরাপদ মনে হয় ততটাই বলুন। আপনার নাম, ফোন নম্বর বা সঠিক অবস্থান লাগবে না।",
       dialHint: "নম্বরে চাপ দিলে আপনার ফোনের ডায়ালার খুলবে। নিশ্চিত না করা পর্যন্ত কল যাবে না।",
       callHelpline: "14566-এ কল করুন · হেল্পলাইন",
       confirmCallTitle: "{label}-কে {phone} নম্বরে কল করবেন?",
@@ -898,6 +1073,24 @@
       emergencyTitle: "এখনই সাহায্য দরকার হলে",
       callEmergency: "112-এ কল করুন · জরুরি",
       writingIn: "বাংলায় লিখছেন",
+      notEmergency: "এটি জরুরি পরিষেবা নয়",
+      stripNumbers: "জরুরি নম্বর",
+      headerCallLabel: "জরুরি ফোন নম্বর দেখান",
+      languageLabel: "ইন্টারফেসের ভাষা",
+      sampleVoice: "আগে থেকে রেকর্ড করা হিন্দি ভয়েস নোট পাঠান",
+      attachPhoto: "প্রমাণ হিসেবে ছবি যুক্ত করুন",
+      recordVoice: "ভয়েস নোট রেকর্ড করুন",
+      stopRecording: "রেকর্ডিং থামিয়ে পাঠান",
+      sendMessage: "বার্তা পাঠান",
+      counsellorViewHint: "শুধু কর্মীদের জন্য — অ্যাক্সেস কী লাগবে",
+      errNetwork: "এথীনা সার্ভারে পৌঁছানো যায়নি। এটি হয়তো চালু হচ্ছে — কয়েক সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন।",
+      errServer: "এথীনা সার্ভার একটি ত্রুটি দেখিয়েছে ({status})। একটু পরে আবার চেষ্টা করুন।",
+      errNoRecorder: "এই ব্রাউজার অডিও রেকর্ড করতে পারে না। আপনি লিখতে পারেন, বা নমুনা ভয়েস নোট বোতাম ব্যবহার করুন।",
+      errMic: "মাইক্রোফোন ব্যবহার করা যায়নি। এই সাইটের মাইক অনুমতি পরীক্ষা করুন, বা আপনার বার্তা লিখুন।",
+      errEmptyRecording: "রেকর্ডিং খালি এসেছে — অনুগ্রহ করে আবার চেষ্টা করুন।",
+      noResponse: "(কোনো উত্তর নেই)",
+      evidenceAlt: "প্রমাণের ছবি",
+      retry: "আবার চেষ্টা করুন",
     },
   };
 
@@ -918,6 +1111,24 @@
     counsellorViewButton.textContent = strings.counsellorView;
     counsellorViewButton.setAttribute("aria-label", strings.counsellorView);
     composerLang.textContent = strings.writingIn;
+    document.getElementById("supportStripText").textContent = strings.notEmergency;
+    document.getElementById("supportStripButton").textContent = strings.stripNumbers;
+    counsellorViewButton.title = strings.counsellorViewHint;
+
+    // Icon-only controls. Their English aria-labels in the markup are
+    // only a fallback for a page whose script never ran.
+    setControlLabel("headerCallButton", strings.headerCallLabel);
+    setControlLabel("sampleVoiceButton", strings.sampleVoice);
+    setControlLabel("attachButton", strings.attachPhoto);
+    setControlLabel("sendBtn", strings.sendMessage);
+    setControlLabel(
+      "recBtn",
+      document.getElementById("recBtn").classList.contains("recording")
+        ? strings.stopRecording
+        : strings.recordVoice
+    );
+    langToggle.setAttribute("aria-label", strings.languageLabel);
+    input.setAttribute("aria-label", strings.placeholder);
     input.placeholder = strings.placeholder;
 
     // The opening message. Moving the demo disclaimer out of the chat
@@ -942,6 +1153,13 @@
     } catch (error) {
       // localStorage unavailable -- language still applies this load.
     }
+  }
+
+  function setControlLabel(id, label) {
+    const control = document.getElementById(id);
+    if (!control) return;
+    control.setAttribute("aria-label", label);
+    control.title = label;
   }
 
   // Shown once per visit. Deliberately sessionStorage and not
@@ -1044,7 +1262,7 @@
 
     row.innerHTML = `
       <div class="bubble in">
-        <div class="text">${escapeHTML(text || "(no response)")}</div>
+        <div class="text">${escapeHTML(text || UI_STRINGS[currentUiLang].noResponse)}</div>
         ${tag}
         ${note}
         <div class="meta">${nowTime()}</div>
@@ -1320,17 +1538,41 @@
     removeTyping();
 
     const isNetworkFailure = error instanceof TypeError;
+    const strings = UI_STRINGS[currentUiLang];
 
     addIncoming(
       isNetworkFailure
-        ? `I couldn't reach the Athena backend at ${window.location.origin}. ` +
-          "It may be waking up from a cold start -- wait a few seconds and try again."
-        : `The Athena backend returned an error (${error.message}). Try again in a moment.`
+        ? strings.errNetwork
+        : strings.errServer.replace("{status}", error.message)
     );
+
+    addRetryButton();
+  }
+
+  function addRetryButton() {
+    if (!lastAttempt) return;
+
+    const retry = lastAttempt;
+    const row = document.createElement("div");
+    row.className = "row sys";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "retry-btn";
+    button.textContent = UI_STRINGS[currentUiLang].retry;
+    button.addEventListener("click", () => {
+      row.remove();
+      retry();
+    });
+
+    row.appendChild(button);
+    chat.appendChild(row);
+    scrollChat();
   }
 
   async function submitToPipeline(text, language) {
 
+    lastAttempt = () => submitToPipeline(text, language);
     showTyping();
 
     let data;
@@ -1371,6 +1613,7 @@
   // Devanagari by default.
   async function submitVoiceToPipeline(audioUrl, language) {
 
+    lastAttempt = () => submitVoiceToPipeline(audioUrl, language);
     showTyping();
 
     let data;
@@ -1499,15 +1742,13 @@
     const timer = document.getElementById("recTimer");
 
     if (button) {
+      const strings = UI_STRINGS[currentUiLang];
       button.classList.toggle("recording", isRecording);
       button.textContent = isRecording ? "⏹" : "🎤";
-      button.setAttribute(
-        "aria-label",
-        isRecording ? "Stop recording and send" : "Record a voice note"
+      setControlLabel(
+        "recBtn",
+        isRecording ? strings.stopRecording : strings.recordVoice
       );
-      button.title = isRecording
-        ? "Stop recording and send"
-        : "Record a voice note";
     }
 
     if (timer) {
@@ -1525,10 +1766,7 @@
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      addIncoming(
-        "This browser can't record audio. You can type instead, or use the " +
-        "sample voice note button."
-      );
+      addIncoming(UI_STRINGS[currentUiLang].errNoRecorder);
       return;
     }
 
@@ -1553,7 +1791,7 @@
         // data) -- say so rather than posting an empty file and
         // letting it fail confusingly downstream.
         if (!audioBlob.size) {
-          addIncoming("That recording came out empty — please try again.");
+          addIncoming(UI_STRINGS[currentUiLang].errEmptyRecording);
           return;
         }
 
@@ -1582,10 +1820,7 @@
 
       // Denied permission is the common case and is not an error state
       // worth a scary message -- it just needs an alternative.
-      addIncoming(
-        "I couldn't access the microphone. Check the browser's mic permission " +
-        "for this site, or type your message instead."
-      );
+      addIncoming(UI_STRINGS[currentUiLang].errMic);
 
       setRecordingUI(false);
 
@@ -1612,7 +1847,7 @@
     row.className = "row out";
     row.innerHTML = `
       <div class="bubble out">
-        <img class="evidence-image" src="${imageUrl}" alt="Evidence photo" />
+        <img class="evidence-image" src="${imageUrl}" alt="${escapeHTML(UI_STRINGS[currentUiLang].evidenceAlt)}" />
         <div class="meta">${nowTime()} <span class="tick">✓✓</span></div>
       </div>
     `;
@@ -1630,6 +1865,7 @@
   // whatever text OCR extracts.
   async function submitImageToPipeline(file, language) {
 
+    lastAttempt = () => submitImageToPipeline(file, language);
     showTyping();
 
     let data;

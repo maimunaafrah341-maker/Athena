@@ -55,54 +55,54 @@
 
                     <button
                         class="nav-item active"
-                        data-page="overview"
+                        data-page="overview" data-i18n-aria-label="nav.overview"
                     >
-                        <span class="nav-icon">⌂</span>
+                        <span class="nav-icon" aria-hidden="true">⌂</span>
                         <span data-i18n="nav.overview">Overview</span>
                     </button>
 
 
                     <button
                         class="nav-item"
-                        data-page="new-report"
+                        data-page="new-report" data-i18n-aria-label="nav.newReport"
                     >
-                        <span class="nav-icon">＋</span>
+                        <span class="nav-icon" aria-hidden="true">＋</span>
                         <span data-i18n="nav.newReport">New Report</span>
                     </button>
 
 
                     <button
                         class="nav-item"
-                        data-page="cases"
+                        data-page="cases" data-i18n-aria-label="nav.cases"
                     >
-                        <span class="nav-icon">▤</span>
+                        <span class="nav-icon" aria-hidden="true">▤</span>
                         <span data-i18n="nav.cases">Cases</span>
                     </button>
 
 
                     <button
                         class="nav-item"
-                        data-page="risk-map"
+                        data-page="risk-map" data-i18n-aria-label="nav.riskMap"
                     >
-                        <span class="nav-icon">⌖</span>
+                        <span class="nav-icon" aria-hidden="true">⌖</span>
                         <span data-i18n="nav.riskMap">Risk Map</span>
                     </button>
 
 
                     <button
                         class="nav-item"
-                        data-page="guidance"
+                        data-page="guidance" data-i18n-aria-label="nav.guidance"
                     >
-                        <span class="nav-icon">◇</span>
+                        <span class="nav-icon" aria-hidden="true">◇</span>
                         <span data-i18n="nav.guidance">Guidance</span>
                     </button>
 
 
                     <button
                         class="nav-item"
-                        data-page="alerts"
+                        data-page="alerts" data-i18n-aria-label="nav.alerts"
                     >
-                        <span class="nav-icon">!</span>
+                        <span class="nav-icon" aria-hidden="true">!</span>
                         <span data-i18n="nav.alerts">Alerts</span>
 
                         <span
@@ -177,6 +177,7 @@
                         id="uiLanguageSelect"
                         class="language-pill"
                         aria-label="Interface language"
+                        data-i18n-aria-label="common.language"
                     >
                         <option value="en">English</option>
                     </select>
@@ -319,6 +320,59 @@
 
 
 
+                    <!-- NEEDS ACTION NOW -->
+
+                    <!--
+                        Directly under the numbers, not below the charts:
+                        the counts say how much there is, this says what
+                        to open first. It used to sit third, inside the
+                        chart grid, where a counsellor had to scroll past
+                        a donut to reach the one panel with work in it.
+                    -->
+                    <div class="dashboard-card recent-card">
+
+                        <div class="card-heading">
+
+                            <div>
+                                <span class="eyebrow" data-i18n="needsAction.eyebrow">
+                                    PRIORITY QUEUE
+                                </span>
+
+                                <h2 data-i18n="needsAction.title">
+                                    Needs action now
+                                </h2>
+
+                                <p id="needsActionSummary" class="card-summary" hidden></p>
+                            </div>
+
+                            <button
+                                class="text-button"
+                                data-page-target="cases"
+                            >
+                                <span data-i18n="recent.viewAll">View all →</span>
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            id="overviewCases"
+                            class="overview-case-list"
+                        >
+
+                            <div class="loading-state" data-i18n="loading.cases">
+                                Loading cases...
+                            </div>
+
+                        </div>
+
+                        <p class="ai-note" data-i18n="overview.aiNote">
+                            AI indicators support counsellor review. They do not replace professional judgement.
+                        </p>
+
+                    </div>
+
+
                     <!-- ANALYTICS -->
 
                     <div class="overview-grid">
@@ -437,43 +491,6 @@
 </div>
 
 
-                    <!-- RECENT CASES -->
-
-                    <div class="dashboard-card recent-card">
-
-                        <div class="card-heading">
-
-                            <div>
-                                <span class="eyebrow" data-i18n="needsAction.eyebrow">
-                                    PRIORITY QUEUE
-                                </span>
-
-                                <h2 data-i18n="needsAction.title">
-                                    Needs action now
-                                </h2>
-                            </div>
-
-                            <button
-                                class="text-button"
-                                data-page-target="cases"
-                            >
-                                <span data-i18n="recent.viewAll">View all →</span>
-                            </button>
-
-                        </div>
-
-
-                        <div
-                            id="overviewCases"
-                            class="overview-case-list"
-                        >
-
-                            <div class="loading-state" data-i18n="loading.cases">
-                                Loading cases...
-                            </div>
-
-                        </div>
-
                     </div>
 
                 </section>
@@ -503,9 +520,17 @@
 
                     <div class="safety-bar">
 
-                        <a href="tel:112" class="safety-bar-call" data-i18n="safety.callNow">
-                            📞 In immediate danger? Call 112 now
-                        </a>
+                        <div class="safety-bar-links">
+
+                            <a href="tel:112" class="safety-bar-call" data-i18n="safety.callNow">
+                                In immediate danger? Call 112 now
+                            </a>
+
+                            <a href="tel:14566" class="safety-bar-support" data-i18n="confirm.callLink">
+                                Need direct support? Call 14566
+                            </a>
+
+                        </div>
 
                         <div class="safety-bar-actions">
 
@@ -536,6 +561,10 @@
 
                             <p data-i18n="newreport.subtitle">
                                 Speak in your own words. We are here to listen.
+                            </p>
+
+                            <p class="page-hint" data-i18n="newreport.noIdentity">
+                                You don't have to share your name, phone number or exact location.
                             </p>
 
                         </div>
@@ -654,6 +683,7 @@
                                 <button
                                     id="micButton"
                                     class="large-mic"
+                                    aria-pressed="false"
                                     type="button"
                                     data-i18n-aria-label="voice.tapToSpeak"
                                     aria-label="Tap to speak"
@@ -669,6 +699,8 @@
                                 <strong
                                     id="micStatus"
                                     class="mic-status"
+                                    role="status"
+                                    aria-live="polite"
                                     data-i18n="voice.tapToSpeak"
                                 >
                                     Tap to speak
@@ -715,9 +747,28 @@
                                     style="display:none;"
                                 />
 
-                                <span id="evidenceFileName" class="evidence-filename"></span>
+                                <span id="evidenceFileChip" class="evidence-chip" hidden>
+                                    <span id="evidenceFileName" class="evidence-filename"></span>
+                                    <button
+                                        type="button"
+                                        id="evidenceRemoveButton"
+                                        class="evidence-remove"
+                                        data-i18n-aria-label="evidence.remove"
+                                        aria-label="Remove photo"
+                                    >×</button>
+                                </span>
 
                             </div>
+
+                            <!--
+                                Only shown once a photo is attached, because
+                                that is when it matters: a photo goes through
+                                /report/image instead of /report, so anything
+                                typed above is not sent with it.
+                            -->
+                            <p id="evidenceHint" class="evidence-hint" data-i18n="evidence.hint" hidden>
+                                Photos are read for their text, so a screenshot of a message works best. If you attach one, it is sent instead of what you typed.
+                            </p>
 
 
                             <!--
@@ -1011,7 +1062,8 @@
                             id="refreshCasesButton"
                             class="secondary-button"
                         >
-                            ↻ Refresh
+                            <span aria-hidden="true">↻</span>
+                            <span data-i18n="cases.refresh">Refresh</span>
                         </button>
 
                     </div>
@@ -1022,27 +1074,35 @@
                         <div class="table-toolbar">
 
                             <div class="case-search">
-                                <span>⌕</span>
+                                <span aria-hidden="true">⌕</span>
                                 <input
                                     id="caseSearch"
-                                    type="text"
+                                    type="search"
                                     placeholder="Search cases..." data-i18n-placeholder="cases.search"
+                                    aria-label="Search cases" data-i18n-aria-label="cases.search"
                                 >
                             </div>
 
-                            <select id="riskFilter">
+                            <select id="riskFilter" aria-label="Risk" data-i18n-aria-label="table.risk">
                                 <option value="all" data-i18n="cases.allRisk">All risk levels</option>
-                                <option value="Critical">Critical</option>
-                                <option value="High">High</option>
-                                <option value="Moderate">Moderate</option>
-                                <option value="Low">Low</option>
+                                <option value="Critical" data-i18n="risk.critical">Critical</option>
+                                <option value="High" data-i18n="risk.high">High</option>
+                                <option value="Moderate" data-i18n="risk.moderate">Moderate</option>
+                                <option value="Low" data-i18n="risk.low">Low</option>
                             </select>
 
-                            <select id="statusFilter" aria-label="Case status">
+                            <select id="statusFilter" aria-label="Case status" data-i18n-aria-label="cases.statusFilter">
                                 <option value="open" selected data-i18n="cases.activeOnly">Open cases</option>
                                 <option value="all" data-i18n="cases.allStatuses">All cases</option>
                                 <option value="closed" data-i18n="cases.closedOnly">Resolved and closed</option>
                             </select>
+
+                            <!-- Filters over the rows already loaded; no new API call. -->
+                            <button type="button" id="clearCaseFilters" class="text-button" data-i18n="common.clearFilters" hidden>
+                                Clear filters
+                            </button>
+
+                            <span id="casesResultCount" class="table-count" role="status" aria-live="polite"></span>
 
                         </div>
 
@@ -1071,7 +1131,11 @@
                                 </thead>
 
                                 <tbody id="casesTableBody">
-
+                                    <tr>
+                                        <td colspan="6">
+                                            <div class="loading-state" data-i18n="loading.cases">Loading cases...</div>
+                                        </td>
+                                    </tr>
                                 </tbody>
 
                             </table>
@@ -1117,9 +1181,9 @@
                         <div class="map-header">
 
                             <div>
-                                <h2>India · District risk</h2>
-                                <p>
-                                    Risk levels across reported cases.
+                                <h2 data-i18n="riskmap.cardTitle">India · District risk</h2>
+                                <p data-i18n="riskmap.cardSub">
+                                    Pins show approximate locations, never an exact address. Areas with too few reports are hidden to protect privacy.
                                 </p>
                             </div>
 
@@ -1127,23 +1191,23 @@
                             <div class="map-legend">
 
                                 <span>
-                                    <i class="low"></i>
-                                    Low
+                                    <i class="low" aria-hidden="true">▬</i>
+                                    <span data-i18n="risk.low">Low</span>
                                 </span>
 
                                 <span>
-                                    <i class="moderate"></i>
-                                    Moderate
+                                    <i class="moderate" aria-hidden="true">●</i>
+                                    <span data-i18n="risk.moderate">Moderate</span>
                                 </span>
 
                                 <span>
-                                    <i class="high"></i>
-                                    High
+                                    <i class="high" aria-hidden="true">▲</i>
+                                    <span data-i18n="risk.high">High</span>
                                 </span>
 
                                 <span>
-                                    <i class="critical"></i>
-                                    Critical
+                                    <i class="critical" aria-hidden="true">◆</i>
+                                    <span data-i18n="risk.critical">Critical</span>
                                 </span>
 
                             </div>
@@ -1155,10 +1219,17 @@
                             id="districtMap"
                             class="large-map"
                         >
-
-                           </div>
-
+                            <div class="map-status" data-i18n="map.loading">Loading map…</div>
                         </div>
+
+                        <!--
+                            Outside #districtMap on purpose. Inside it, the
+                            privacy note became a flex sibling of the map and
+                            squeezed the map into the left half of the card.
+                        -->
+                        <div id="mapNotes" class="map-notes"></div>
+
+                    </div>
 
                  
 
@@ -1193,6 +1264,32 @@
 
                     </div>
 
+
+                    <div class="guidance-toolbar">
+
+                        <label class="guidance-search">
+                            <span class="visually-hidden" data-i18n="guidance.searchLabel">Search guidance</span>
+                            <span aria-hidden="true">⌕</span>
+                            <input
+                                id="guidanceSearch"
+                                type="search"
+                                placeholder="Search playbooks, e.g. callback"
+                                data-i18n-placeholder="guidance.searchPlaceholder"
+                            />
+                        </label>
+
+                        <!-- Reference only: plain text, not tel: links, so nothing on a staff screen dials by accident. -->
+                        <div class="guidance-resources">
+                            <strong data-i18n="guidance.resourcesTitle">Numbers to have ready</strong>
+                            <span class="guidance-resource"><b>112</b> <span data-i18n="guidance.res112">Emergency response: police, fire, ambulance</span></span>
+                            <span class="guidance-resource"><b>14566</b> <span data-i18n="guidance.res14566">National Helpline Against Atrocities</span></span>
+                        </div>
+
+                    </div>
+
+                    <p id="guidanceNoMatch" class="empty-state" data-i18n="guidance.noMatch" hidden>
+                        No guidance matches that search.
+                    </p>
 
                     <div class="guidance-grid">
 
@@ -1519,6 +1616,8 @@
                         the way of unreviewed work is how a real case
                         gets missed.
                     -->
+                    <div id="alertsSummary" class="alerts-summary" hidden></div>
+
                     <div class="alerts-filters">
 
                         <label>
@@ -1535,10 +1634,10 @@
                             <select id="alertPriorityFilter">
                                 <option value="escalating" selected data-i18n="alerts.criticalHigh">Critical &amp; High</option>
                                 <option value="all" data-i18n="alerts.allPriorities">All priorities</option>
-                                <option value="Critical">Critical</option>
-                                <option value="High">High</option>
+                                <option value="Critical" data-i18n="risk.critical">Critical</option>
+                                <option value="High" data-i18n="risk.high">High</option>
                                 <option value="Moderate" data-i18n="risk.moderate">Moderate</option>
-                                <option value="Low">Low</option>
+                                <option value="Low" data-i18n="risk.low">Low</option>
                             </select>
                         </label>
 
@@ -1563,8 +1662,8 @@
                         class="alerts-container"
                     >
 
-                        <div class="empty-alert">
-                            No priority alerts right now.
+                        <div class="loading-state" data-i18n="loading.cases">
+                            Loading cases...
                         </div>
 
                     </div>

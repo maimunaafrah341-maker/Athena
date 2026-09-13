@@ -324,7 +324,22 @@ if (pageName === "alerts") {
 // simply was never defined here. Re-render from state rather than
 // refetching: the data has not changed, only the language it is
 // spelled in.
-window.onUiLanguageChange = function () {
+//
+// This hook was also defined a second time further down, to keep the
+// New Report language buttons in sync -- and the second assignment
+// silently replaced this one, so none of the re-rendering below ever
+// ran. Both jobs now live in the one function.
+window.onUiLanguageChange = function (lang) {
+
+    if (lang) {
+
+        state.selectedLanguage = lang;
+
+        $$(".report-language-btn[data-lang]").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.lang === lang);
+        });
+
+    }
 
     if (!state.cases) return;
 
@@ -339,6 +354,10 @@ window.onUiLanguageChange = function () {
 
     if (state.currentPage === "alerts") {
         renderAlerts();
+    }
+
+    if (state.currentPage === "risk-map") {
+        renderMapNotes();
     }
 
     // risk-map is deliberately not re-rendered here. Its markers are
@@ -407,19 +426,8 @@ $$(".report-language-btn[data-lang]").forEach(button => {
 
 });
 
-// Keeps the New Report page's language buttons in sync when the
-// language is changed from the topbar switcher instead (e.g. a
-// counsellor switching UI language before a reporter has touched New
-// Report at all).
-window.onUiLanguageChange = function (lang) {
-
-    state.selectedLanguage = lang;
-
-    $$(".report-language-btn[data-lang]").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.lang === lang);
-    });
-
-};
+// The New Report language buttons are kept in sync with the topbar
+// switcher by window.onUiLanguageChange above.
 
 
 /* =========================================================
@@ -529,6 +537,7 @@ async function startRecording() {
         state.recording = true;
 
         micButton.classList.add("recording");
+        micButton.setAttribute("aria-pressed", "true");
 
         $("#micStatus").textContent =
             t("voice.listening");
@@ -566,6 +575,7 @@ function stopRecording() {
     state.recording = false;
 
     micButton.classList.remove("recording");
+    micButton.setAttribute("aria-pressed", "false");
 
     $("#micStatus").textContent =
         t("voice.sending");
@@ -715,6 +725,29 @@ const evidenceAttachButton = $("#evidenceAttachButton");
 const evidenceFileInput = $("#evidenceFileInput");
 const evidenceFileName = $("#evidenceFileName");
 
+// One place that decides what the attachment row shows, so attaching,
+// removing, sending and quick exit can't leave a filename chip behind
+// for a photo that is no longer going anywhere.
+function setEvidenceFile(file) {
+
+    state.evidenceFile = file || null;
+
+    if (!file && evidenceFileInput) {
+        evidenceFileInput.value = "";
+    }
+
+    if (evidenceFileName) {
+        evidenceFileName.textContent = file ? file.name : "";
+    }
+
+    const chip = $("#evidenceFileChip");
+    const hint = $("#evidenceHint");
+
+    if (chip) chip.hidden = !file;
+    if (hint) hint.hidden = !file;
+
+}
+
 if (evidenceAttachButton && evidenceFileInput) {
 
     evidenceAttachButton.addEventListener("click", () => {
@@ -722,15 +755,12 @@ if (evidenceAttachButton && evidenceFileInput) {
     });
 
     evidenceFileInput.addEventListener("change", () => {
+        setEvidenceFile(evidenceFileInput.files[0] || null);
+    });
 
-        const file = evidenceFileInput.files[0] || null;
-
-        state.evidenceFile = file;
-
-        if (evidenceFileName) {
-            evidenceFileName.textContent = file ? file.name : "";
-        }
-
+    $("#evidenceRemoveButton")?.addEventListener("click", () => {
+        setEvidenceFile(null);
+        evidenceAttachButton.focus();
     });
 
 }
@@ -874,9 +904,7 @@ async function submitTextReport() {
         );
 
 
-        state.evidenceFile = null;
-        if (evidenceFileInput) evidenceFileInput.value = "";
-        if (evidenceFileName) evidenceFileName.textContent = "";
+        setEvidenceFile(null);
 
         setReportStatus(null);
 
@@ -996,7 +1024,7 @@ if (quickExitButton) {
     quickExitButton.addEventListener("click", () => {
 
         if (reportInput) reportInput.value = "";
-        state.evidenceFile = null;
+        setEvidenceFile(null);
 
         window.location.replace("https://www.google.com");
 
@@ -1310,6 +1338,8 @@ async function loadCases() {
             }
         */
 
+        state.casesError = false;
+
         state.cases =
             Array.isArray(data)
                 ? data
@@ -1333,6 +1363,7 @@ async function loadCases() {
         );
 
         state.cases = [];
+        state.casesError = true;
 
         renderCasesTable();
 
@@ -1421,7 +1452,9 @@ function renderCasesTable() {
 
     const search =
         ($("#caseSearch")?.value || "")
-            .toLowerCase();
+            .toLowerCase()
+            .trim()
+            .replace(/^#/, "");
 
 
     const filter =
@@ -1508,13 +1541,32 @@ function renderCasesTable() {
     }
 
 
+    // Counted over rows already in memory -- no new API call.
+    const countEl = $("#casesResultCount");
+
+    if (countEl) {
+        countEl.textContent = state.casesError
+            ? ""
+            : t("cases.resultCount")
+                .replace("{shown}", cases.length)
+                .replace("{total}", state.cases.length);
+    }
+
+    const clearButton = $("#clearCaseFilters");
+
+    if (clearButton) {
+        clearButton.hidden =
+            !(search || filter !== "all" || statusMode !== "open");
+    }
+
+
     if (!cases.length) {
 
         body.innerHTML = `
             <tr>
                 <td colspan="6">
-                    <div class="empty-state">
-                        No cases available.
+                    <div class="empty-state ${state.casesError ? "is-error" : ""}">
+                        ${escapeHTML(t(state.casesError ? "cases.loadError" : "cases.empty"))}
                     </div>
                 </td>
             </tr>
@@ -1528,12 +1580,17 @@ function renderCasesTable() {
     body.innerHTML =
         cases.map(item => {
 
-            const riskClass =
-                item.risk
+            const statusClass =
+                String(item.status || "")
                     .toLowerCase()
-                    .replace(" ", "-");
+                    .replace(/ /g, "-");
 
+            const locationMissing =
+                !String(item.district || "").trim() ||
+                item.district === "\u2014";
 
+            // data-label feeds the stacked layout at phone width, where
+            // a six-column table cannot fit and each row becomes a card.
             return `
                 <tr
                     class="case-row"
@@ -1541,29 +1598,36 @@ function renderCasesTable() {
                     title="${escapeHTML(t("brief.viewCase"))}"
                 >
 
-                    <td>
-                        <strong>
-                            ${escapeHTML(item.id)}
-                        </strong>${demoBadge(item)}
+                    <td data-label="${escapeHTML(t("table.case"))}">
+                        <button
+                            type="button"
+                            class="case-link"
+                            aria-label="${escapeHTML(t("brief.viewCase"))}: ${escapeHTML(formatCaseId(item.id))}"
+                        >${escapeHTML(formatCaseId(item.id))}</button>${demoBadge(item)}
                     </td>
 
-                    <td>
+                    <td data-label="${escapeHTML(t("table.incident"))}">
                         ${escapeHTML(formatIncidentType(item.incident))}
                     </td>
 
-                    <td>
-                        ${escapeHTML(item.district)}
+                    <td
+                        data-label="${escapeHTML(t("table.district"))}"
+                        class="${locationMissing ? "is-muted" : ""}"
+                    >
+                        ${escapeHTML(formatLocation(item.district))}
                     </td>
 
-                    <td>
+                    <td data-label="${escapeHTML(t("table.risk"))}">
                         ${riskBadge(item.risk)}
                     </td>
 
-                    <td>
-                        ${escapeHTML(item.status)}
+                    <td data-label="${escapeHTML(t("table.status"))}">
+                        <span class="status-chip status-${escapeHTML(statusClass)}">
+                            ${escapeHTML(formatStatus(item.status))}
+                        </span>
                     </td>
 
-                    <td>
+                    <td data-label="${escapeHTML(t("table.time"))}">
                         ${formatTime(item.time)}
                     </td>
 
@@ -1649,7 +1713,7 @@ async function openCaseBrief(caseId) {
         );
 
         alert(
-            "Unable to load the case details."
+            t("brief.loadError")
         );
 
     }
@@ -1686,7 +1750,7 @@ async function postCaseAction(url, body, method = "POST") {
 
         console.error("Case action failed:", error);
 
-        alert("That action couldn't be saved. Please try again.");
+        alert(t("alerts.reviewError"));
 
         return null;
 
@@ -1805,10 +1869,10 @@ function showCaseBrief(brief) {
 
     const urgencyText =
         isEscalated
-            ? `Escalated ${urgencyElapsedLabel}` +
-              (noUpdateSinceEscalation ? " — no update since" : "")
+            ? t("brief.escalatedAgo").replace("{t}", urgencyElapsedLabel || "") +
+              (noUpdateSinceEscalation ? ` — ${t("brief.noUpdate")}` : "")
             : urgencyElapsedLabel
-                ? `Last activity: ${urgencyElapsedLabel}`
+                ? t("brief.lastActivity").replace("{t}", urgencyElapsedLabel)
                 : null;
 
 
@@ -1864,16 +1928,15 @@ function showCaseBrief(brief) {
                         ${escapeHTML(t("brief.title"))}
                     </span>
 
-                    <h2>
-                        Case #${escapeHTML(
-                            brief.case_id
+                    <h2 id="caseBriefHeading">
+                        ${escapeHTML(
+                            t("cases.caseId").replace("{id}", brief.case_id)
                         )}
                     </h2>
 
                     <p>
                         ${escapeHTML(
-                            brief.incident_type ||
-                            "General report"
+                            formatIncidentType(brief.incident_type || "other")
                         )}
                     </p>
 
@@ -2031,8 +2094,7 @@ function showCaseBrief(brief) {
 
                     <strong>
                         ${escapeHTML(
-                            brief.district ||
-                            "—"
+                            formatLocation(brief.district)
                         )}
                     </strong>
 
@@ -2059,8 +2121,7 @@ function showCaseBrief(brief) {
 
                     <strong>
                         ${escapeHTML(
-                            brief.status ||
-                            "—"
+                            brief.status ? formatStatus(brief.status) : "—"
                         )}
                     </strong>
 
@@ -2072,11 +2133,9 @@ function showCaseBrief(brief) {
                     <span>${escapeHTML(t("brief.sos"))}</span>
 
                     <strong>
-                        ${
-                            brief.is_sos
-                                ? "Yes"
-                                : "No"
-                        }
+                        ${escapeHTML(
+                            t(brief.is_sos ? "common.yes" : "common.no")
+                        )}
                     </strong>
 
                 </div>
@@ -2096,7 +2155,7 @@ function showCaseBrief(brief) {
                 <p class="brief-reason">
                     ${escapeHTML(
                         brief.reason ||
-                        "No assessment explanation available."
+                        t("brief.noReason")
                     )}
                 </p>
 
@@ -2240,7 +2299,7 @@ function showCaseBrief(brief) {
                                             </strong>
 
                                             <span>
-                                                ${signal.points ?? 0} points
+                                                ${escapeHTML(t("brief.points").replace("{n}", signal.points ?? 0))}
                                             </span>
 
                                         </div>
@@ -2392,7 +2451,7 @@ function showCaseBrief(brief) {
             <div class="case-brief-footer">
 
                 <span>
-                    First reported:
+                    ${escapeHTML(t("brief.firstReported"))}:
                     ${formatTime(
                         brief.first_reported
                     )}
@@ -2413,6 +2472,38 @@ function showCaseBrief(brief) {
 
 
     document.body.appendChild(overlay);
+
+
+    // A dialog to assistive tech, closable with Escape, and focus
+    // returned to whatever opened it -- otherwise a keyboard user lands
+    // at the top of the page after every case they read.
+    const panel = overlay.querySelector(".case-brief-panel");
+
+    panel?.setAttribute("role", "dialog");
+    panel?.setAttribute("aria-modal", "true");
+    panel?.setAttribute("aria-labelledby", "caseBriefHeading");
+
+    const previousFocus = document.activeElement;
+
+    const closeBrief = () => {
+
+        overlay.remove();
+
+        document.removeEventListener("keydown", onBriefKeydown);
+
+        if (previousFocus && previousFocus.isConnected) {
+            previousFocus.focus();
+        }
+
+    };
+
+    const onBriefKeydown = event => {
+        if (event.key === "Escape") closeBrief();
+    };
+
+    document.addEventListener("keydown", onBriefKeydown);
+
+    overlay.querySelector(".case-brief-close")?.focus();
 
 
     /* Actions: escalate / status change / add note -- each posts to
@@ -2646,7 +2737,7 @@ ${t("brief.translationLabel")}: ${translation}` : "");
 
             button.addEventListener(
                 "click",
-                () => overlay.remove()
+                closeBrief
             );
 
         });
@@ -2662,7 +2753,7 @@ ${t("brief.translationLabel")}: ${translation}` : "");
                 event.target === overlay
             ) {
 
-                overlay.remove();
+                closeBrief();
 
             }
 
@@ -2710,7 +2801,7 @@ function renderDistrictWatchlist() {
             // named no district. Counting it would invent a district
             // called "unknown" and rank it first, since anonymity is
             // the most common choice here, not the rarest.
-            if (!district || district === "\u2014") return;
+            if (!district || district === "\u2014" || isSettingWord(district)) return;
 
             const existing =
                 counts.get(district) ||
@@ -2820,6 +2911,14 @@ function renderOverviewCases() {
     const cases = waiting.slice(0, 5);
     const overflow = waiting.length - cases.length;
 
+    const summary = $("#needsActionSummary");
+
+    if (summary) {
+        summary.hidden = !waiting.length;
+        summary.textContent =
+            t("needsAction.summary").replace("{n}", waiting.length);
+    }
+
 
     if (!cases.length) {
 
@@ -2847,44 +2946,35 @@ function renderOverviewCases() {
     const rows =
         cases.map(item => {
 
-            // Why this row is in the queue, rather than leaving a
-            // counsellor to infer it from the badge.
-            //
-            // Deliberately NOT item.reason. That field is written by
-            // the pipeline in English only, so on the Hindi dashboard
-            // it rendered a six-line block of untranslated English --
-            // the exact failure this project already fixed once, where
-            // switching language moved the chrome and left the content
-            // behind. It is also long: it explains the assessment,
-            // which belongs in the case brief, not in a queue row.
-            //
-            // What a queue row has to answer is why this case is in
-            // THIS queue, and the membership rule is the whole answer.
-            const why =
-                `${t("risk." + item.risk.toLowerCase())} · ${t("needsAction.notReviewed")}`;
+            // No reason text here, deliberately: item.reason is written
+            // by the pipeline in English only and explains the whole
+            // assessment, which belongs in the case brief. Membership
+            // of this queue is the whole answer to "why is it here",
+            // and the summary line above the list says that once.
+            const elapsed = formatElapsed(item.time);
 
             return `
                 <div class="overview-case">
 
-                    <strong>
-                        ${escapeHTML(item.id)}${demoBadge(item)}
-                    </strong>
-
-                    <span>
-                        ${escapeHTML(formatIncidentType(item.incident))}
-                    </span>
-
-                    <span>
-                        ${escapeHTML(item.district)}
-                    </span>
-
-                    <span>
+                    <div class="overview-case-main">
                         ${riskBadge(item.risk)}
-                    </span>
+                        <strong class="case-id">${escapeHTML(formatCaseId(item.id))}</strong>
+                        ${demoBadge(item)}
+                    </div>
 
-                    <span class="overview-case-why">
-                        ${escapeHTML(why)}
-                    </span>
+                    <div class="overview-case-meta">
+                        <span>${escapeHTML(formatIncidentType(item.incident))}</span>
+                        <span>${escapeHTML(formatLocation(item.district))}</span>
+                        <span>${escapeHTML(formatStatus(item.status))}${elapsed ? ` · ${escapeHTML(elapsed)}` : ""}</span>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="secondary-button open-case-button"
+                        data-open-case="${escapeHTML(item.id)}"
+                    >
+                        ${escapeHTML(t("needsAction.open"))}
+                    </button>
 
                 </div>
             `;
@@ -2904,6 +2994,19 @@ function renderOverviewCases() {
     container.innerHTML = rows + more;
 
 }
+
+
+// The queue rows had no way to open the case they described. Same
+// brief panel the Cases table and Alerts already open.
+$("#overviewCases")?.addEventListener("click", event => {
+
+    const button = event.target.closest("[data-open-case]");
+
+    if (button) {
+        openCaseBrief(button.dataset.openCase);
+    }
+
+});
 
 
 /* =========================================================
@@ -3002,6 +3105,8 @@ function updateDashboardStats() {
         percentage(critical, total)
     );
 
+    renderRiskDonut(low, moderate, high, critical);
+
 
     setText(
         "#alertCount",
@@ -3009,6 +3114,43 @@ function updateDashboardStats() {
     );
 
 }
+
+// The donut was a fixed conic-gradient in the stylesheet, so it drew
+// the same slices whatever the data said: on live data a mostly-green
+// ring sat next to a legend reading 70% Critical. Drawn here from the
+// counts the legend already shows -- no new calculation.
+function renderRiskDonut(low, moderate, high, critical) {
+
+    const donut = $(".donut-chart");
+
+    if (!donut) return;
+
+    const sum = low + moderate + high + critical;
+
+    if (!sum) {
+        donut.style.background = "var(--surface-soft)";
+        return;
+    }
+
+    const a = (critical / sum) * 360;
+    const b = a + (high / sum) * 360;
+    const c = b + (moderate / sum) * 360;
+
+    donut.style.background =
+        `conic-gradient(var(--critical) 0deg ${a}deg, ` +
+        `var(--high) ${a}deg ${b}deg, ` +
+        `var(--moderate) ${b}deg ${c}deg, ` +
+        `var(--low) ${c}deg 360deg)`;
+
+    donut.setAttribute("role", "img");
+    donut.setAttribute(
+        "aria-label",
+        `${t("risk.critical")} ${critical}, ${t("risk.high")} ${high}, ` +
+        `${t("risk.moderate")} ${moderate}, ${t("risk.low")} ${low}`
+    );
+
+}
+
 
 /* =========================================================
    LOAD DASHBOARD STATS
@@ -3127,6 +3269,8 @@ async function loadStats() {
             )
         );
 
+        renderRiskDonut(low, moderate, high, critical);
+
 
         /* =========================
            ALERT COUNT
@@ -3190,6 +3334,12 @@ async function loadRiskMap() {
 
     if (!mapContainer) return;
 
+    if (!riskMap) {
+        mapContainer.innerHTML = `
+            <div class="map-status">${escapeHTML(t("map.loading"))}</div>
+        `;
+    }
+
     try {
 
         const response = await fetch(
@@ -3240,13 +3390,88 @@ async function loadRiskMap() {
             error
         );
 
+        const notes = $("#mapNotes");
+
+        if (notes) notes.innerHTML = "";
+
         mapContainer.innerHTML = `
-            <div class="map-error">
-                Unable to load district risk data.
+            <div class="map-status is-error">
+                ${escapeHTML(t("map.loadError"))}
             </div>
         `;
 
     }
+
+}
+
+
+/* =========================================================
+   MAP NOTES
+========================================================= */
+
+// Below the map, never inside it. Says what was withheld, and repeats
+// what is drawn as text, so the map is not readable only by someone
+// who can tell the pin colours apart.
+function renderMapNotes() {
+
+    const notes = $("#mapNotes");
+
+    if (!notes) return;
+
+    const drawn =
+        state.mapCases.filter(pin =>
+            Number.isFinite(Number(pin.latitude)) &&
+            Number.isFinite(Number(pin.longitude))
+        );
+
+    const parts = [];
+
+    if (drawn.length) {
+
+        const counts = { Critical: 0, High: 0, Moderate: 0, Low: 0 };
+
+        drawn.forEach(pin => {
+            const tier = pin.risk_tier || "Low";
+            if (tier in counts) counts[tier] += 1;
+        });
+
+        const tiers =
+            Object.entries(counts)
+                .filter(([, n]) => n)
+                .map(([tier, n]) =>
+                    `<span class="map-summary-tier">${riskBadge(tier)}<b>${n}</b></span>`
+                )
+                .join("");
+
+        parts.push(`
+            <div class="map-summary">
+                <strong>${escapeHTML(t("map.summary").replace("{n}", drawn.length))}</strong>
+                ${tiers}
+            </div>
+        `);
+
+    }
+
+    if (state.mapSuppressed) {
+
+        const key =
+            state.mapSuppressed === 1
+                ? "map.suppressedOne"
+                : "map.suppressedMany";
+
+        parts.push(`
+            <div class="map-suppressed-note">
+                ${escapeHTML(
+                    t(key)
+                        .replace("{n}", state.mapSuppressed)
+                        .replace("{min}", state.mapMinGroupSize)
+                )}
+            </div>
+        `);
+
+    }
+
+    notes.innerHTML = parts.join("");
 
 }
 
@@ -3279,31 +3504,31 @@ function renderRiskMap() {
     // "Nothing to draw" and "everything there was got withheld to
     // protect identity" are different situations and must not look
     // identical -- the second one means there ARE reports here.
-    const suppressedNotice =
-        state.mapSuppressed
-            ? `
-                <div class="map-suppressed-note">
-                    ${escapeHTML(String(state.mapSuppressed))}
-                    ${state.mapSuppressed === 1 ? "report is" : "reports are"}
-                    hidden from this map — fewer than
-                    ${escapeHTML(String(state.mapMinGroupSize))}
-                    reports in their area, so a pin could identify who filed it.
-                    They are still counted in case totals and alerts.
-                </div>
-              `
-            : "";
+    renderMapNotes();
 
     if (!state.mapCases.length) {
 
         mapContainer.innerHTML = `
-            <div class="map-empty">
-                ${
-                    state.mapSuppressed
-                        ? "No pins can be shown without risking identifying a reporter."
-                        : "No district risk data available."
-                }
+            <div class="map-status">
+                ${escapeHTML(t(state.mapSuppressed ? "map.allSuppressed" : "map.empty"))}
             </div>
-            ${suppressedNotice}
+        `;
+
+        return;
+
+    }
+
+
+    /* Check Leaflet */
+
+    if (typeof L === "undefined") {
+
+        console.error("Leaflet is not loaded.");
+
+        mapContainer.innerHTML = `
+            <div class="map-status is-error">
+                ${escapeHTML(t("map.libraryError"))}
+            </div>
         `;
 
         return;
@@ -3316,27 +3541,9 @@ function renderRiskMap() {
     mapContainer.innerHTML = `
         <div
             id="liveRiskMap"
-            style="width:100%; height:100%; min-height:520px;"
+            class="live-risk-map"
         ></div>
-        ${suppressedNotice}
     `;
-
-
-    /* Check Leaflet */
-
-    if (typeof L === "undefined") {
-
-        console.error("Leaflet is not loaded.");
-
-        mapContainer.innerHTML = `
-            <div class="map-error">
-                Map library could not be loaded.
-            </div>
-        `;
-
-        return;
-
-    }
 
 
     /* Create map */
@@ -3419,6 +3626,12 @@ function renderRiskMap() {
         }
 
 
+        const tierLabel =
+            t("risk." + risk) !== "risk." + risk
+                ? t("risk." + risk)
+                : (caseItem.risk_tier || "Low");
+
+
         /* Custom circular marker */
 
         const markerIcon =
@@ -3433,7 +3646,7 @@ function renderRiskMap() {
                             --marker-color:${markerColor};
                         "
                     >
-                        <span></span>
+                        <span aria-hidden="true">${RISK_GLYPH[risk] || ""}</span>
                     </div>
                 `,
 
@@ -3452,37 +3665,29 @@ function renderRiskMap() {
             L.marker(
                 [latitude, longitude],
                 {
-                    icon: markerIcon
+                    icon: markerIcon,
+                    title: tierLabel,
+                    keyboard: true
                 }
             ).addTo(riskMap);
 
 
         /* Popup */
 
+        // No coordinates in the popup. The pin already sits at them, so
+        // printing them to three decimals added nothing a counsellor
+        // needs -- only a copyable location, accurate to about 100 m.
         marker.bindPopup(`
 
             <div class="risk-popup">
 
                 <div class="risk-popup-top">
 
-                    <span
-                        class="risk-popup-tag"
-                        style="
-                            color:${markerColor};
-                        "
-                    >
-                        ${escapeHTML(
-                            caseItem.risk_tier || "Low"
-                        )}
-                    </span>
+                    ${riskBadge(caseItem.risk_tier || "Low")}
 
                     ${
                         caseItem.is_sos
-                            ? `
-                                <span class="risk-popup-sos">
-                                    SOS
-                                </span>
-                              `
+                            ? `<span class="risk-popup-sos">SOS</span>`
                             : ""
                     }
 
@@ -3490,19 +3695,16 @@ function renderRiskMap() {
 
 
                 <strong class="risk-popup-title">
-                    Case #${escapeHTML(caseItem.id)}
+                    ${escapeHTML(t("cases.caseId").replace("{id}", caseItem.id))}
                 </strong>
 
 
                 <div class="risk-popup-row">
 
-                    <span>Incident</span>
+                    <span>${escapeHTML(t("table.incident"))}</span>
 
                     <strong>
-                        ${escapeHTML(
-                            caseItem.incident_type ||
-                            "General"
-                        )}
+                        ${escapeHTML(formatIncidentType(caseItem.incident_type || "other"))}
                     </strong>
 
                 </div>
@@ -3510,42 +3712,21 @@ function renderRiskMap() {
 
                 <div class="risk-popup-row">
 
-                    <span>Coordinates</span>
+                    <span>${escapeHTML(t("map.location"))}</span>
 
                     <strong>
-                        ${latitude.toFixed(3)},
-                        ${longitude.toFixed(3)}
-                        ${
+                        ${escapeHTML(t(
                             caseItem.location_source === "district_approx"
-                                ? " (approx.)"
-                                : ""
-                        }
+                                ? "map.districtLevel"
+                                : "map.approximate"
+                        ))}
                     </strong>
 
                 </div>
 
-                ${
-                    caseItem.location_source === "district_approx"
-                        ? `
-                            <div class="risk-popup-row">
-                                <span></span>
-                                <em style="font-size:11px;opacity:0.75;">
-                                    District-level location, not exact GPS
-                                </em>
-                            </div>
-                          `
-                        : ""
-                }
-
 
                 <div class="risk-popup-status">
-
-                    ${
-                        caseItem.is_sos
-                            ? "Immediate attention required"
-                            : "Reported case"
-                    }
-
+                    ${escapeHTML(t(caseItem.is_sos ? "map.sosStatus" : "map.reported"))}
                 </div>
 
             </div>
@@ -3661,6 +3842,57 @@ const RISK_GLYPH = {
 };
 
 
+// Display only. Stored ids, URLs, API payloads and lookups all still
+// use the bare number; "#19" is how the case brief and the WhatsApp
+// demo already write it, so the lists now match them.
+function formatCaseId(id) {
+
+    const raw = String(id ?? "").trim();
+
+    return raw && raw !== "\u2014" ? `#${raw}` : "\u2014";
+}
+
+
+// The district column is filled from what the reporter said, and a
+// report that named a setting rather than a district lands here as
+// that word -- "home", "street". Showing it bare under "District"
+// reads as a district called Home. The stored value is untouched.
+const SETTING_WORDS = new Set([
+    "home", "house", "street", "road", "work", "workplace", "office",
+    "school", "college", "market", "online", "public place",
+]);
+
+function isSettingWord(value) {
+    return SETTING_WORDS.has(String(value || "").trim().toLowerCase());
+}
+
+function formatLocation(value) {
+
+    const raw = String(value || "").trim();
+
+    if (!raw || raw === "\u2014") {
+        return t("common.locationUnavailable");
+    }
+
+    if (isSettingWord(raw)) {
+        return `${t("cases.settingLabel")}: ${raw.toLowerCase()}`;
+    }
+
+    return raw;
+}
+
+
+// Status values are the database contract and stay English in state;
+// only what is displayed is translated.
+function formatStatus(status) {
+
+    const key = "status." + String(status || "").replace(/ /g, "");
+    const label = t(key);
+
+    return label !== key ? label : String(status || "");
+}
+
+
 function demoBadge(item) {
 
     if (!item.isDemo) {
@@ -3743,6 +3975,49 @@ function populateAlertCategories(normalizedCases) {
 }
 
 
+// Counted over the Critical and High cases in memory, independent of
+// the filters below, so the numbers keep their meaning while someone
+// narrows the list.
+function renderAlertsSummary(normalizedCases) {
+
+    const summary = $("#alertsSummary");
+
+    if (!summary) return;
+
+    const escalating =
+        normalizedCases.filter(item =>
+            item.risk === "Critical" || item.risk === "High"
+        );
+
+    const critical =
+        escalating.filter(item => item.risk === "Critical" && !item.acknowledged).length;
+
+    const high =
+        escalating.filter(item => item.risk === "High" && !item.acknowledged).length;
+
+    const reviewed =
+        escalating.filter(item => item.acknowledged).length;
+
+    summary.hidden = !escalating.length;
+
+    summary.innerHTML = `
+        <span class="summary-chip chip-critical">
+            <span aria-hidden="true">${RISK_GLYPH.critical}</span>
+            ${escapeHTML(t("alerts.summaryCritical").replace("{n}", critical))}
+        </span>
+        <span class="summary-chip chip-high">
+            <span aria-hidden="true">${RISK_GLYPH.high}</span>
+            ${escapeHTML(t("alerts.summaryHigh").replace("{n}", high))}
+        </span>
+        <span class="summary-chip chip-reviewed">
+            <span aria-hidden="true">✓</span>
+            ${escapeHTML(t("alerts.summaryReviewed").replace("{n}", reviewed))}
+        </span>
+    `;
+
+}
+
+
 function renderAlerts() {
 
     const container =
@@ -3790,13 +4065,15 @@ function renderAlerts() {
             });
 
 
+    renderAlertsSummary(normalized);
+
     const countEl = $("#alertResultCount");
 
     if (countEl) {
         countEl.textContent =
             alerts.length === 1
-                ? "1 case"
-                : `${alerts.length} cases`;
+                ? t("district.oneCase")
+                : t("district.cases").replace("{n}", alerts.length);
     }
 
 
@@ -3804,11 +4081,7 @@ function renderAlerts() {
 
         container.innerHTML = `
             <div class="empty-alert">
-                ${
-                    reviewFilter === "unreviewed"
-                        ? "Nothing waiting for review with these filters."
-                        : "No cases match these filters."
-                }
+                ${escapeHTML(t(reviewFilter === "unreviewed" ? "alerts.empty" : "alerts.emptyAll"))}
             </div>
         `;
 
@@ -3817,41 +4090,32 @@ function renderAlerts() {
     }
 
 
+    // One compact row per case. item.reason is deliberately not shown:
+    // it is the pipeline's full English explanation of the assessment,
+    // it made every row six lines tall, and it stayed English on every
+    // other language. It is still in the case brief, one tap away.
     container.innerHTML =
         alerts.map(item => {
 
+            const tier = String(item.risk).toLowerCase();
             const elapsed = formatElapsed(item.time);
 
             return `
-                <div class="alert-card tier-${escapeHTML(String(item.risk).toLowerCase())} ${item.acknowledged ? "is-acknowledged" : ""}">
-
-                    <div class="alert-icon" aria-hidden="true">
-                        !
-                    </div>
+                <div class="alert-card tier-${escapeHTML(tier)} ${item.acknowledged ? "is-acknowledged" : ""}">
 
                     <div class="alert-body">
 
-                        <strong>
-                            <span class="alert-priority priority-${escapeHTML(item.risk.toLowerCase())}">
-                                ${escapeHTML(item.risk)} priority
-                            </span>
-                            <span class="alert-case-id">${escapeHTML(item.id)}</span>
-                        </strong>
+                        <div class="alert-title">
+                            ${riskBadge(item.risk)}
+                            <strong class="case-id">${escapeHTML(formatCaseId(item.id))}</strong>
+                        </div>
 
                         <p class="alert-meta">
-                            ${escapeHTML(item.district)}
-                            ·
-                            ${escapeHTML(formatIncidentType(item.incident))}
-                            ·
-                            <span class="alert-status">${escapeHTML(item.status)}</span>
-                            ${elapsed ? `· ${escapeHTML(elapsed)}` : ""}
+                            <span>${escapeHTML(formatIncidentType(item.incident))}</span>
+                            <span>${escapeHTML(formatLocation(item.district))}</span>
+                            <span class="alert-status">${escapeHTML(formatStatus(item.status))}</span>
+                            ${elapsed ? `<span>${escapeHTML(elapsed)}</span>` : ""}
                         </p>
-
-                        ${
-                            item.reason
-                                ? `<p class="alert-reason">${escapeHTML(item.reason)}</p>`
-                                : ""
-                        }
 
                     </div>
 
@@ -3910,9 +4174,53 @@ $("#alertsContainer")?.addEventListener("click", async event => {
         return;
     }
 
+    const cancel = event.target.closest("[data-ack-cancel]");
+
+    if (cancel) {
+
+        const pending =
+            cancel.parentElement?.querySelector("[data-ack-case]");
+
+        if (pending) {
+            delete pending.dataset.confirming;
+            pending.classList.remove("is-confirming");
+            pending.textContent = t("alerts.markReviewed");
+            pending.focus();
+        }
+
+        cancel.remove();
+
+        return;
+
+    }
+
     const button = event.target.closest("[data-ack-case]");
 
     if (!button) return;
+
+    // Two taps, because this one cannot be taken back: the timeline is
+    // append-only, and a case marked reviewed leaves "Needs review" --
+    // a stray click there is how a Critical case stops being seen.
+    if (!button.dataset.confirming) {
+
+        button.dataset.confirming = "1";
+        button.classList.add("is-confirming");
+        button.textContent = t("alerts.confirmReview");
+
+        const cancelButton = document.createElement("button");
+
+        cancelButton.type = "button";
+        cancelButton.className = "alert-cancel-button";
+        cancelButton.dataset.ackCancel = "1";
+        cancelButton.textContent = t("common.cancel");
+
+        button.after(cancelButton);
+
+        return;
+
+    }
+
+    button.parentElement?.querySelector("[data-ack-cancel]")?.remove();
 
     const caseId = button.dataset.ackCase;
 
@@ -3953,10 +4261,47 @@ $("#alertsContainer")?.addEventListener("click", async event => {
 
         console.error("Could not acknowledge case:", error);
 
+        delete button.dataset.confirming;
+        button.classList.remove("is-confirming");
         button.disabled = false;
-        button.textContent = t("alerts.markReviewed");
+        button.textContent = t("alerts.reviewError");
 
     }
+
+});
+
+
+/* =========================================================
+   GUIDANCE SEARCH
+========================================================= */
+
+// Filters the guidance already on the page, in whatever language it is
+// rendered in. Nothing is fetched and no guidance is added.
+$("#guidanceSearch")?.addEventListener("input", event => {
+
+    const query = event.target.value.trim().toLowerCase();
+
+    let visible = 0;
+
+    $$("#page-guidance .guidance-card, #page-guidance .playbook").forEach(item => {
+
+        const match =
+            !query || item.textContent.toLowerCase().includes(query);
+
+        item.hidden = !match;
+
+        if (match) visible += 1;
+
+        // Open matching playbooks so the matched words are visible.
+        if (item.tagName === "DETAILS") {
+            item.open = Boolean(query) && match;
+        }
+
+    });
+
+    const empty = $("#guidanceNoMatch");
+
+    if (empty) empty.hidden = visible > 0;
 
 });
 
@@ -3980,6 +4325,23 @@ $("#statusFilter")?.addEventListener(
     "change",
     renderCasesTable
 );
+
+
+$("#clearCaseFilters")?.addEventListener("click", () => {
+
+    const search = $("#caseSearch");
+    const risk = $("#riskFilter");
+    const status = $("#statusFilter");
+
+    if (search) search.value = "";
+    if (risk) risk.value = "all";
+    if (status) status.value = "open";
+
+    renderCasesTable();
+
+    search?.focus();
+
+});
 
 
 $("#refreshCasesButton")?.addEventListener(
@@ -4071,24 +4433,24 @@ function formatElapsed(value) {
 
 
     if (minutes < 1) {
-        return "just now";
+        return t("time.justNow");
     }
 
     if (minutes < 60) {
-        return `${minutes}m ago`;
+        return t("time.minutes").replace("{n}", minutes);
     }
 
     const hours =
         Math.floor(minutes / 60);
 
     if (hours < 24) {
-        return `${hours}h ${minutes % 60}m ago`;
+        return t("time.hours").replace("{h}", hours).replace("{m}", minutes % 60);
     }
 
     const days =
         Math.floor(hours / 24);
 
-    return `${days}d ago`;
+    return t("time.days").replace("{n}", days);
 
 }
 

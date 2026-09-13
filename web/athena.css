@@ -4474,3 +4474,834 @@ table tbody tr:hover {
 
     color: #45585f;
 }
+
+
+/* =========================================================
+   DESIGN SYSTEM — SHARED TOKENS, READABLE TYPE, STATES
+   ---------------------------------------------------------
+   Appended last, like the polish passes above it, so it wins
+   without rewriting rules other sections still rely on. The
+   main job is type size: labels, buttons and helper text had
+   drifted down to 8-10px, below what anyone reads at a glance
+   on a shift -- let alone on a phone.
+========================================================= */
+
+:root {
+    /* The old greys measured roughly 4.3:1 and 2.7:1 on white.
+       Small text needs 4.5:1. */
+    --muted: #5f6863;
+    --muted-light: #6b736e;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+
+    --text-xs: 11.5px;
+    --text-sm: 12.5px;
+    --text-md: 14px;
+
+    --critical-bg: #f6e9e9;
+    --high-bg: #f7ece7;
+    --moderate-bg: #f6efe4;
+    --low-bg: #e9f1ec;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* The global ring is dark teal, invisible on the dark sidebar. */
+.sidebar :focus-visible {
+    outline-color: #bfe0d6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page.active-page,
+    .large-mic.recording,
+    .risk-marker[style*="#8f4141"],
+    .case-brief-panel {
+        animation: none;
+    }
+}
+
+
+/* ---------- type and buttons ---------- */
+
+.eyebrow { font-size: 11px; letter-spacing: 1.2px; }
+.page-heading p { font-size: var(--text-md); }
+
+.page-heading .page-hint {
+    margin-top: 4px;
+    color: var(--sage-dark);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.primary-button,
+.secondary-button,
+.text-button {
+    font-size: var(--text-sm);
+}
+
+.primary-button,
+.secondary-button {
+    min-height: 40px;
+}
+
+.secondary-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.text-button {
+    min-height: 36px;
+    padding: 0 4px;
+}
+
+.brand-text span,
+.helpline-card span,
+.operator-info span { font-size: 11px; }
+.helpline-card strong,
+.operator-info strong,
+.language-pill,
+.sidebar-exit { font-size: 12px; }
+.nav-badge { font-size: 10px; }
+.loading-state,
+.empty-state,
+.empty-alert { font-size: 13px; }
+.empty-state.is-error { color: var(--critical); font-weight: 700; }
+
+
+/* ---------- priority badges ---------- */
+
+.risk-tag { border: 1px solid transparent; font-size: 12px; }
+.risk-tag.critical { border-color: #dfc0c0; }
+.risk-tag.high { border-color: #e6cbc4; }
+.risk-tag.moderate { border-color: #e6d6bf; }
+.risk-tag.low { border-color: #cfe0d4; }
+.risk-glyph { font-size: 9px; }
+
+/* Still per row -- seeded cases sit alongside real ones, so the label
+   has to stay -- but quieter, so it stops competing with risk. */
+.demo-badge {
+    background: transparent;
+    border: 1px dashed #cdbd8a;
+    font-size: 10.5px;
+    font-weight: 600;
+}
+
+.case-id {
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ---------- overview ---------- */
+
+.stat-top { font-size: var(--text-sm); }
+.stat-card small { color: var(--muted); font-size: var(--text-xs); }
+.critical-stat strong { color: var(--critical); }
+.high-stat strong { color: var(--high); }
+.card-period { font-size: 11px; }
+.donut-center span { font-size: 11px; }
+.risk-legend-item,
+.risk-legend-item strong { font-size: var(--text-sm); }
+
+.recent-card { margin-bottom: 17px; }
+
+.card-summary {
+    margin-top: 4px;
+    color: var(--critical);
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+
+.ai-note {
+    padding: 11px 21px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: var(--muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+.overview-case {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "main action"
+        "meta action";
+    gap: 5px 16px;
+    font-size: var(--text-sm);
+}
+
+.overview-case-main {
+    grid-area: main;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.overview-case-meta {
+    grid-area: meta;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+}
+
+.overview-case .risk-tag span { color: inherit; }
+.open-case-button { grid-area: action; align-self: center; }
+.overview-case-more { font-size: var(--text-sm); }
+
+/* The watchlist rows were children of a centred flex box, so they sat
+   side by side in one clipped strip instead of stacking. */
+#miniDistrictMap {
+    display: block;
+    height: auto;
+    min-height: 230px;
+    background: none;
+}
+
+.district-name { font-size: 13px; }
+.district-count { font-size: 12px; color: var(--muted); }
+
+
+/* ---------- new report ---------- */
+
+.safety-bar {
+    background: #fbf4f4;
+    border: 1px solid #ead2d2;
+    border-inline-start: 4px solid var(--critical);
+}
+
+.safety-bar-links {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.safety-bar-call { font-size: 14px; }
+
+.safety-bar-support {
+    color: var(--sage-dark);
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+
+.safety-bar-call,
+.safety-bar-support {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.safety-bar-sos,
+.safety-bar-exit { font-size: 12px; }
+
+.report-language {
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: var(--text-sm);
+}
+
+.language-options { flex-wrap: wrap; }
+
+.report-language-btn {
+    min-height: 36px;
+    padding: 7px 12px;
+    font-size: 13px;
+}
+
+.voice-label { font-size: 11px; }
+.voice-area > p { font-size: 13px; }
+.mic-status { font-size: var(--text-md); }
+.voice-support { font-size: 12px; }
+.text-divider { font-size: 11px; }
+.report-card textarea { font-size: var(--text-md); }
+#characterCount { font-size: 11.5px; }
+.privacy-note summary,
+.privacy-note li { font-size: 13px; }
+.support-card > p,
+.support-point p { font-size: 13px; }
+.support-point span { font-size: 11px; }
+
+.large-mic.recording {
+    animation: micPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+    50% {
+        box-shadow:
+            0 0 0 17px #f0dddd,
+            0 14px 30px rgba(143, 65, 65, .18);
+    }
+}
+
+.evidence-attach { flex-wrap: wrap; }
+
+.evidence-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 2px 4px 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-soft);
+}
+
+.evidence-filename {
+    max-width: 200px;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evidence-remove {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.evidence-remove:hover {
+    background: var(--border);
+    color: var(--ink);
+}
+
+.evidence-hint {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-inline-start: 3px solid var(--moderate);
+    border-radius: 0 8px 8px 0;
+    background: #faf5ec;
+    color: var(--ink);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+}
+
+.confirmation-card > p,
+.help-box { font-size: var(--text-md); }
+.call-link { font-size: 13px; }
+.confirm-legal strong,
+.confirm-contacts strong { font-size: 11px; }
+.confirm-legal li,
+.confirm-contacts li { font-size: 13px; }
+
+
+/* ---------- cases ---------- */
+
+.table-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.case-search {
+    flex: 1 1 240px;
+    width: auto;
+    max-width: 380px;
+}
+
+.case-search input,
+#riskFilter { font-size: 13px; }
+
+#statusFilter {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: white;
+    color: var(--ink);
+    font-size: 13px;
+}
+
+.table-count {
+    margin-inline-start: auto;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.cases-hidden-note { margin: 12px 20px 0; }
+
+th { font-size: 11px; text-align: start; }
+td { color: var(--ink); font-size: 13px; }
+td.is-muted { color: var(--muted); font-style: italic; }
+
+.case-link {
+    padding: 4px 0;
+    border: none;
+    background: none;
+    color: var(--sage-dark);
+    font-size: 13px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+}
+
+.case-row:hover .case-link,
+.case-link:focus-visible {
+    text-decoration-color: currentColor;
+}
+
+.status-chip {
+    display: inline-block;
+    padding: 3px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-soft);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.status-chip.status-escalated {
+    border-color: #e3c6c6;
+    background: var(--critical-bg);
+    color: var(--critical);
+}
+
+.status-chip.status-new {
+    border-color: #d5e0ea;
+    background: #eef3f8;
+    color: #2f4f6b;
+}
+
+.status-chip.status-resolved,
+.status-chip.status-closed { color: var(--muted); }
+
+/* Phone width: six columns cannot fit, so each row becomes a card with
+   its own labels rather than a table scrolled sideways. */
+@media (max-width: 640px) {
+
+    .table-wrapper table { min-width: 0; }
+
+    .table-wrapper thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .table-wrapper tbody,
+    .table-wrapper tr,
+    .table-wrapper td { display: block; }
+
+    .table-wrapper tr.case-row {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+    }
+
+    .table-wrapper tr.case-row td {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        height: auto;
+        padding: 3px 0;
+        border-top: none;
+    }
+
+    .table-wrapper tr.case-row td::before {
+        content: attr(data-label);
+        flex: 0 0 84px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .case-row td:first-child::after { display: none; }
+
+}
+
+
+/* ---------- risk map ---------- */
+
+.map-header { flex-wrap: wrap; gap: 12px; }
+.map-header p { max-width: 620px; font-size: var(--text-sm); }
+.map-legend { flex-wrap: wrap; }
+.map-legend span { color: var(--ink); font-size: 12px; }
+
+.map-legend i {
+    width: auto;
+    height: auto;
+    background: none !important;
+    font-size: 11px;
+    font-style: normal;
+    line-height: 1;
+}
+
+.map-legend i.low { color: var(--low); }
+.map-legend i.moderate { color: var(--moderate); }
+.map-legend i.high { color: var(--high); }
+.map-legend i.critical { color: var(--critical); }
+
+.large-map {
+    display: block;
+    min-height: 0;
+}
+
+.live-risk-map {
+    width: 100%;
+    height: 560px;
+}
+
+.map-status {
+    display: grid;
+    place-items: center;
+    min-height: 320px;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.map-status.is-error { color: var(--critical); font-weight: 700; }
+
+.map-notes { padding: 0 23px; }
+.map-notes:empty { display: none; }
+
+.map-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 14px 0;
+    font-size: 13px;
+}
+
+.map-summary-tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.map-suppressed-note { margin: 0 0 16px; font-size: var(--text-sm); }
+
+.risk-marker span {
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--marker-color);
+    font-size: 10px;
+    line-height: 1;
+}
+
+.risk-popup-row,
+.risk-popup-row strong,
+.risk-popup-status { font-size: 12px; }
+
+
+/* ---------- guidance ---------- */
+
+.guidance-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.guidance-search {
+    position: relative;
+    flex: 1 1 260px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.guidance-search:focus-within {
+    border-color: var(--sage);
+    box-shadow: 0 0 0 3px var(--sage-light);
+}
+
+.guidance-search input {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--text-md);
+}
+
+.guidance-resources {
+    flex: 1 1 320px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 18px;
+    padding: 10px 16px;
+    border: 1px solid #ecd6d6;
+    border-inline-start: 4px solid var(--critical);
+    border-radius: var(--radius-md);
+    background: #fbf4f4;
+    font-size: 13px;
+}
+
+.guidance-resources strong {
+    flex-basis: 100%;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.guidance-resource b {
+    margin-inline-end: 4px;
+    color: var(--critical);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+}
+
+.guidance-card { min-height: 0; }
+.guidance-number { font-size: 11px; }
+.guidance-card p { font-size: 13px; }
+
+.playbook-summary { font-size: var(--text-md); }
+
+.playbook-summary::after {
+    content: "+";
+    margin-inline-start: auto;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.playbook[open] .playbook-summary::after { content: "\2212"; }
+
+.playbook-body { padding: 4px 16px 16px; padding-inline-start: 48px; }
+.playbook-when { font-size: 13px; }
+.playbook-label { font-size: 11px; }
+.playbook-section p,
+.playbook-section li { font-size: 13.5px; }
+
+.playbook-say {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--sage-light);
+}
+
+.playbook-label-avoid + p {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fbf1f1;
+}
+
+.playbook-boundary { font-size: 13px; }
+
+
+/* ---------- alerts ---------- */
+
+.alerts-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.summary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.chip-critical { border-color: #e3c6c6; background: var(--critical-bg); color: var(--critical); }
+.chip-high { border-color: #e8cfc6; background: var(--high-bg); color: var(--high); }
+.chip-reviewed { color: var(--low); }
+
+.alerts-filters label span { font-size: 11px; }
+.alerts-filters select { font-size: 13px; }
+.alerts-count { font-size: var(--text-sm); }
+
+.alert-card {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin-bottom: 8px;
+    padding: 12px 16px;
+}
+
+.alert-card:hover { transform: none; }
+
+.alert-body {
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.alert-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.alert-card .case-id { font-size: 13px; }
+
+.alert-card .alert-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: var(--text-sm);
+}
+
+.alert-status { color: var(--ink); }
+
+.alert-actions {
+    flex-wrap: wrap;
+    margin-left: 0;
+    margin-inline-start: auto;
+}
+
+.alert-ack-button,
+.alert-ack-badge { margin-left: 0; font-size: 12px; }
+
+.alert-view-button,
+.alert-ack-button,
+.alert-cancel-button {
+    min-height: 40px;
+    font-size: 12px;
+}
+
+.alert-ack-button.is-confirming {
+    background: var(--sage-dark);
+    color: white;
+}
+
+.alert-cancel-button {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+
+/* ---------- case brief and access gate ---------- */
+
+.case-brief-header p,
+.case-brief-urgency,
+.case-summary,
+.brief-reason,
+.brief-info strong,
+.brief-list-item,
+.brief-step p,
+.case-timeline-item,
+.reply-help,
+.case-action-row input[type="text"],
+.case-action-row select,
+.case-action-row textarea { font-size: 13px; }
+
+.brief-info span,
+.brief-list-item p,
+.brief-step > span,
+.case-timeline-item .timeline-body p,
+.case-timeline-item .timeline-body time,
+.case-brief-footer,
+.lang-tag { font-size: 11.5px; }
+
+.case-brief-close { width: 40px; height: 40px; }
+
+.admin-gate-card h2 { font-size: 18px; }
+.admin-gate-card p { font-size: 13px; }
+.admin-gate-card input { font-size: var(--text-md); min-height: 44px; }
+
+
+/* ---------- phone width ---------- */
+
+@media (max-width: 750px) {
+
+    /* It was hidden here, which left a phone with no way to change the
+       interface language outside the New Report page. */
+    .language-pill {
+        display: inline-block;
+        max-width: 120px;
+    }
+
+    /* Icon-only rail: the card's text is hidden at this width, which
+       left an empty box with nothing to read. */
+    .helpline-card { display: none; }
+
+    .topbar-right { gap: 10px; }
+
+}
+
+@media (max-width: 600px) {
+
+    .overview-case {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "main"
+            "meta"
+            "action";
+    }
+
+    .open-case-button { justify-self: start; }
+
+    .playbook-body { padding-inline-start: 16px; }
+
+    .alert-actions {
+        width: 100%;
+        margin-inline-start: 0;
+    }
+
+    .live-risk-map { height: 420px; }
+
+}
+
+@media (max-width: 500px) {
+
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+
+    .stat-card { min-height: 0; padding: 14px; }
+
+    .stat-card strong { font-size: 26px; }
+
+    .card-heading { padding: 16px; }
+
+    .overview-case,
+    .district-row { padding-inline: 16px; }
+
+}
