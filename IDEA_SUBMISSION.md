@@ -88,7 +88,7 @@ running past both boxes, not as a bullet under them.
 
 | Was on slide 2 | Now lives on |
 | --- | --- |
-| 244 automated tests | Slide 4 — it is a feasibility claim |
+| 245 automated tests | Slide 4 — it is a feasibility claim |
 | The 80% caste-motive gate | Slide 4 — risk table |
 | Safety map k-anonymity | Slide 4 — risk table |
 | NHAA docket, five entry points | Slides 3 and 5 |
@@ -144,7 +144,7 @@ COUNSELLOR        queue ordered by who is closest to harm
 ### Feasible because it is already running
 
 - Live deployment; WhatsApp intake working end to end through Twilio.
-- **244 automated tests**, every one encoding a defect that actually shipped.
+- **245 automated tests**, every one encoding a defect that actually shipped.
 - Escalation directory covering **554 districts across 33 states and UTs**, provenance-tagged as manually verified or machine-parsed.
 
 ### Risks and how each is handled — VISUAL
@@ -158,7 +158,7 @@ what this slide is for. The question in red, the answer beside it.
 |---|---|
 | *"What if it inflates a complaint?"* | SC/ST provisions are not attached below **80% caste-motive confidence** — a floor raised *above our own false positive*, after an unrelated workplace report scored 76.66% |
 | *"What if the model invents a fact?"* | **Nothing is cited that was not retrieved** above a similarity threshold; the prompt forbids answering from general knowledge |
-| *"What if it misreads the language?"* | **244 automated tests**, each from a defect that actually shipped; the temple-and-crowd report is a regression test in *all five languages* |
+| *"What if it misreads the language?"* | **245 automated tests**, each from a defect that actually shipped; the temple-and-crowd report is a regression test in *all five languages* |
 | *"What if the map exposes someone?"* | ~100m rounding, and any district with **fewer than three reports is withheld entirely** — with the count shown, so sparse never reads as safe |
 | *"What if a record is changed later?"* | The timeline is **append-only**. No edit path, no delete path — a record that can be rewritten is not evidence |
 
@@ -261,7 +261,7 @@ ministry -- both noted at the bottom.
 
 - **Source code** — `github.com/maimunaafrah341-maker/Athena`
 - **Live prototype** — `athena-production-af83.up.railway.app`
-- **Demo video** — `[ new link ]`
+- **Demo video** — `youtu.be/GoIUDN3haVU`
 
 ### Fix before submitting
 
