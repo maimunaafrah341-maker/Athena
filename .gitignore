@@ -8,3 +8,8 @@ cases.db
 evidence/
 cloudflared.exe
 _local/
+
+# Local submission working files -- video, voiceover, slide exports
+*.mp4
+/voice over.ogg
+/slide-visuals-245/

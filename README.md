@@ -6,7 +6,9 @@ Built for **SIH26093** (Ministry of Social Justice and Empowerment) — a real-t
 
 Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a chatbot that always has an answer — it's a pipeline that knows what it doesn't know, and hands a case to a human the moment it's uncertain rather than guessing.
 
-> 🎥 **[Watch the demo](https://youtu.be/BsoHkgnQuOM)** — a real report going through the full pipeline: voice intake, stress scoring, an SC/ST Act citation pulled from the actual ingested Act text, and escalation to the counsellor dashboard.
+> 🎥 **[Watch the demo](https://youtu.be/GoIUDN3haVU)** (2 min) — a Hindi voice report going through the full pipeline: sent for human review when Athena isn't confident, emergency numbers offered before anything is dialled, the counsellor's case brief with the signals behind the assessment, and the privacy-protected risk map.
+>
+> 🌐 **[Live prototype](https://athena-production-af83.up.railway.app)** — the WhatsApp-style demo at `/`, the counsellor dashboard at `/dashboard.html` (counsellor pages need an access key).
 
 ## What it does
 
@@ -110,7 +112,7 @@ fix generalises.
 |---|---|
 | `tests/test_understanding.py` | Caste motive firing in all five languages and clearing the 80% floor `kg.py` needs before attaching SC/ST provisions; caste reports not typing as domestic violence and routing to the wrong Act; a death threat not reading as suicidal ideation while genuine ideation still does; anonymous attackers not being downgraded; native Urdu and Bengali reported as native script |
 | `tests/test_api.py` | Every admin endpoint refusing a missing or wrong key; the follow-up token being per-case and one-shot; empty reports rejected while SOS with no text is not; map pins carrying nothing that identifies a reporter |
-| `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief. Also covers the demo page's own `UI_STRINGS` table, which imports nothing and so was invisible to all of the above, and forbids any label or error message written in English by JavaScript — the gap that put an English verdict under a Hindi reply |
+| `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief. Also covers the demo page's own `UI_STRINGS` table, which imports nothing and so was invisible to all of the above, and forbids any label or error message written in English by JavaScript — the gap that put an English verdict under a Hindi reply. And the caste playbook never telling counsellors that SC/ST provisions attach automatically, when `kg.py` attaches them only above the 80% floor |
 | `tests/test_response_prompt.py` | The prompt naming the statute actually in force, forbidding the evidence markers and the repealed penal code, and asking for plain text and one numeral system; markdown stripped from replies and from translations, without touching a statute citation |
 | `tests/test_risk.py` | Tier vocabulary matching the problem statement; contact counts rising with severity |
 | `tests/test_retrieval.py` | Retrieval well-formed and ordered, every evaluation query clearing the confidence gate including the non-English ones, and the SC/ST Act reachable from a caste query |
@@ -140,16 +142,16 @@ With the server running, open:
 Stated honestly rather than discovered by a judge mid-demo — full detail in `API_CONTRACT.md`'s Known Limitations section:
 
 - Live voice transcription now works end-to-end (2026-08-29: swapped from OpenAI, which needed a funded account that never happened, to Groq's hosted Whisper, which has a genuinely usable free tier) — verified against real audio (`demo_audio/caste_harassment_hindi.ogg`), not a placeholder.
-- The hosted deployment is currently memory-constrained on its free-tier plan (this stack needs ~1-2GB RAM) — see the [demo video](https://youtu.be/BsoHkgnQuOM) for a full live walkthrough rather than relying on the hosted link being up.
+- The stack needs roughly 1-2GB of RAM, so a small hosting plan can struggle under load — if the live link is slow or unavailable, the [demo video](https://youtu.be/GoIUDN3haVU) shows a full walkthrough.
 - Legal citations are deliberately scoped to the SC/ST Act only, matching 14566's actual legal remit — the detection mechanism underneath is not hardcoded to caste and can extend to other Acts as future scope.
 - Romanized-script retrieval can occasionally miss a correct smaller source document when a much larger one dominates ranking — a documented safe-failure edge case (declines rather than hallucinates), not yet fixed.
 - Admin access is a single shared API key today, not per-counsellor roles or an audit log.
 - The reporter's follow-up-contact preference is saved through a public endpoint (the person answering it has just filed a report and holds no counsellor key). It requires a per-case token issued with the report itself, is write-only, never echoes case content back, and refuses to overwrite an answer already given. Guessing a case ID is not enough to answer on someone's behalf.
 - Counsellor actions are timestamped on the case timeline, but not attributed to an individual — there is one shared admin key, so the log records *what* happened and *when*, not *who*. Per-counsellor identity needs real accounts first.
-- Voice acoustic features (`voice_features.py`) are **disabled on the hosted deployment**. Measured at ~20s and ~800MB on top of the embedding model, which is enough to get a memory-capped free-tier container killed mid-request. Set `ENABLE_VOICE_FEATURES=1` where the RAM exists; without it, voice notes still transcribe, assess, escalate and reply — on the transcript alone, so the SVI runs text-only.
+- Voice acoustic features (`voice_features.py`) are **disabled on the hosted deployment**. Measured at ~20s and ~800MB on top of the embedding model, which is enough to get a memory-capped container killed mid-request. Set `ENABLE_VOICE_FEATURES=1` where the RAM exists; without it, voice notes still transcribe, assess, escalate and reply — on the transcript alone, so the SVI runs text-only.
 - A village boycott can read as immediate danger and over-escalate. Hard negatives fixed that in four languages and, through cross-lingual similarity, suppressed danger detection on the Urdu report of a crowd gathered outside a house — so they were withdrawn. A mob at the door is worth more than a tidy queue, and the error points toward answering too fast.
 - A report containing **both** social boycott and depression scores only the isolation signal, because separating the two required a hard negative that suppresses the other. Chosen deliberately: it under-states vulnerability rather than inventing it.
-- Romanized detection is uneven across languages — romanized Hindi scores ~97 on the evaluation set against ~78 for romanized Telugu. Native script is effectively exact, since it is a Unicode range check. The honest claim is *five languages in native script, two of them also romanized, one of those two well*.
+- Romanized detection is uneven across languages — romanized Hindi scores ~97 on the evaluation set against ~78 for romanized Telugu, and romanized Urdu and Bengali are supported but not yet in the evaluation set at all. Native script is effectively exact, since it is a Unicode range check. The honest claim is *five languages in native script, four also romanized, with romanized accuracy measured for two of them and strong for one*.
 - "Auto 112 Dispatch" in `risk.py`'s response protocol is routing metadata describing the intended real-world action — Athena does not call ERSS-112 itself, and no screen tells a reporter that help has been dispatched.
 
 ## Team
