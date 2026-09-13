@@ -8,7 +8,7 @@ Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a
 
 > 🎥 **[Watch the demo](https://youtu.be/GoIUDN3haVU)** (2 min): a Hindi voice report going through the full pipeline: sent for human review when Athena isn't confident, emergency numbers offered before anything is dialled, the counsellor's case brief with the signals behind the assessment, and the privacy-protected risk map.
 >
-> 🌐 **[Live prototype](https://athena-production-af83.up.railway.app)**: the WhatsApp-style demo at `/`, the counsellor dashboard at `/dashboard.html`. Anyone can file a report; the counsellor pages need an access key because they show case data, and the demo video walks through them.
+> 🌐 **[Live prototype](https://athena-production-af83.up.railway.app)**: the WhatsApp-style demo at `/`, the counsellor dashboard at `/dashboard.html`. Anyone can file a report. The counsellor pages need an access key because they show case data: **SIH evaluators will find a direct dashboard link in the submission PDF**, and the demo video walks through those pages for everyone else.
 
 ## See it
 
