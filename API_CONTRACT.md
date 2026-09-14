@@ -769,7 +769,7 @@ POST http://localhost:8000/report/image
 Content-Type: multipart/form-data
 
 file: <image>       (required)
-language: "en"|"hi"|"te"   (optional form field, default "en": OCR script hint, not incident language)
+language: "en"|"hi"|"te"|"ur"|"bn"   (optional form field, default "en": OCR script hint, not incident language)
 ```
 
 OCR-extracts the text from the image (e.g. a screenshot of threatening

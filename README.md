@@ -40,7 +40,7 @@ Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a
 - **Resolves an escalation contact** from a national directory of 554 districts across 33 states/UTs, provenance-tagged (manually verified vs. machine-parsed) so nothing is presented with false confidence.
 - **Escalates to a human** on any of three independent triggers: Critical risk, Critical stress, or the system simply not being confident it understood the report at all.
 - **Binds every case to an NHAA docket** (`nhaa.py`), channel-agnostic across 14566 voice, IVRS, the Integrated Portal, chatbot, and mobile app, so the same pipeline runs no matter which of NHAA's real entry points a report came through, and every finalized case gets a docket ID the same way a real NHAA complaint does.
-- Supports low-disclosure reporting (anonymous / partial / full, enforced at the database layer), evidence upload with OCR, one-tap SOS, nearby police/hospital lookup, an anonymized safety map, and district-level pattern detection for week-over-week case spikes.
+- Supports low-disclosure reporting (anonymous / partial / full, enforced at the database layer), evidence upload with OCR in all five languages, one-tap SOS, nearby police/hospital lookup, an anonymized safety map, and district-level pattern detection for week-over-week case spikes.
 - **Tells the reporter what actually happens next.** The confirmation screen isn't a generic thank-you: it carries a reference ID, the grounded response, the legal provisions the report may fall under, and real helpline numbers (KIRAN is attached automatically on Critical/High stress, whether or not the word "suicide" appears). Critical/High cases are told plainly to call 112 themselves. Athena flags a case for a human, it does not dispatch police, and the UI never implies otherwise.
 - **Lets the reporter set how it's safe to be contacted**, including "do not contact me", recorded against the case and shown in the counsellor's timeline.
 - **Distinguishes "nobody has looked at this" from "in progress."** Counsellors mark an alert reviewed; that's tracked separately from status, so a Critical case sitting untouched is visible instead of blending into the queue.
@@ -119,7 +119,7 @@ Two ways to send voice, deliberately: the **mic button records live** from the b
 ## Tests
 
 ```bash
-pytest -q          # 245 tests, ~3min (the embedding model dominates)
+pytest -q          # 259 tests, ~3min (the embedding model dominates)
 pytest tests/test_i18n.py -q   # 40 of them, 0.3s, no model or database
 ```
 
@@ -134,6 +134,7 @@ fix generalises.
 | `tests/test_api.py` | Every admin endpoint refusing a missing or wrong key; the follow-up token being per-case and one-shot; empty reports rejected while SOS with no text is not; map pins carrying nothing that identifies a reporter |
 | `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief. Also covers the demo page's own `UI_STRINGS` table, which imports nothing and so was invisible to all of the above, and forbids any label or error message written in English by JavaScript, the gap that put an English verdict under a Hindi reply. Also stops the caste playbook telling counsellors that SC/ST provisions attach automatically, when `kg.py` attaches them only above the 80% floor |
 | `tests/test_response_prompt.py` | The prompt naming the statute actually in force, forbidding the evidence markers and the repealed penal code, and asking for plain text and one numeral system; markdown stripped from replies and from translations, without touching a statute citation |
+| `tests/test_ocr.py` | A photo reader for every supported language, because a missing one silently fell back to English and read nothing in an Urdu or Bengali screenshot; each reader being one script plus English; a WhatsApp photo being read in the script of its caption |
 | `tests/test_risk.py` | Tier vocabulary matching the problem statement; contact counts rising with severity |
 | `tests/test_retrieval.py` | Retrieval well-formed and ordered, every evaluation query clearing the confidence gate including the non-English ones, and the SC/ST Act reachable from a caste query |
 
@@ -172,6 +173,7 @@ Stated honestly rather than discovered by a judge mid-demo. Full detail is in `A
 - A village boycott can read as immediate danger and over-escalate. Hard negatives fixed that in four languages and, through cross-lingual similarity, suppressed danger detection on the Urdu report of a crowd gathered outside a house, so they were withdrawn. A mob at the door is worth more than a tidy queue, and the error points toward answering too fast.
 - A report containing **both** social boycott and depression scores only the isolation signal, because separating the two required a hard negative that suppresses the other. Chosen deliberately: it under-states vulnerability rather than inventing it.
 - Romanized detection is uneven across languages: romanized Hindi scores ~97 on the evaluation set against ~78 for romanized Telugu, and romanized Urdu and Bengali are supported but not yet in the evaluation set at all. Native script is effectively exact, since it is a Unicode range check. The honest claim is *five languages in native script, four also romanized, with romanized accuracy measured for two of them and strong for one*.
+- Photo OCR reads all five scripts. On test chat screenshots, Bengali and Naskh-style Urdu came through almost word for word, while Nastaliq, the calligraphic Urdu style, lost words (that threat still scored Critical). A WhatsApp photo is read in the language of its caption, and in English when it has none. Each language's OCR model downloads on its first use after a deploy, so that first photo is slow.
 - "Auto 112 Dispatch" in `risk.py`'s response protocol is routing metadata describing the intended real-world action. Athena does not call ERSS-112 itself, and no screen tells a reporter that help has been dispatched.
 
 ## Team

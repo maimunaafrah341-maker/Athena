@@ -660,7 +660,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             try:
                 reply_text = await asyncio.wait_for(
                     asyncio.to_thread(
-                        _handle_whatsapp_media, media_url, declared_type
+                        _handle_whatsapp_media, media_url, declared_type, body
                     ),
                     timeout=WHATSAPP_REPLY_BUDGET_SECONDS,
                 )
@@ -778,12 +778,16 @@ def _extract_voice_features_if_affordable(audio_path, transcription):
         return None
 
 
-def _handle_whatsapp_media(media_url, declared_type):
+def _handle_whatsapp_media(media_url, declared_type, caption=""):
     """
     Runs a WhatsApp voice note or photo through the pipeline and
     returns the text to reply with. Shared by both the synchronous path
     (the default) and the background-task path, so the two can never
     drift apart in what they actually do.
+
+    `caption` is the text sent with the attachment, if any. A photo has
+    no language selector the way the web form does, so the caption's
+    language is the only hint for which script to read.
 
     Always returns something sendable. Never raises: whichever path
     calls this, an exception escaping would leave a person who just
@@ -829,7 +833,14 @@ def _handle_whatsapp_media(media_url, declared_type):
         else:
 
             from ocr import extract_text  # deferred, same reason as report_image
-            extracted = extract_text(media_bytes, language="en")
+            from understanding import detect_language
+
+            # Every script reader also reads English, so a caption in
+            # Urdu or Bengali costs nothing for an English screenshot,
+            # while English alone reads nothing in an Urdu one. With no
+            # caption, English is still the only safe default.
+            ocr_language = detect_language(caption) if (caption or "").strip() else "en"
+            extracted = extract_text(media_bytes, language=ocr_language)
 
             if not (extracted or "").strip():
                 return (
@@ -894,9 +905,10 @@ async def report_image(
     a typed report. The image is saved and linked to the resulting
     case so the original evidence stays available.
 
-    `language` is a hint for OCR script selection ("en"/"hi"/"te",
-    default "en") -- separate from incident-language auto-detection,
-    which still runs on the extracted text same as normal.
+    `language` is a hint for OCR script selection ("en"/"hi"/"te"/"ur"/
+    "bn", default "en") -- separate from incident-language
+    auto-detection, which still runs on the extracted text same as
+    normal.
     """
 
     image_bytes = await file.read()

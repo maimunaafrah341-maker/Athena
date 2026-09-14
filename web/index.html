@@ -1859,10 +1859,10 @@
   // /report/image (ocr.py/EasyOCR) and runs the extracted text through
   // the same pipeline as a typed report -- this backend endpoint
   // already existed and worked, it just had no UI anywhere to reach it
-  // from. `language` is an OCR script hint (en/hi/te only -- EasyOCR's
-  // language-set support doesn't yet cover ur/bn here), not the same
-  // thing as incident-language auto-detection, which still runs on
-  // whatever text OCR extracts.
+  // from. `language` is an OCR script hint (the chosen UI language: a
+  // Urdu speaker's screenshot is most likely Urdu), not the same thing
+  // as incident-language auto-detection, which still runs on whatever
+  // text OCR extracts. Every script reader also reads English.
   async function submitImageToPipeline(file, language) {
 
     lastAttempt = () => submitImageToPipeline(file, language);
@@ -1901,7 +1901,7 @@
     const reader = new FileReader();
     reader.onload = async () => {
       addOutgoingImage(reader.result);
-      await submitImageToPipeline(file, "en");
+      await submitImageToPipeline(file, currentUiLang);
     };
     reader.readAsDataURL(file);
   }
