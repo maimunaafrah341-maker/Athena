@@ -6,7 +6,7 @@ Built for **SIH26093** (Ministry of Social Justice and Empowerment): a real-time
 
 Core philosophy: **UNDERSTAND → VERIFY → ACT → ESCALATE.** Athena is not a chatbot that always has an answer. It's a pipeline that knows what it doesn't know, and hands a case to a human the moment it's uncertain rather than guessing.
 
-> 🎥 **[Watch the demo](https://youtu.be/GoIUDN3haVU)** (2 min): a Hindi voice report going through the full pipeline: sent for human review when Athena isn't confident, emergency numbers offered before anything is dialled, the counsellor's case brief with the signals behind the assessment, and the privacy-protected risk map.
+> 🎥 **[Watch the demo](https://youtu.be/P0v5kff4hN8)** (2 min): a Hindi voice report going through the full pipeline: sent for human review when Athena isn't confident, emergency numbers offered before anything is dialled, the counsellor's case brief with the signals behind the assessment, and the privacy-protected risk map.
 >
 > 🌐 **[Live prototype](https://athena-production-af83.up.railway.app)**: the WhatsApp-style demo at `/`, the counsellor dashboard at `/dashboard.html`. Anyone can file a report. The counsellor pages need an access key because they show case data: **SIH evaluators will find a direct dashboard link in the submission PDF**, and the demo video walks through those pages for everyone else.
 
@@ -163,7 +163,7 @@ With the server running, open:
 Stated honestly rather than discovered by a judge mid-demo. Full detail is in `API_CONTRACT.md`'s Known Limitations section.
 
 - Live voice transcription now works end-to-end (2026-08-29: swapped from OpenAI, which needed a funded account that never happened, to Groq's hosted Whisper, which has a genuinely usable free tier), verified against real audio (`demo_audio/caste_harassment_hindi.ogg`), not a placeholder.
-- The stack needs roughly 1-2GB of RAM, so a small hosting plan can struggle under load. If the live link is slow or unavailable, the [demo video](https://youtu.be/GoIUDN3haVU) shows a full walkthrough.
+- The stack needs roughly 1-2GB of RAM, so a small hosting plan can struggle under load. If the live link is slow or unavailable, the [demo video](https://youtu.be/P0v5kff4hN8) shows a full walkthrough.
 - Legal guidance is advisory, not a determination. SC/ST Act provisions attach only when caste motive clears the 80% confidence floor, so a caste atrocity described too vaguely gets the general BNS or PWDVA route for its incident type instead, and every provision is marked for a counsellor to verify before citing.
 - Romanized-script retrieval can occasionally miss a correct smaller source document when a much larger one dominates ranking: a documented safe-failure edge case (declines rather than hallucinates), not yet fixed.
 - Admin access is a single shared API key today, not per-counsellor roles or an audit log.
