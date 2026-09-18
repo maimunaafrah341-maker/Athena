@@ -80,3 +80,40 @@ def test_every_tier_has_a_route_and_an_action(tier):
 
     for field in ("sla", "route", "action"):
         assert protocol.get(field), "%s has no %s" % (tier, field)
+
+
+# SIH26093: "Automatically recommend counselling, legal aid, medical
+# assistance, police intervention, witness protection, or emergency
+# support based on risk level." Counselling (Tele-MANAS/KIRAN), legal
+# aid (DLSA) and police (SP/DM, 112) were already routed. Medical aid
+# and witness protection were named nowhere until a coverage review on
+# 2026-09-18 read the problem statement back against the table.
+@pytest.mark.parametrize("tier", ["High", "Critical"])
+def test_top_tiers_route_medical_aid_and_witness_protection(tier):
+    action = RESPONSE_PROTOCOL[tier]["action"]
+
+    assert "Medical Aid" in action, "%s routes no medical assistance" % tier
+    assert "Witness Protection" in action, "%s routes no witness protection" % tier
+
+
+@pytest.mark.parametrize("tier", ["Low", "Moderate"])
+def test_lower_tiers_do_not_promise_witness_protection(tier):
+    """
+    A referral offered at every tier is not a referral. Witness
+    protection belongs to the tiers threat and intimidation drive.
+    """
+
+    assert "Witness Protection" not in RESPONSE_PROTOCOL[tier]["action"]
+
+
+@pytest.mark.parametrize("tier", ["High", "Critical"])
+def test_a_medical_capable_number_reaches_the_top_tiers(tier):
+    """
+    112 is India's unified emergency number, police, fire AND ambulance,
+    so "medical assistance" is a real number on the reply and not only
+    a line in the staff-facing protocol.
+    """
+
+    phones = {c["phone"] for c in get_deterministic_contacts(tier, "Moderate")}
+
+    assert "112" in phones, "%s offers no ambulance-capable number" % tier

@@ -119,11 +119,14 @@ Two ways to send voice, deliberately: the **mic button records live** from the b
 ## Tests
 
 ```bash
-pytest -q          # 259 tests, ~3min (the embedding model dominates)
+pytest -q          # 265 tests, ~3min (the embedding model dominates)
 pytest tests/test_i18n.py -q   # 40 of them, 0.3s, no model or database
 ```
 
-Every test encodes a defect this project actually shipped, not a hypothetical, and the
+Every test encodes a defect this project actually shipped, not a hypothetical (the six added
+on 2026-09-18 are the exception: they come from reading SIH26093's requirement list back
+against the routing table and finding medical assistance and witness protection named
+nowhere), and the
 sentences in them are the ones that *found* each bug, deliberately not the example anchors
 added to fix it. A test that reuses its own anchor proves the anchor exists, not that the
 fix generalises.
@@ -135,7 +138,7 @@ fix generalises.
 | `tests/test_i18n.py` | Every translation key present in all five languages, no key referenced but undefined, no value left as untranslated English, and no hardcoded English heading in the case brief. Also covers the demo page's own `UI_STRINGS` table, which imports nothing and so was invisible to all of the above, and forbids any label or error message written in English by JavaScript, the gap that put an English verdict under a Hindi reply. Also stops the caste playbook telling counsellors that SC/ST provisions attach automatically, when `kg.py` attaches them only above the 80% floor |
 | `tests/test_response_prompt.py` | The prompt naming the statute actually in force, forbidding the evidence markers and the repealed penal code, and asking for plain text and one numeral system; markdown stripped from replies and from translations, without touching a statute citation |
 | `tests/test_ocr.py` | A photo reader for every supported language, because a missing one silently fell back to English and read nothing in an Urdu or Bengali screenshot; each reader being one script plus English; a WhatsApp photo being read in the script of its caption |
-| `tests/test_risk.py` | Tier vocabulary matching the problem statement; contact counts rising with severity |
+| `tests/test_risk.py` | Tier vocabulary matching the problem statement; contact counts rising with severity; High and Critical routing the medical aid and witness protection SIH26093 asks for, and the lower tiers not promising protection they should not |
 | `tests/test_retrieval.py` | Retrieval well-formed and ordered, every evaluation query clearing the confidence gate including the non-English ones, and the SC/ST Act reachable from a caste query |
 
 `tests/conftest.py` points the database at a temp file first, so running the suite cannot

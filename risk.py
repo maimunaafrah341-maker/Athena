@@ -66,6 +66,14 @@ INCIDENT_TYPE_CONFIDENCE_FLOOR = 60
 # intended real-world action for a Critical case; this module doesn't
 # call India's ERSS-112 system itself, same way kg.py's
 # escalation_contact is a phone number to call, not an auto-dialer.
+#
+# "Medical Aid" and "Witness Protection Referral" read the same way:
+# both are things SIH26093 asks the module to recommend by risk level,
+# and both are decisions a human makes. Witness protection sits at
+# High and Critical because those are the tiers threat and
+# intimidation drive, and s.15A(11) of the SC/ST (PoA) Act gives a
+# victim or witness that protection. Athena names the referral; the
+# district authority grants it.
 RESPONSE_PROTOCOL = {
     "Low": {
         "sla": "24 hours",
@@ -80,12 +88,18 @@ RESPONSE_PROTOCOL = {
     "High": {
         "sla": "15 minutes",
         "route": "Express District Alert",
-        "action": "SP Office + DM Office + Tele-MANAS",
+        "action": (
+            "SP Office + DM Office + Tele-MANAS + Medical Aid "
+            "+ Witness Protection Referral"
+        ),
     },
     "Critical": {
         "sla": "Immediate",
         "route": "ERSS 112 Hard Override",
-        "action": "Auto 112 Dispatch + SP Intercept",
+        "action": (
+            "Auto 112 Dispatch + SP Intercept + Medical Aid "
+            "+ Witness Protection Referral"
+        ),
     },
 }
 
