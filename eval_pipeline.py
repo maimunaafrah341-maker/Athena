@@ -107,9 +107,10 @@ CASES = [
     # range text was forced to the "en" default). These are novel
     # phrasings, not anchor-set copies, so this measures genuine
     # generalization, same discipline as the te_rom_novel_* cases
-    # above. Translation quality here has NOT had a native-speaker
-    # review pass -- flagged honestly, same as any other unverified
-    # claim in this codebase; recommended before relying on this in a
+    # above. The Urdu wording was reviewed by a native Urdu speaker on
+    # the team (2026-09-18); the Bengali cases below have NOT had that
+    # pass yet -- flagged honestly, same as any other unverified claim
+    # in this codebase, and recommended before relying on Bengali in a
     # live judged demo.
     ("ur_dv_novel", "میرا شوہر روزانہ مجھ پر ہاتھ اٹھاتا ہے اور مجھے بہت ڈرا دھمکا کر رکھتا ہے۔", "ur", "native",
      "novel domestic_violence phrasing, native Urdu"),
